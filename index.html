@@ -54,6 +54,7 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
+            transition: left 0.3s ease, top 0.3s ease;
         }
         
         .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
@@ -213,13 +214,22 @@
         function handleResize(e, el, id) {
             e.stopPropagation();
             let startW = el.offsetWidth, startX = e.clientX;
+            el.style.transition = 'none'; // Fix: Kill transition during active resize
+
             window.onpointermove = (ev) => {
                 let nw = Math.max(40 * scaleFactor, startW + (ev.clientX - startX));
                 el.style.width = nw + 'px'; el.style.height = nw + 'px';
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                rtdb.ref(`relics/${id}`).update({ w: el.offsetWidth / scaleFactor, h: el.offsetHeight / scaleFactor });
+                el.style.transition = 'left 0.3s ease, top 0.3s ease';
+                
+                const finalW = el.offsetWidth / scaleFactor;
+                const finalH = el.offsetHeight / scaleFactor;
+
+                // Local state update prevents snap-back during DB latency
+                if (allRelics[id]) { allRelics[id].w = finalW; allRelics[id].h = finalH; }
+                rtdb.ref(`relics/${id}`).update({ w: finalW, h: finalH });
             };
         }
 
@@ -264,6 +274,7 @@
         }
 
         function menuSnapOriginal() {
+            allRelics[activeMenuId].w = 80; allRelics[activeMenuId].h = 80;
             rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 });
         }
 
