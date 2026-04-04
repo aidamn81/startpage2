@@ -50,12 +50,11 @@
             margin-top: 25px; padding: 20px; border-top: 1px double var(--gold);
             text-align: center; display: none;
         }
-        .time-value { font-size: 2.8rem; color: var(--gold); font-family: 'Cinzel'; display: block; margin: 10px 0; text-shadow: 0 0 10px rgba(140, 115, 64, 0.4); }
-        .back-link { margin-top: 30px; color: var(--gold); text-decoration: none; font-size: 0.8rem; font-family: 'Cinzel'; opacity: 0.6; transition: 0.3s; }
-        .back-link:hover { opacity: 1; }
+        .time-value { font-size: 2.8rem; color: var(--gold); font-family: 'Cinzel'; display: block; margin: 10px 0; }
+        .back-link { margin-top: 30px; color: var(--gold); text-decoration: none; font-size: 0.8rem; font-family: 'Cinzel'; opacity: 0.6; }
     </style>
 </head>
-<body>
+<body onload="loadLocations()">
 
     <div class="oracle-container">
         <h1>The Journey Oracle</h1>
@@ -67,12 +66,12 @@
 
         <div class="input-group">
             <label>Starting Point (Home)</label>
-            <input type="text" id="start-location" placeholder="Address or Station...">
+            <input type="text" id="start-location" placeholder="Address or Station..." onchange="saveLocations()">
         </div>
 
         <div class="input-group">
             <label>Destination (Work)</label>
-            <input type="text" id="end-location" placeholder="Address or Company...">
+            <input type="text" id="end-location" placeholder="Address or Company..." onchange="saveLocations()">
             <button class="map-action" onclick="consultMaps()">Check Public Transport</button>
         </div>
 
@@ -98,16 +97,31 @@
     <a href="index.html" class="back-link">← Return to Archive</a>
 
     <script>
+        // Save to LocalStorage whenever the fields change
+        function saveLocations() {
+            const start = document.getElementById('start-location').value;
+            const end = document.getElementById('end-location').value;
+            localStorage.setItem('oracle_start', start);
+            localStorage.setItem('oracle_end', end);
+        }
+
+        // Load from LocalStorage on page open
+        function loadLocations() {
+            const savedStart = localStorage.getItem('oracle_start');
+            const savedEnd = localStorage.getItem('oracle_end');
+            if (savedStart) document.getElementById('start-location').value = savedStart;
+            if (savedEnd) document.getElementById('end-location').value = savedEnd;
+        }
+
         function consultMaps() {
             const origin = encodeURIComponent(document.getElementById('start-location').value);
             const destination = encodeURIComponent(document.getElementById('end-location').value);
             
             if (!destination) { 
-                alert("The destination is unknown. Speak it into the field."); 
+                alert("The destination is unknown."); 
                 return; 
             }
 
-            // deep link to Google Maps with Transit mode (public transport)
             const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=transit`;
             window.open(url, '_blank');
         }
@@ -118,7 +132,7 @@
             const needsPrep = document.getElementById('prep-toggle').checked;
 
             if (!startTimeStr) { 
-                alert("The Oracle requires your start time to calculate the past."); 
+                alert("Please enter a start time."); 
                 return; 
             }
 
@@ -126,10 +140,7 @@
             let date = new Date();
             date.setHours(parseInt(hours), parseInt(mins), 0);
 
-            // Subtract Journey
             date.setMinutes(date.getMinutes() - travelMins);
-
-            // Subtract 2 Hours (120m) Prep if checked
             if (needsPrep) {
                 date.setMinutes(date.getMinutes() - 120);
             }
