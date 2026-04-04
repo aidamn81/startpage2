@@ -196,10 +196,9 @@
             if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
-            const gridWidth = grid.offsetWidth;
             const cols = window.innerWidth > 600 ? 5 : 4;
             const gap = 15;
-            const cellW = 65; // Default small size
+            const cellW = 65;
 
             items.forEach((id, index) => {
                 const r = allRelics[id];
@@ -207,11 +206,9 @@
                 wrap.className = 'relic-wrapper' + (isEditMode ? ' wiggle' : '');
                 wrap.dataset.id = id;
 
-                // Priority: Saved Size -> Default Small Size
                 const w = r.w || cellW;
                 const h = r.h || cellW;
                 
-                // Priority: Saved Position -> Calculated Grid Position
                 const defaultX = (index % cols) * (cellW + gap + 15);
                 const defaultY = Math.floor(index / cols) * (cellW + gap + 35);
 
@@ -232,27 +229,52 @@
                     <div class="resize-handle"></div>
                 `;
                 
+                let startPos = { x: 0, y: 0 };
+                let isDragging = false;
+
                 wrap.addEventListener('pointerdown', (e) => {
                     if (e.target.classList.contains('resize-handle')) {
                         handleResize(e, wrap, id);
                         return;
                     }
+                    
+                    startPos = { x: e.clientX, y: e.clientY };
+                    isDragging = false;
 
                     const now = Date.now();
+                    // Double Tap logic in edit mode
                     if (isEditMode && now - lastTap < 300) {
                         e.preventDefault(); e.stopPropagation();
                         showMenu(e, id);
-                    } else if (!isEditMode) {
-                        if(r.type === 'folder') enterFolder(id, r.name);
-                        else if(r.url) window.open(r.url, '_blank'); // Explicit new tab
+                        return;
                     }
                     lastTap = now;
-                    if (isEditMode) handleDrag(e, wrap, id);
+
+                    if (isEditMode) {
+                        handleDrag(e, wrap, id, (moved) => { isDragging = moved; });
+                    }
                 });
+
+                wrap.addEventListener('pointerup', (e) => {
+                    const dist = Math.sqrt(Math.pow(e.clientX - startPos.x, 2) + Math.pow(e.clientY - startPos.y, 2));
+                    
+                    // If we didn't drag or move much, treat as a click
+                    if (!isDragging && dist < 5) {
+                        if (!isEditMode) {
+                            if (r.type === 'folder') {
+                                enterFolder(id, r.name);
+                            } else if (r.url) {
+                                // Ensure link opens in new tab
+                                let url = r.url.startsWith('http') ? r.url : 'https://' + r.url;
+                                window.open(url, '_blank');
+                            }
+                        }
+                    }
+                });
+
                 grid.appendChild(wrap);
             });
 
-            // Maintain scrollable height
             const wrappers = document.querySelectorAll('.relic-wrapper');
             let maxHeight = 500;
             wrappers.forEach(el => {
@@ -262,26 +284,33 @@
             grid.style.height = (maxHeight + 100) + 'px';
         }
 
-        function handleDrag(e, el, id) {
+        function handleDrag(e, el, id, callback) {
             let startX = e.clientX;
             let startY = e.clientY;
             let origX = parseInt(el.style.left);
             let origY = parseInt(el.style.top);
+            let moved = false;
 
-            function onMove(e) {
-                let dx = e.clientX - startX;
-                let dy = e.clientY - startY;
-                el.style.left = (origX + dx) + 'px';
-                el.style.top = (origY + dy) + 'px';
+            function onMove(ev) {
+                let dx = ev.clientX - startX;
+                let dy = ev.clientY - startY;
+                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+                    moved = true;
+                    el.style.left = (origX + dx) + 'px';
+                    el.style.top = (origY + dy) + 'px';
+                    if (callback) callback(true);
+                }
             }
 
             function onUp() {
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
-                rtdb.ref(`relics/${id}`).update({
-                    x: parseInt(el.style.left),
-                    y: parseInt(el.style.top)
-                });
+                if (moved) {
+                    rtdb.ref(`relics/${id}`).update({
+                        x: parseInt(el.style.left),
+                        y: parseInt(el.style.top)
+                    });
+                }
             }
             window.addEventListener('pointermove', onMove);
             window.addEventListener('pointerup', onUp);
@@ -293,8 +322,8 @@
             let startW = parseInt(el.style.width);
             let frame = el.querySelector('.folder-frame, .relic-frame');
 
-            function onMove(e) {
-                let dx = e.clientX - startX;
+            function onMove(ev) {
+                let dx = ev.clientX - startX;
                 let newSize = Math.max(40, startW + dx);
                 el.style.width = newSize + 'px';
                 el.style.height = (newSize + 25) + 'px';
