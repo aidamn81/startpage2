@@ -22,7 +22,6 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            /* Enable scrolling down */
             overflow-x: hidden; overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
@@ -37,14 +36,14 @@
             width: 100%; padding: 10px 15px; display: flex; justify-content: space-between; 
             align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
             box-sizing: border-box; z-index: 3000;
-            position: sticky; top: 0; /* Keeps menu at top while scrolling */
+            position: sticky; top: 0;
             padding-top: env(safe-area-inset-top, 10px);
         }
 
         #archive-grid { 
             position: relative; width: 100%; min-height: calc(100vh - 60px);
             box-sizing: border-box; z-index: 5;
-            padding-bottom: 500px; /* Extra room for infinite feel */
+            padding-bottom: 500px; 
         }
 
         .is-editing#archive-grid::before {
@@ -79,15 +78,15 @@
         
         .relic-name { 
             margin-top: 5px; font-family: 'Cinzel'; 
-            font-size: calc(0.7rem * var(--scale)); 
+            font-size: calc(0.75rem * var(--scale)); 
             color: #fff; text-align: center; width: 180%; transform: translateX(-22.5%); 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         .resize-handle {
-            position: absolute; bottom: -8px; right: -8px; width: 24px; height: 24px;
+            position: absolute; bottom: -10px; right: -10px; width: 28px; height: 28px;
             background: var(--gold); border-radius: 50%; z-index: 25; display: none;
-            border: 2.5px solid #000; box-shadow: 0 0 5px #000;
+            border: 2.5px solid #000;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -106,7 +105,7 @@
     <div id="top-controls">
         <div style="display:flex; align-items:center;">
             <button id="back-btn" class="toggle-btn" style="display:none; margin-right:8px;" onclick="goBack()">←</button>
-            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.85rem;">Gothic Archive</span>
+            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.9rem;">Gothic Archive</span>
         </div>
         <div style="display:flex; gap: 6px;">
             <button id="recenter-btn" class="toggle-btn" style="display:none; border-color: var(--crimson);" onclick="recenterRelics()">Formation</button>
@@ -137,8 +136,14 @@
         let isEditMode = false, currentFolder = 'root', allRelics = {}, scaleFactor = 1, activeMenuId = null;
 
         function updateScale() {
-            const targetWidth = window.innerWidth > 768 ? window.innerWidth : 850; 
-            scaleFactor = window.innerWidth / targetWidth;
+            const width = window.innerWidth;
+            // iPad typical width is 768-1024. iPhone is 375-430.
+            // If on a small screen (iPhone), we boost the base scale so things aren't tiny.
+            if (width < 500) {
+                scaleFactor = width / 450; // iPhone: Zoom in by basing scale on a smaller canvas
+            } else {
+                scaleFactor = width / 950; // iPad: Use standard wider canvas
+            }
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -167,7 +172,7 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Allow vertical scrolling (no bottom limit), but lock horizontally and top
+                // Horizontal Lock + Top Lock + Infinite Scroll Down
                 const displayX = Math.max(10, Math.min(r.x * scaleFactor, window.innerWidth - w - 10));
                 const displayY = Math.max(20, r.y * scaleFactor);
 
@@ -206,7 +211,6 @@
             el.classList.add('dragging');
             window.onpointermove = (ev) => {
                 let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
-                // Lock to top (20px) but allow infinite down
                 let ny = Math.max(20, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
@@ -286,8 +290,14 @@
 
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
+            // On iPhone, we recenter in 3 columns for better fit. iPad stays at 6.
+            const cols = window.innerWidth < 500 ? 3 : 6;
+            const spacing = window.innerWidth < 500 ? 125 : 115;
             items.forEach((id, i) => {
-                rtdb.ref(`relics/${id}`).update({ x: 35 + (i % 6 * 115), y: 35 + (Math.floor(i / 6) * 115) });
+                rtdb.ref(`relics/${id}`).update({ 
+                    x: 35 + (i % cols * spacing), 
+                    y: 35 + (Math.floor(i / cols) * spacing) 
+                });
             });
         }
 
