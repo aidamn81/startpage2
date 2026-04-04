@@ -22,7 +22,11 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            overflow-x: hidden; overflow-y: auto; 
+            overflow-x: hidden; overflow-y: auto;
+            /* DISABLE NATIVE SELECTION & CALLOUTS */
+            -webkit-user-select: none; user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: pan-y; /* Allows scrolling but stops horizontal interference */
         }
 
         body {
@@ -44,7 +48,6 @@
             display: flex; flex-wrap: wrap; gap: 25px; align-content: flex-start;
         }
 
-        /* Guide grid only in edit mode */
         .is-editing#archive-grid {
             background-image: radial-gradient(rgba(140, 115, 64, 0.1) 1px, transparent 1px);
             background-size: 30px 30px;
@@ -52,7 +55,7 @@
 
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
-            align-items: center; cursor: pointer; user-select: none; z-index: 10;
+            align-items: center; cursor: pointer; z-index: 10;
         }
         
         .dragging { opacity: 0.4; transform: scale(0.95); }
@@ -62,6 +65,7 @@
             display: flex; align-items: center; justify-content: center; 
             background: #111; border: 1.5px solid #222; position: relative;
             box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+            pointer-events: none; /* Prevents frame from eating drag events */
         }
         
         .folder-frame::after {
@@ -70,20 +74,22 @@
             background-size: 100% 100%;
         }
 
-        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
         
         .relic-name { 
             margin-top: 8px; font-family: 'Cinzel'; 
             font-size: calc(0.7rem * var(--scale)); 
             color: #fff; text-align: center; width: 120%;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            pointer-events: none;
         }
 
-        /* RESIZE HANDLE */
+        /* ENHANCED RESIZE HANDLE FOR TOUCH */
         .resize-handle {
-            position: absolute; bottom: -8px; right: -8px; width: 28px; height: 28px;
-            background: var(--gold); border-radius: 50%; z-index: 25; display: none;
-            border: 2px solid #000; cursor: nwse-resize;
+            position: absolute; bottom: -12px; right: -12px; width: 36px; height: 36px;
+            background: var(--gold); border-radius: 50%; z-index: 50; display: none;
+            border: 3px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.8);
+            pointer-events: auto;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -158,7 +164,7 @@
                 const h = r.h || 80;
 
                 wrap.style.width = w + 'px';
-                wrap.style.height = (h + 25) + 'px'; // +25 for text space
+                wrap.style.height = (h + 25) + 'px';
 
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${w}px; height:${h}px;">
@@ -168,21 +174,27 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // Drag to reorder
                 wrap.draggable = isEditMode;
-                wrap.ondragstart = (e) => { e.dataTransfer.setData('text', id); wrap.classList.add('dragging'); };
+                wrap.ondragstart = (e) => { 
+                    if (e.target.classList.contains('resize-handle')) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    e.dataTransfer.setData('text', id); 
+                    wrap.classList.add('dragging'); 
+                };
                 wrap.ondragend = () => wrap.classList.remove('dragging');
                 wrap.ondragover = (e) => e.preventDefault();
                 wrap.ondrop = (e) => {
                     const draggedId = e.dataTransfer.getData('text');
-                    if (draggedId !== id) swapOrder(draggedId, id);
+                    if (draggedId && draggedId !== id) swapOrder(draggedId, id);
                 };
 
-                // Resize & Double Tap logic
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) {
+                            e.stopPropagation();
                             handleResize(e, wrap, id);
                         } else {
                             const now = Date.now();
@@ -205,30 +217,38 @@
         function swapOrder(id1, id2) {
             const order1 = allRelics[id1].sortOrder || 0;
             const order2 = allRelics[id2].sortOrder || 0;
-            const updates = {};
-            updates[`relics/${id1}/sortOrder`] = order2;
-            updates[`relics/${id2}/sortOrder`] = order1;
-            rtdb.ref().update(updates);
+            rtdb.ref().update({
+                [`relics/${id1}/sortOrder`]: order2,
+                [`relics/${id2}/sortOrder`]: order1
+            });
         }
 
         function handleResize(e, el, id) {
-            e.preventDefault();
             const frame = el.querySelector('.relic-frame, .folder-frame');
             const startW = frame.offsetWidth;
-            const startX = e.clientX;
+            const startX = e.clientX || e.touches[0].clientX;
 
-            window.onpointermove = (ev) => {
-                const nw = Math.max(50, startW + (ev.clientX - startX));
+            const onMove = (ev) => {
+                const currentX = ev.clientX || (ev.touches ? ev.touches[0].clientX : startX);
+                const nw = Math.max(50, startW + (currentX - startX));
                 frame.style.width = nw + 'px';
                 frame.style.height = nw + 'px';
                 el.style.width = nw + 'px';
                 el.style.height = (nw + 25) + 'px';
             };
 
-            window.onpointerup = () => {
-                window.onpointermove = null;
-                rtdb.ref(`relics/${id}`).update({ w: frame.offsetWidth, h: frame.offsetHeight });
+            const onEnd = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onEnd);
+                // SAVE IMMEDIATELY
+                rtdb.ref(`relics/${id}`).update({ 
+                    w: parseInt(frame.style.width), 
+                    h: parseInt(frame.style.height) 
+                });
             };
+
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onEnd);
         }
 
         function showMenu(e) {
@@ -262,7 +282,11 @@
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
         
-        document.getElementById('edit-toggle').onclick = () => { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); };
+        document.getElementById('edit-toggle').onclick = () => { 
+            isEditMode = !isEditMode; 
+            document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; 
+            renderGrid(); 
+        };
     </script>
 </body>
 </html>
