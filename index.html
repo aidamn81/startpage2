@@ -22,14 +22,15 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            scroll-padding-top: 80px; overflow-x: hidden; overflow-y: auto; 
+            overflow-x: hidden; overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
-            min-height: 100vh; display: block;
+            min-height: 100vh;
+            display: flex; flex-direction: column;
         }
 
         #top-controls { 
@@ -40,8 +41,8 @@
         }
 
         #archive-grid { 
-            position: relative; width: 100%; min-height: 120vh; 
-            box-sizing: border-box; z-index: 5; padding-bottom: 200px;
+            position: relative; width: 100%; flex-grow: 1;
+            box-sizing: border-box; z-index: 5; padding-bottom: 300px;
         }
 
         .is-editing#archive-grid::before {
@@ -55,6 +56,7 @@
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
             transition: left 0.3s ease, top 0.3s ease;
+            will-change: transform, left, top; /* Performance boost for mobile */
         }
         
         .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
@@ -82,7 +84,7 @@
         }
 
         .resize-handle {
-            position: absolute; bottom: -10px; right: -10px; width: 28px; height: 28px;
+            position: absolute; bottom: -10px; right: -10px; width: 30px; height: 30px;
             background: var(--gold); border-radius: 50%; z-index: 25; display: none;
             border: 2.5px solid #000;
         }
@@ -90,15 +92,15 @@
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 190px; box-shadow: 0 0 30px #000;
-            max-height: 80vh; overflow-y: auto;
+            border-radius: 8px; z-index: 5000; width: 195px; box-shadow: 0 0 40px #000;
+            max-height: 70vh; overflow-y: auto;
         }
-        .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
+        .menu-item { padding: 15px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.9rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
         .menu-item:hover { background: #111; }
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
-        .folder-option { color: #fff; font-size: 0.75rem; background: #1a1a1a; }
+        .folder-option { color: #fff; font-size: 0.8rem; background: #1a1a1a; }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.8rem; border-radius: 6px; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -106,9 +108,9 @@
     <div id="top-controls">
         <div style="display:flex; align-items:center;">
             <button id="back-btn" class="toggle-btn" style="display:none; margin-right:8px;" onclick="goBack()">←</button>
-            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.9rem;">Gothic Archive</span>
+            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.95rem;">Gothic Archive</span>
         </div>
-        <div style="display:flex; gap: 6px;">
+        <div style="display:flex; gap: 8px;">
             <button id="recenter-btn" class="toggle-btn" style="display:none; border-color: var(--crimson);" onclick="recenterRelics()">Formation</button>
             <button id="edit-toggle" class="toggle-btn">Edit</button>
         </div>
@@ -140,7 +142,8 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            scaleFactor = width < 500 ? width / 450 : width / 950;
+            // Slightly more conservative scaling to prevent clipping on iPhone Pro Max models
+            scaleFactor = width < 500 ? width / 420 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -169,8 +172,10 @@
                 
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
-                const displayX = Math.max(10, Math.min(r.x * scaleFactor, window.innerWidth - w - 10));
-                const displayY = Math.max(20, r.y * scaleFactor);
+                
+                // Safe coordinates check
+                const displayX = Math.max(5, Math.min(r.x * scaleFactor, window.innerWidth - w - 5));
+                const displayY = Math.max(10, r.y * scaleFactor);
 
                 if (displayY + h > maxBottom) maxBottom = displayY + h;
 
@@ -201,15 +206,16 @@
                 };
                 grid.appendChild(wrap);
             });
-            grid.style.minHeight = (maxBottom + 250) + 'px';
+            // Ensure the grid always stays at least tall enough to scroll
+            grid.style.height = Math.max(window.innerHeight, maxBottom + 200) + 'px';
         }
 
         function handleDrag(e, el, id) {
-            let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top);
+            let startX = e.clientX, startY = e.clientY, origX = parseFloat(el.style.left), origY = parseFloat(el.style.top);
             el.classList.add('dragging');
             window.onpointermove = (ev) => {
-                let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
-                let ny = Math.max(20, origY + ev.clientY - startY); 
+                let nx = Math.max(5, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 5));
+                let ny = Math.max(10, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
             window.onpointerup = () => {
@@ -241,8 +247,8 @@
             Object.keys(allRelics).forEach(rid => {
                 const el = document.getElementById(`relic-${rid}`);
                 if (el) { 
-                    updates[`relics/${rid}/x`] = parseInt(el.style.left) / scaleFactor; 
-                    updates[`relics/${rid}/y`] = parseInt(el.style.top) / scaleFactor; 
+                    updates[`relics/${rid}/x`] = parseFloat(el.style.left) / scaleFactor; 
+                    updates[`relics/${rid}/y`] = parseFloat(el.style.top) / scaleFactor; 
                 }
             });
             rtdb.ref().update(updates);
@@ -252,8 +258,9 @@
             const m = document.getElementById('context-menu');
             document.getElementById('folder-list-container').style.display = 'none';
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX, window.innerWidth - 195) + 'px';
-            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
+            const menuX = Math.min(e.clientX, window.innerWidth - 200);
+            const menuY = Math.min(e.clientY, window.innerHeight - 300);
+            m.style.left = menuX + 'px'; m.style.top = menuY + 'px';
         }
 
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
@@ -261,10 +268,7 @@
         function toggleMoveOptions(e) {
             e.stopPropagation();
             const container = document.getElementById('folder-list-container');
-            if (container.style.display === 'block') {
-                container.style.display = 'none';
-                return;
-            }
+            if (container.style.display === 'block') { container.style.display = 'none'; return; }
             container.innerHTML = `<div class="menu-item folder-option" onclick="moveRelic('root')">🏛 Index (Root)</div>`;
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
@@ -301,7 +305,7 @@
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const cols = window.innerWidth < 500 ? 3 : 6;
-            const spacing = window.innerWidth < 500 ? 125 : 115;
+            const spacing = window.innerWidth < 500 ? 120 : 115;
             items.forEach((id, i) => {
                 rtdb.ref(`relics/${id}`).update({ 
                     x: 35 + (i % cols * spacing), 
