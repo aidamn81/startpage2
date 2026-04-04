@@ -34,8 +34,7 @@
 
         #tool-nexus-top {
             position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
-            z-index: 2500; display: flex; flex-direction: column; align-items: center;
-            width: 95%; max-width: 800px;
+            z-index: 2500; display: flex; flex-direction: column; align-items: center; width: 95%;
         }
 
         .tool-trigger-row { display: flex; gap: 8px; justify-content: center; width: 100%; }
@@ -62,7 +61,7 @@
             0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); }
         }
 
-        /* RE-ADDED RESIZE HANDLE */
+        /* RESTORED RESIZE HANDLE */
         .resize-handle {
             display: none; position: absolute; right: -5px; bottom: 25px;
             width: 24px; height: 24px; background: var(--gold); border: 2px solid #000;
@@ -126,7 +125,7 @@
         </div>
         <div id="perc-widget" class="ritual-tool">
             <input type="number" id="perc-val" class="time-input" placeholder="Amount">
-            <button class="calc-btn" onclick="calculatePerc()">20% Calculator</button>
+            <button class="calc-btn" onclick="calculatePerc()">20% Ritual</button>
             <div id="perc-result" style="margin-top:10px; color:var(--gold); text-align:center;"></div>
         </div>
     </div>
@@ -139,9 +138,9 @@
     </div>
 
     <section id="admin-desk">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-            <span style="font-family:'Cinzel'; font-size:0.8rem; color:var(--gold);">Commemorate</span>
-            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer; font-family:'Cinzel';">✕</span>
+        <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
+            <span style="font-family:'Cinzel'; color:var(--gold);">Commemorate</span>
+            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer;">✕</span>
         </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
@@ -255,13 +254,14 @@
             if(!name || !auth.currentUser) return;
 
             const sendData = (b64) => {
+                // CLEAN PAYLOAD: Only core fields to satisfy strict security rules
                 const data = {
                     name: name,
                     url: url || "",
                     type: type,
                     imgUrl: b64 || "",
                     parent: currentFolder,
-                    owner: String(auth.currentUser.uid) // Strict cast for Firebase Rule validation
+                    owner: String(auth.currentUser.uid) 
                 };
 
                 rtdb.ref('relics').push(data).then(() => {
@@ -291,7 +291,7 @@
 
         function calculatePerc() {
             const v = document.getElementById('perc-val').value;
-            document.getElementById('perc-result').innerText = v ? "20% Result: " + (v * 0.2).toFixed(2) : "";
+            document.getElementById('perc-result').innerText = v ? "20% is: " + (v * 0.2).toFixed(2) : "";
         }
 
         function toggleAdminPanel() { 
