@@ -22,6 +22,8 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
+            /* Scroll padding ensures sticky header doesn't overlap top items */
+            scroll-padding-top: 80px; 
             overflow-x: hidden; overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
@@ -30,6 +32,7 @@
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
             min-height: 100vh;
+            display: block; /* Switched from flex to block to allow natural document growth */
         }
 
         #top-controls { 
@@ -41,9 +44,11 @@
         }
 
         #archive-grid { 
-            position: relative; width: 100%; min-height: calc(100vh - 60px);
+            position: relative; width: 100%; 
+            /* Fix: Grid min-height now ensures it covers the full viewport */
+            min-height: 120vh; 
             box-sizing: border-box; z-index: 5;
-            padding-bottom: 500px; 
+            padding-bottom: 200px; /* Buffer space at the very bottom */
         }
 
         .is-editing#archive-grid::before {
@@ -137,12 +142,10 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            // iPad typical width is 768-1024. iPhone is 375-430.
-            // If on a small screen (iPhone), we boost the base scale so things aren't tiny.
             if (width < 500) {
-                scaleFactor = width / 450; // iPhone: Zoom in by basing scale on a smaller canvas
+                scaleFactor = width / 450; // iPhone: Stronger zoom
             } else {
-                scaleFactor = width / 950; // iPad: Use standard wider canvas
+                scaleFactor = width / 950; // iPad: Standard wider view
             }
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
@@ -163,6 +166,8 @@
             grid.innerHTML = '';
             if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
+            let maxBottom = 0;
+
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.parent !== currentFolder) return;
                 const wrap = document.createElement('div');
@@ -172,9 +177,11 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Horizontal Lock + Top Lock + Infinite Scroll Down
                 const displayX = Math.max(10, Math.min(r.x * scaleFactor, window.innerWidth - w - 10));
                 const displayY = Math.max(20, r.y * scaleFactor);
+
+                // Track the furthest relic down to resize the grid
+                if (displayY + h > maxBottom) maxBottom = displayY + h;
 
                 wrap.style.cssText = `width:${w}px; height:${h}px; left:${displayX}px; top:${displayY}px;`;
                 
@@ -204,6 +211,9 @@
                 };
                 grid.appendChild(wrap);
             });
+
+            // Update grid height dynamically based on relics
+            grid.style.minHeight = (maxBottom + 250) + 'px';
         }
 
         function handleDrag(e, el, id) {
@@ -290,7 +300,6 @@
 
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
-            // On iPhone, we recenter in 3 columns for better fit. iPad stays at 6.
             const cols = window.innerWidth < 500 ? 3 : 6;
             const spacing = window.innerWidth < 500 ? 125 : 115;
             items.forEach((id, i) => {
