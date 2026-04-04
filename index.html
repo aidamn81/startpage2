@@ -41,17 +41,14 @@
         }
 
         #archive-grid { 
-            position: relative; 
-            width: 100%; 
-            flex-grow: 1;
-            margin: 0 auto;
+            position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; padding-bottom: 300px;
         }
 
         .is-editing#archive-grid::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: radial-gradient(rgba(140, 115, 64, 0.2) 1px, transparent 1px);
-            background-size: calc(25px * var(--scale)) calc(25px * var(--scale));
+            background-image: radial-gradient(rgba(140, 115, 64, 0.15) 1px, transparent 1px);
+            background-size: calc(40px * var(--scale)) calc(40px * var(--scale));
             pointer-events: none; z-index: 1;
         }
 
@@ -59,7 +56,6 @@
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
             transition: left 0.3s ease, top 0.3s ease;
-            will-change: transform, left, top;
         }
         
         .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
@@ -96,7 +92,6 @@
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
             border-radius: 8px; z-index: 5000; width: 195px; box-shadow: 0 0 40px #000;
-            max-height: 70vh; overflow-y: auto;
         }
         .menu-item { padding: 15px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.9rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
         .menu-item:hover { background: #111; }
@@ -145,7 +140,7 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            scaleFactor = width < 500 ? width / 420 : width / 950;
+            scaleFactor = width < 500 ? width / 400 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -174,7 +169,6 @@
                 
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
-                
                 const displayX = Math.max(5, Math.min(r.x * scaleFactor, window.innerWidth - w - 5));
                 const displayY = Math.max(10, r.y * scaleFactor);
 
@@ -207,7 +201,7 @@
                 };
                 grid.appendChild(wrap);
             });
-            grid.style.height = Math.max(window.innerHeight, maxBottom + 200) + 'px';
+            grid.style.height = Math.max(window.innerHeight, maxBottom + 300) + 'px';
         }
 
         function handleDrag(e, el, id) {
@@ -216,6 +210,14 @@
             window.onpointermove = (ev) => {
                 let nx = Math.max(5, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 5));
                 let ny = Math.max(10, origY + ev.clientY - startY); 
+                
+                // Soft snap to grid
+                if (isEditMode) {
+                    const snap = 20 * scaleFactor;
+                    nx = Math.round(nx / snap) * snap;
+                    ny = Math.round(ny / snap) * snap;
+                }
+
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
             window.onpointerup = () => {
@@ -235,10 +237,7 @@
             window.onpointerup = () => {
                 window.onpointermove = null;
                 el.style.transition = 'left 0.3s ease, top 0.3s ease';
-                const finalW = el.offsetWidth / scaleFactor;
-                const finalH = el.offsetHeight / scaleFactor;
-                if (allRelics[id]) { allRelics[id].w = finalW; allRelics[id].h = finalH; }
-                rtdb.ref(`relics/${id}`).update({ w: finalW, h: finalH });
+                savePositions();
             };
         }
 
@@ -249,6 +248,8 @@
                 if (el) { 
                     updates[`relics/${rid}/x`] = parseFloat(el.style.left) / scaleFactor; 
                     updates[`relics/${rid}/y`] = parseFloat(el.style.top) / scaleFactor; 
+                    updates[`relics/${rid}/w`] = el.offsetWidth / scaleFactor;
+                    updates[`relics/${rid}/h`] = el.offsetHeight / scaleFactor;
                 }
             });
             rtdb.ref().update(updates);
@@ -258,9 +259,8 @@
             const m = document.getElementById('context-menu');
             document.getElementById('folder-list-container').style.display = 'none';
             m.style.display = 'block';
-            const menuX = Math.min(e.clientX, window.innerWidth - 200);
-            const menuY = Math.min(e.clientY, window.innerHeight - 300);
-            m.style.left = menuX + 'px'; m.style.top = menuY + 'px';
+            m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
         }
 
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
@@ -294,7 +294,6 @@
         }
 
         function menuSnapOriginal() {
-            allRelics[activeMenuId].w = 80; allRelics[activeMenuId].h = 80;
             rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 });
         }
 
@@ -305,20 +304,24 @@
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const width = window.innerWidth;
-            const isMobile = width < 500;
             
-            // Dynamic Grid Logic
-            const itemSize = isMobile ? 120 : 130; // space each item takes
-            const cols = Math.floor((width - 40) / (itemSize * scaleFactor));
-            const gridWidth = cols * (itemSize * scaleFactor);
+            // Calculate necessary cell size based on the largest item in the current folder
+            let maxW = 80;
+            items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
+            
+            const cellPadding = 50; 
+            const cellSize = maxW + cellPadding; // The fluid spacing
+            
+            const cols = Math.floor((width - 40) / (cellSize * scaleFactor)) || 1;
+            const gridWidth = cols * (cellSize * scaleFactor);
             const sideMargin = (width - gridWidth) / 2 / scaleFactor;
 
             items.forEach((id, i) => {
                 const row = Math.floor(i / cols);
                 const col = i % cols;
                 rtdb.ref(`relics/${id}`).update({ 
-                    x: sideMargin + (col * itemSize), 
-                    y: 35 + (row * itemSize) 
+                    x: sideMargin + (col * cellSize) + (cellPadding/4), 
+                    y: 40 + (row * (cellSize + 20)) 
                 });
             });
         }
