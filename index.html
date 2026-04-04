@@ -43,7 +43,7 @@
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; padding-bottom: 300px;
-            overflow: hidden; /* Prevent horizontal scroll if something clips */
+            overflow: hidden;
         }
 
         .is-editing#archive-grid::before {
@@ -141,8 +141,8 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            // Slightly smaller scale on phones to ensure 3-column fit
-            scaleFactor = width < 500 ? width / 440 : width / 950;
+            // Adaptive scaling for iPad/iPhone
+            scaleFactor = width < 500 ? width / 450 : width / 1000;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -174,9 +174,9 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Final safety check: icons must stay within 10px of screen edges
-                const displayX = Math.max(10, Math.min(r.x * scaleFactor, screenW - w - 10));
-                const displayY = Math.max(10, r.y * scaleFactor);
+                // Bounds enforcement
+                const displayX = Math.max(15, Math.min(r.x * scaleFactor, screenW - w - 15));
+                const displayY = Math.max(15, r.y * scaleFactor);
 
                 if (displayY + h > maxBottom) maxBottom = displayY + h;
 
@@ -207,15 +207,15 @@
                 };
                 grid.appendChild(wrap);
             });
-            grid.style.height = Math.max(window.innerHeight, maxBottom + 300) + 'px';
+            grid.style.height = Math.max(window.innerHeight, maxBottom + 400) + 'px';
         }
 
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseFloat(el.style.left), origY = parseFloat(el.style.top);
             el.classList.add('dragging');
             window.onpointermove = (ev) => {
-                let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
-                let ny = Math.max(10, origY + ev.clientY - startY); 
+                let nx = Math.max(15, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 15));
+                let ny = Math.max(15, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
             window.onpointerup = () => {
@@ -303,30 +303,29 @@
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const width = window.innerWidth;
             
-            // 1. Calculate spacing based on items
+            // 1. Dynamic Cell Width based on largest item in folder
             let maxW = 80;
             items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
             
-            const cellGap = 40; 
-            const colWidth = (maxW + cellGap) * scaleFactor;
-            const rowHeight = (maxW + cellGap + 35) * scaleFactor;
+            const gap = 50; 
+            const unitWidth = (maxW + gap) * scaleFactor;
+            const unitHeight = (maxW + gap + 35) * scaleFactor;
             
-            // 2. Strict Boundary: Calculate columns that fit with a mandatory 20px side buffer
-            const availableWidth = width - 40; 
-            const maxCols = Math.max(1, Math.floor(availableWidth / colWidth));
+            // 2. Strict fit check: how many units fit within screen width minus buffers
+            const usableW = width - 40; 
+            const columns = Math.max(1, Math.floor(usableW / unitWidth));
             
-            // 3. Center logic
-            const totalGridWidth = maxCols * colWidth;
-            const sideMargin = (width - totalGridWidth) / 2;
+            // 3. Perfect Centering calculation
+            const gridTotalW = columns * unitWidth;
+            const offsetLeft = (width - gridTotalW) / 2;
 
             items.forEach((id, i) => {
-                const row = Math.floor(i / maxCols);
-                const col = i % maxCols;
+                const row = Math.floor(i / columns);
+                const col = i % columns;
                 
-                // Final save values (normalized by scale)
                 rtdb.ref(`relics/${id}`).update({ 
-                    x: (sideMargin + (col * colWidth) + (cellGap * scaleFactor / 4)) / scaleFactor, 
-                    y: (50 + (row * rowHeight)) / scaleFactor
+                    x: (offsetLeft + (col * unitWidth) + (gap * scaleFactor / 4)) / scaleFactor, 
+                    y: (60 + (row * unitHeight)) / scaleFactor
                 });
             });
         }
