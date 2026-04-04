@@ -41,7 +41,7 @@
 
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
-            box-sizing: border-box; z-index: 5; padding-bottom: 400px;
+            box-sizing: border-box; z-index: 5; padding-bottom: 500px;
         }
 
         .is-editing#archive-grid::before {
@@ -54,7 +54,7 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
-            transition: left 0.4s ease, top 0.4s ease;
+            transition: left 0.5s cubic-bezier(0.2, 0, 0.2, 1), top 0.5s cubic-bezier(0.2, 0, 0.2, 1);
         }
         
         .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
@@ -76,7 +76,7 @@
         
         .relic-name { 
             margin-top: 8px; font-family: 'Cinzel'; 
-            font-size: calc(0.75rem * var(--scale)); 
+            font-size: calc(0.7rem * var(--scale)); 
             color: #fff; text-align: center; width: 180%; transform: translateX(-22.5%); 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
@@ -95,7 +95,6 @@
         .menu-item { padding: 15px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.9rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
         .menu-item:hover { background: #111; }
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
-        .folder-option { color: #fff; font-size: 0.8rem; background: #1a1a1a; }
 
         .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.8rem; border-radius: 6px; cursor: pointer; }
     </style>
@@ -159,29 +158,47 @@
             grid.innerHTML = '';
             if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
-            let maxBottom = 0;
             const screenW = window.innerWidth;
+            let maxBottom = 0;
 
-            // Logic: All items start by wrapping into rows to guarantee visibility
+            // TRACKER for current row layout to ensure visibility
+            let rowX = 25 * scaleFactor;
+            let rowY = 60 * scaleFactor;
+            let rowHeightMax = 0;
+
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.parent !== currentFolder) return;
+
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 wrap.id = `relic-${id}`;
                 
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
-                
-                // If the saved position is wider than the screen, clamp it so it's visible
-                const displayX = Math.max(20, Math.min(r.x * scaleFactor, screenW - w - 20));
-                const displayY = Math.max(20, r.y * scaleFactor);
 
-                if (displayY + h > maxBottom) maxBottom = displayY + h;
+                // VISIBILITY ENGINE: 
+                // If the item's saved X coordinate is too wide for this screen, 
+                // we calculate a temporary "Flow" position for it so it's not hidden.
+                let finalX = r.x * scaleFactor;
+                let finalY = r.y * scaleFactor;
 
-                wrap.style.cssText = `width:${w}px; height:${h}px; left:${displayX}px; top:${displayY}px;`;
+                if (finalX + w > screenW - 10) {
+                    // Force onto a new line if it would be cut off
+                    finalX = rowX;
+                    finalY = rowY;
+                    rowX += (w + 40 * scaleFactor);
+                    if (rowX + w > screenW) {
+                        rowX = 25 * scaleFactor;
+                        rowY += (h + 80 * scaleFactor);
+                    }
+                }
+
+                if (finalY + h > maxBottom) maxBottom = finalY + h;
+
+                wrap.style.cssText = `width:${w}px; height:${h}px; left:${finalX}px; top:${finalY}px;`;
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:100%; height:100%;">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.2 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.1 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
@@ -192,7 +209,7 @@
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) handleResize(e, wrap, id);
                         else handleDrag(e, wrap, id);
-                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 700);
+                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 750);
                     }
                 };
                 wrap.onpointerup = () => clearTimeout(timer);
@@ -232,7 +249,7 @@
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                el.style.transition = 'left 0.4s ease, top 0.4s ease';
+                el.style.transition = 'left 0.5s ease, top 0.5s ease';
                 savePositions();
             };
         }
@@ -280,7 +297,7 @@
         }
 
         function menuRename() {
-            const n = prompt("Relic Title:", allRelics[activeMenuId].name);
+            const n = prompt("Title:", allRelics[activeMenuId].name);
             if (n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n });
         }
 
@@ -294,7 +311,7 @@
         }
 
         function menuDelete() {
-            if (confirm("Are you sure you want to banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
+            if (confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
         }
 
         function recenterRelics() {
@@ -305,26 +322,21 @@
             let maxW = 80;
             items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
             
-            const gapX = 40; 
-            const gapY = 80; 
-            const colWidth = (maxW + gapX) * scaleFactor;
-            const rowHeight = (maxW + gapY) * scaleFactor;
+            const gapX = 40 * scaleFactor; 
+            const gapY = 80 * scaleFactor; 
             
             let curX = 25 * scaleFactor; 
             let curY = 60 * scaleFactor;
 
             items.forEach((id) => {
                 const itemW = (allRelics[id].w || 80) * scaleFactor;
-                
-                // Formation Logic: Force a new row if we hit the edge of the CURRENT device
                 if (curX + itemW > screenW - 20) {
                     curX = 25 * scaleFactor; 
-                    curY += rowHeight; 
+                    curY += (maxW * scaleFactor + 80 * scaleFactor); 
                 }
-
                 updates[`relics/${id}/x`] = curX / scaleFactor;
                 updates[`relics/${id}/y`] = curY / scaleFactor;
-                curX += colWidth;
+                curX += (itemW + 40 * scaleFactor);
             });
 
             rtdb.ref().update(updates);
