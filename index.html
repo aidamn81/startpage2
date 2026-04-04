@@ -35,7 +35,7 @@
         }
 
         #top-controls { 
-            width: 100%; padding: 10px 15px; display: flex; gap: 10px;
+            width: 100%; padding: 10px 15px; display: flex; gap: 8px;
             align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
             box-sizing: border-box; z-index: 3000; position: sticky; top: 0;
             padding-top: env(safe-area-inset-top, 10px);
@@ -103,7 +103,7 @@
             border: 1px solid #333; color: var(--gold); border-radius: 5px; box-sizing: border-box;
         }
 
-        /* Context Menu with Scrollable Folder List */
+        /* Context Menu */
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
             border-radius: 8px; z-index: 5000; width: 220px; box-shadow: 0 0 40px #000;
@@ -113,21 +113,19 @@
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
         
         #folder-list-container { 
-            max-height: 200px; 
-            overflow-y: auto; 
-            background: #050505;
-            border-top: 1px solid var(--gold);
-            border-bottom: 1px solid var(--gold);
+            max-height: 200px; overflow-y: auto; background: #050505;
+            border-top: 1px solid var(--gold); border-bottom: 1px solid var(--gold);
         }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 14px; font-family: 'Cinzel'; font-size: 0.8rem; border-radius: 6px; cursor: pointer; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body onclick="closeMenu()">
 
     <div id="top-controls">
         <button id="back-btn" class="toggle-btn" style="display:none;" onclick="goBack()">←</button>
-        <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1;">Gothic Archive</span>
+        <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Gothic Archive</span>
+        <a href="oracle.html" class="toggle-btn">Oracle</a>
         <button class="toggle-btn" onclick="openAdmin()">Summon</button>
         <button id="edit-toggle" class="toggle-btn">Edit</button>
     </div>
@@ -143,7 +141,7 @@
                 <option value="folder">Folder</option>
             </select>
             <input type="text" id="new-name" placeholder="Name">
-            <input type="text" id="new-url" placeholder="URL">
+            <input type="text" id="new-url" id="new-url-field" placeholder="URL">
             <button class="toggle-btn" style="width:100%; margin-bottom:15px;" onclick="document.getElementById('modal-upload').click()">Upload Cover</button>
             <div id="upload-status" style="font-size:0.7rem; color:var(--gold); margin-bottom:10px; text-align:center;">No image selected</div>
             <button class="toggle-btn" style="width:100%; background:var(--gold); color:#000;" onclick="createSomething()">Manifest</button>
@@ -308,7 +306,6 @@
             m.style.top = Math.min(clickY, window.innerHeight - 400) + 'px';
         }
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        
         function menuChangeImage() { document.getElementById('image-upload').click(); }
         document.getElementById('image-upload').onchange = function(e) {
             const file = e.target.files[0]; if (!file) return;
@@ -321,8 +318,6 @@
             e.stopPropagation();
             const container = document.getElementById('folder-list-container');
             container.innerHTML = `<div class="menu-item" style="background:#111; font-size:0.75rem;" onclick="moveRelic('root')">🏛 INDEX</div>`;
-            
-            // List all folders across the entire archive
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
                     container.innerHTML += `<div class="menu-item" style="background:#111; font-size:0.75rem;" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
