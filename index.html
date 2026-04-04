@@ -141,8 +141,7 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            // Adaptive scaling for iPad/iPhone
-            scaleFactor = width < 500 ? width / 450 : width / 1000;
+            scaleFactor = width < 500 ? width / 440 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -174,7 +173,6 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Bounds enforcement
                 const displayX = Math.max(15, Math.min(r.x * scaleFactor, screenW - w - 15));
                 const displayY = Math.max(15, r.y * scaleFactor);
 
@@ -302,32 +300,37 @@
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const width = window.innerWidth;
+            const updates = {};
             
-            // 1. Dynamic Cell Width based on largest item in folder
             let maxW = 80;
             items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
             
-            const gap = 50; 
-            const unitWidth = (maxW + gap) * scaleFactor;
-            const unitHeight = (maxW + gap + 35) * scaleFactor;
+            const gap = 45; 
+            const colWidth = (maxW + gap) * scaleFactor;
+            const rowHeight = (maxW + gap + 40) * scaleFactor;
             
-            // 2. Strict fit check: how many units fit within screen width minus buffers
-            const usableW = width - 40; 
-            const columns = Math.max(1, Math.floor(usableW / unitWidth));
-            
-            // 3. Perfect Centering calculation
-            const gridTotalW = columns * unitWidth;
-            const offsetLeft = (width - gridTotalW) / 2;
+            // Boundary: Leave 20px padding on each side
+            const usableWidth = width - 40;
+            let currentX = 20; 
+            let currentY = 60;
 
-            items.forEach((id, i) => {
-                const row = Math.floor(i / columns);
-                const col = i % columns;
+            items.forEach((id) => {
+                const itemW = (allRelics[id].w || 80) * scaleFactor;
                 
-                rtdb.ref(`relics/${id}`).update({ 
-                    x: (offsetLeft + (col * unitWidth) + (gap * scaleFactor / 4)) / scaleFactor, 
-                    y: (60 + (row * unitHeight)) / scaleFactor
-                });
+                // IF THIS ITEM PUSHES PAST THE BOUNDARY
+                if (currentX + itemW > width - 20) {
+                    currentX = 20; // reset to left
+                    currentY += rowHeight; // move to next row
+                }
+
+                updates[`relics/${id}/x`] = currentX / scaleFactor;
+                updates[`relics/${id}/y`] = currentY / scaleFactor;
+
+                // Move cursor for next item
+                currentX += colWidth;
             });
+
+            rtdb.ref().update(updates);
         }
 
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); window.scrollTo(0,0); }
