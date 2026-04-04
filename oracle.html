@@ -20,32 +20,30 @@
         }
         h1 { font-family: 'Cinzel'; color: var(--gold); text-align: center; margin-top: 0; font-size: 1.4rem; letter-spacing: 2px; }
         
-        /* Saved Locations Styling */
-        #saved-altars {
-            display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px;
-            padding: 10px; border: 1px solid #222; border-radius: 8px; background: #080808;
+        /* Independent Saved Lists Styling */
+        .altar-scroll {
+            display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;
+            min-height: 30px;
         }
         .altar-btn {
             background: #111; border: 1px solid var(--gold); color: var(--gold);
-            padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem;
-            border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 5px;
+            padding: 4px 10px; font-family: 'Cinzel'; font-size: 0.6rem;
+            border-radius: 4px; cursor: pointer; display: flex; align-items: center; gap: 4px;
         }
         .altar-btn:active { background: var(--gold); color: #000; }
-        .delete-altar { color: var(--crimson); font-weight: bold; margin-left: 5px; padding: 0 4px; }
+        .delete-altar { color: var(--crimson); font-weight: bold; padding-left: 4px; border-left: 1px solid #333; }
 
-        .input-group { margin-bottom: 20px; }
+        .input-group { margin-bottom: 25px; }
         label { display: block; margin-bottom: 8px; font-family: 'Cinzel'; font-size: 0.7rem; color: var(--gold); }
         input {
             width: 100%; padding: 12px; background: #111; border: 1px solid #333;
             color: #fff; border-radius: 5px; box-sizing: border-box; font-family: inherit;
         }
-        input:focus { border-color: var(--gold); outline: none; }
         
         .map-action { 
             margin-top: 10px; padding: 12px; font-size: 0.8rem; font-family: 'Cinzel';
             background: #1a1a1a; color: var(--gold); border: 1px solid var(--gold);
-            cursor: pointer; border-radius: 4px; text-decoration: none; text-align: center;
-            display: block; width: 100%; box-sizing: border-box;
+            cursor: pointer; border-radius: 4px; width: 100%;
         }
 
         .prep-box {
@@ -57,7 +55,7 @@
         .btn-prophesy {
             width: 100%; padding: 16px; background: var(--crimson); color: white;
             border: none; font-family: 'Cinzel'; cursor: pointer; border-radius: 5px;
-            transition: 0.3s; font-size: 1rem; letter-spacing: 1px;
+            font-size: 1rem;
         }
         #result {
             margin-top: 25px; padding: 20px; border-top: 1px double var(--gold);
@@ -67,39 +65,37 @@
         .back-link { margin-top: 30px; color: var(--gold); text-decoration: none; font-size: 0.8rem; font-family: 'Cinzel'; opacity: 0.6; }
     </style>
 </head>
-<body onload="renderAltars()">
+<body onload="renderAllAltars()">
 
     <div class="oracle-container">
         <h1>The Journey Oracle</h1>
 
-        <label style="text-align: center; display: block; margin-bottom: 5px;">Saved Altars</label>
-        <div id="saved-altars">
-            </div>
-        
         <div class="input-group">
             <label>Work Start Time</label>
             <input type="time" id="start-time">
         </div>
 
         <div class="input-group">
-            <label>Starting Point (Home)</label>
-            <input type="text" id="start-location" placeholder="Address or Station...">
+            <label>Starting Points</label>
+            <div id="start-altars" class="altar-scroll"></div>
+            <input type="text" id="start-location" placeholder="Home, Hotel, Station...">
         </div>
 
         <div class="input-group">
-            <label>Destination (Work)</label>
-            <input type="text" id="end-location" placeholder="Address or Company...">
-            <button class="map-action" onclick="consultMaps()">Check Public Transport</button>
+            <label>Destinations</label>
+            <div id="end-altars" class="altar-scroll"></div>
+            <input type="text" id="end-location" placeholder="Work, Office, Client...">
+            <button class="map-action" onclick="consultMaps()">Consult Maps & Save</button>
         </div>
 
-        <div class="input-group" style="margin-top: 25px;">
+        <div class="input-group">
             <label>Journey Duration (Minutes)</label>
-            <input type="number" id="travel-duration" placeholder="Enter minutes from Maps">
+            <input type="number" id="travel-duration" placeholder="Minutes from Maps">
         </div>
 
         <div class="prep-box">
             <input type="checkbox" id="prep-toggle">
-            <label style="margin:0; cursor:pointer; font-size: 0.85rem;">Include 2h Preparation Time</label>
+            <label style="margin:0; cursor:pointer; font-size: 0.85rem;">Include 2h Prep</label>
         </div>
 
         <button class="btn-prophesy" onclick="calculateDeparture()">Calculate Departure</button>
@@ -114,59 +110,56 @@
     <a href="index.html" class="back-link">← Return to Archive</a>
 
     <script>
-        let savedRoutes = JSON.parse(localStorage.getItem('oracle_routes') || '[]');
+        let savedStarts = JSON.parse(localStorage.getItem('oracle_starts') || '[]');
+        let savedEnds = JSON.parse(localStorage.getItem('oracle_ends') || '[]');
 
-        function renderAltars() {
-            const container = document.getElementById('saved-altars');
-            if (savedRoutes.length === 0) {
-                container.innerHTML = '<div style="font-size:0.6rem; opacity:0.5; width:100%; text-align:center;">No saved routes yet.</div>';
-                return;
-            }
+        function renderAllAltars() {
+            renderAltarList('start-altars', savedStarts, 'start-location', 'oracle_starts');
+            renderAltarList('end-altars', savedEnds, 'end-location', 'oracle_ends');
+        }
+
+        function renderAltarList(containerId, list, inputId, storageKey) {
+            const container = document.getElementById(containerId);
             container.innerHTML = '';
-            savedRoutes.forEach((route, index) => {
+            list.forEach((loc, index) => {
                 const btn = document.createElement('div');
                 btn.className = 'altar-btn';
                 btn.innerHTML = `
-                    <span onclick="loadRoute(${index})">${route.start.substring(0,6)} → ${route.end.substring(0,6)}</span>
-                    <span class="delete-altar" onclick="deleteRoute(${index})">×</span>
+                    <span onclick="document.getElementById('${inputId}').value='${loc}'">${loc.substring(0,10)}${loc.length > 10 ? '..' : ''}</span>
+                    <span class="delete-altar" onclick="deleteLoc('${storageKey}', ${index})">×</span>
                 `;
                 container.appendChild(btn);
             });
         }
 
-        function loadRoute(index) {
-            const route = savedRoutes[index];
-            document.getElementById('start-location').value = route.start;
-            document.getElementById('end-location').value = route.end;
-        }
-
-        function deleteRoute(index) {
-            savedRoutes.splice(index, 1);
-            localStorage.setItem('oracle_routes', JSON.stringify(savedRoutes));
-            renderAltars();
+        function deleteLoc(key, index) {
+            let list = JSON.parse(localStorage.getItem(key));
+            list.splice(index, 1);
+            localStorage.setItem(key, JSON.stringify(list));
+            if (key === 'oracle_starts') savedStarts = list; else savedEnds = list;
+            renderAllAltars();
         }
 
         function consultMaps() {
-            const startVal = document.getElementById('start-location').value;
-            const endVal = document.getElementById('end-location').value;
+            const s = document.getElementById('start-location').value.trim();
+            const e = document.getElementById('end-location').value.trim();
             
-            if (!startVal || !endVal) { 
-                alert("Both locations must be known to the Oracle."); 
-                return; 
+            if (s && !savedStarts.includes(s)) {
+                savedStarts.push(s);
+                localStorage.setItem('oracle_starts', JSON.stringify(savedStarts));
             }
-
-            // Save the route if it's new
-            const exists = savedRoutes.find(r => r.start === startVal && r.end === endVal);
-            if (!exists) {
-                savedRoutes.push({ start: startVal, end: endVal });
-                localStorage.setItem('oracle_routes', JSON.stringify(savedRoutes));
-                renderAltars();
+            if (e && !savedEnds.includes(e)) {
+                savedEnds.push(e);
+                localStorage.setItem('oracle_ends', JSON.stringify(savedEnds));
             }
+            renderAllAltars();
 
-            const origin = encodeURIComponent(startVal);
-            const destination = encodeURIComponent(endVal);
-            const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=transit`;
-            window.open(url, '_blank');
+            if (e) {
+                const origin = encodeURIComponent(s);
+                const destination = encodeURIComponent(e);
+                const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=transit`;
+                window.open(url, '_blank');
+            }
         }
 
         function calculateDeparture() {
@@ -174,10 +167,7 @@
             const travelMins = parseInt(document.getElementById('travel-duration').value) || 0;
             const needsPrep = document.getElementById('prep-toggle').checked;
 
-            if (!startTimeStr) { 
-                alert("Please enter a start time."); 
-                return; 
-            }
+            if (!startTimeStr) return alert("Enter a start time.");
 
             const [hours, mins] = startTimeStr.split(':');
             let date = new Date();
