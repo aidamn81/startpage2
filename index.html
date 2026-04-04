@@ -22,11 +22,14 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
+            /* Allow scrolling by default, but we will toggle this via JS */
             overflow-x: hidden; overflow-y: auto;
             -webkit-user-select: none; user-select: none;
             -webkit-touch-callout: none;
-            touch-action: pan-y;
         }
+
+        /* Class to freeze background when editing */
+        .lock-scroll { overflow: hidden !important; }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
@@ -44,7 +47,6 @@
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; padding: 15px;
-            /* FLEX WRAP allows items to fill gaps if they fit */
             display: flex; flex-wrap: wrap; gap: 15px; align-content: flex-start;
             justify-content: flex-start;
         }
@@ -57,8 +59,8 @@
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; z-index: 10;
-            /* Ensure the wrapper doesn't force a newline unnecessarily */
             flex-shrink: 0;
+            touch-action: none; /* Prevents browser scroll during drag/resize */
         }
         
         .dragging { opacity: 0.4; transform: scale(0.95); }
@@ -88,9 +90,9 @@
         }
 
         .resize-handle {
-            position: absolute; bottom: -10px; right: -10px; width: 34px; height: 34px;
+            position: absolute; bottom: -12px; right: -12px; width: 38px; height: 38px;
             background: var(--gold); border-radius: 50%; z-index: 50; display: none;
-            border: 3px solid #000; box-shadow: 0 0 8px rgba(0,0,0,0.8);
+            border: 3px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.8);
             pointer-events: auto;
         }
         .is-editing .resize-handle { display: block; }
@@ -164,7 +166,6 @@
                 
                 const w = r.w || 80;
                 const h = r.h || 80;
-
                 wrap.style.width = w + 'px';
 
                 wrap.innerHTML = `
@@ -175,26 +176,29 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // Drag to reorder logic
                 wrap.draggable = isEditMode;
                 wrap.ondragstart = (e) => { 
                     if (e.target.classList.contains('resize-handle')) return e.preventDefault();
+                    document.body.classList.add('lock-scroll');
                     e.dataTransfer.setData('text', id); 
                     wrap.classList.add('dragging'); 
                 };
-                wrap.ondragend = () => wrap.classList.remove('dragging');
+                wrap.ondragend = () => {
+                    wrap.classList.remove('dragging');
+                    document.body.classList.remove('lock-scroll');
+                };
                 wrap.ondragover = (e) => e.preventDefault();
                 wrap.ondrop = (e) => {
                     const draggedId = e.dataTransfer.getData('text');
                     if (draggedId && draggedId !== id) swapOrder(draggedId, id);
                 };
 
-                // Resize & Double Tap logic
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) {
                             e.stopPropagation();
+                            document.body.classList.add('lock-scroll'); // FREEZE SCROLL
                             handleResize(e, wrap, id);
                         } else {
                             const now = Date.now();
@@ -239,6 +243,7 @@
             const onEnd = () => {
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onEnd);
+                document.body.classList.remove('lock-scroll'); // ENABLE SCROLL
                 rtdb.ref(`relics/${id}`).update({ 
                     w: parseInt(frame.style.width), 
                     h: parseInt(frame.style.height) 
