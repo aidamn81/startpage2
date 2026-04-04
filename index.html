@@ -48,7 +48,6 @@
             justify-content: flex-start;
         }
 
-        /* Wiggle Animation for Edit Mode */
         @keyframes wiggle {
             0% { transform: rotate(-1deg); }
             50% { transform: rotate(1deg); }
@@ -68,9 +67,6 @@
         
         .dragging { opacity: 0.2; transform: scale(0.8); animation: none !important; }
         
-        /* Visual cue for insertion point */
-        .drop-target { border: 2px dashed var(--gold); border-radius: 15px; }
-
         .relic-frame, .folder-frame { 
             border-radius: 15%; overflow: hidden; 
             display: flex; align-items: center; justify-content: center; 
@@ -121,11 +117,13 @@
         <button id="edit-toggle" class="toggle-btn">Edit</button>
     </div>
 
+    <input type="file" id="image-upload" style="display:none;" accept="image/*">
+
     <main id="archive-grid"></main>
 
     <div id="context-menu">
         <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
+        <div class="menu-item" onclick="menuChangeImage()">Upload Photo</div>
         <div class="menu-item" onclick="menuSnapOriginal()">Resize to Original</div>
         <div class="menu-item" onclick="toggleMoveOptions(event)">Move to Folder...</div>
         <div id="folder-list-container" style="display:none;"></div>
@@ -163,7 +161,7 @@
                 .filter(([id, r]) => r.parent === currentFolder)
                 .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
 
-            items.forEach(([id, r], index) => {
+            items.forEach(([id, r]) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 wrap.id = `relic-${id}`;
@@ -180,7 +178,6 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // Drag to Insert Logic
                 wrap.draggable = isEditMode;
                 wrap.ondragstart = (e) => {
                     if (e.target.classList.contains('resize-handle')) return e.preventDefault();
@@ -227,7 +224,6 @@
             });
         }
 
-        // INSERTION LOGIC: Moves the item to the new position and shifts everything else
         function insertAt(draggedId, targetId) {
             const items = Object.entries(allRelics)
                 .filter(([id, r]) => r.parent === currentFolder)
@@ -236,7 +232,6 @@
 
             const oldIdx = items.indexOf(draggedId);
             const newIdx = items.indexOf(targetId);
-            
             items.splice(oldIdx, 1);
             items.splice(newIdx, 0, draggedId);
 
@@ -281,6 +276,21 @@
 
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
 
+        function menuChangeImage() {
+            document.getElementById('image-upload').click();
+        }
+
+        document.getElementById('image-upload').onchange = function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: event.target.result });
+                closeMenu();
+            };
+            reader.readAsDataURL(file);
+        };
+
         function toggleMoveOptions(e) {
             e.stopPropagation();
             const container = document.getElementById('folder-list-container');
@@ -295,7 +305,6 @@
 
         function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId }); closeMenu(); }
         function menuRename() { const n = prompt("Name:", allRelics[activeMenuId].name); if (n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n }); }
-        function menuChangeImage() { const url = prompt("URL:"); if (url) rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: url }); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); }
         function menuDelete() { if (confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); }
 
