@@ -22,34 +22,26 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            overflow-x: hidden; overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
+            overflow: hidden; /* Prevent accidental scrolling outside bounds */
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
+            display: flex; flex-direction: column;
         }
 
         #top-controls { 
             width: 100%; padding: 10px 15px; display: flex; justify-content: space-between; 
             align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
-            box-sizing: border-box; z-index: 3000; position: fixed; top: 0; left: 0;
+            box-sizing: border-box; z-index: 3000;
             padding-top: env(safe-area-inset-top, 10px);
         }
 
         #archive-grid { 
-            position: relative; width: 100%; min-height: 100vh;
-            padding-top: 100px; padding-bottom: 400px;
+            position: relative; flex-grow: 1; width: 100%;
             box-sizing: border-box; z-index: 5;
-        }
-
-        /* High-Visibility Grid scaled to the phone */
-        .is-editing#archive-grid::before {
-            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: radial-gradient(rgba(140, 115, 64, 0.35) 1px, transparent 1px);
-            background-size: calc(25px * var(--scale)) calc(25px * var(--scale));
-            pointer-events: none; z-index: 1;
+            overflow: hidden;
         }
 
         .relic-wrapper { 
@@ -58,7 +50,7 @@
             transition: left 0.3s ease, top 0.3s ease;
         }
         
-        .dragging { transition: none !important; z-index: 2000 !important; transform: scale(1.05); }
+        .dragging { transition: none !important; z-index: 2000 !important; }
 
         .relic-frame, .folder-frame { 
             width: 100%; height: 100%; border-radius: 15%; overflow: hidden; 
@@ -112,13 +104,12 @@
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, scaleFactor = 1;
 
-        // More aggressive scaling: Forces a virtual 800px width onto the phone screen
         function updateScale() {
             const targetWidth = window.innerWidth > 768 ? window.innerWidth : 850; 
             scaleFactor = window.innerWidth / targetWidth;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
-        window.addEventListener('resize', updateScale);
+        window.addEventListener('resize', () => { updateScale(); renderGrid(); });
         updateScale();
 
         auth.onAuthStateChanged(user => { 
@@ -133,7 +124,6 @@
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
-            isEditMode ? grid.classList.add('is-editing') : grid.classList.remove('is-editing');
             
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.parent !== currentFolder) return;
@@ -144,8 +134,17 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Calculate display position
-                wrap.style.cssText = `width:${w}px; left:${r.x * scaleFactor}px; top:${r.y * scaleFactor}px;`;
+                // Constraints: Keep within boundaries
+                let displayX = (r.x * scaleFactor);
+                let displayY = (r.y * scaleFactor);
+                
+                const maxX = window.innerWidth - w - 10;
+                const maxY = grid.offsetHeight - h - 30;
+
+                displayX = Math.max(10, Math.min(displayX, maxX));
+                displayY = Math.max(10, Math.min(displayY, maxY));
+
+                wrap.style.cssText = `width:${w}px; left:${displayX}px; top:${displayY}px;`;
                 
                 wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${w}px; height:${h}px;">
                     ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
@@ -164,16 +163,25 @@
 
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top);
+            const grid = document.getElementById('archive-grid');
             el.classList.add('dragging');
+
             window.onpointermove = (ev) => {
                 let nextX = origX + ev.clientX - startX;
                 let nextY = origY + ev.clientY - startY;
-                nextX = Math.max(5, nextX);
-                nextY = Math.max(80, nextY);
+                
+                // Hard Boundary Lock
+                const maxX = window.innerWidth - el.offsetWidth - 10;
+                const maxY = grid.offsetHeight - el.offsetHeight - 30;
+
+                nextX = Math.max(10, Math.min(nextX, maxX));
+                nextY = Math.max(10, Math.min(nextY, maxY));
+
                 el.style.left = nextX + 'px';
                 el.style.top = nextY + 'px';
                 reflowGrid(id, nextX, nextY, el.offsetWidth, el.offsetHeight);
             };
+
             window.onpointerup = () => {
                 window.onpointermove = null;
                 el.classList.remove('dragging');
@@ -182,7 +190,7 @@
         }
 
         function reflowGrid(draggingId, x, y, w, h) {
-            const boundary = window.innerWidth - 10;
+            const boundary = window.innerWidth - 15;
             const spacing = 110 * scaleFactor;
 
             Object.keys(allRelics).forEach(id => {
@@ -194,9 +202,8 @@
                 const ox = other.x * scaleFactor;
                 const oy = other.y * scaleFactor;
                 const ow = (other.w || 80) * scaleFactor;
-                const oh = (other.h || 80) * scaleFactor;
 
-                const overlap = !(x + w < ox || x > ox + ow || y + h < oy || y > oy + oh);
+                const overlap = !(x + w < ox || x > ox + ow || y + h < oy || y > oy + (other.h || 80) * scaleFactor);
 
                 if (overlap) {
                     let nextX = ox + spacing;
@@ -226,14 +233,15 @@
 
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
-            const colLimit = window.innerWidth > 700 ? 7 : 6; 
-            const spacing = 115; // Base spacing for 850px virtual width
+            const colLimit = 6; 
+            const spacing = 115; 
             const updates = {};
             items.forEach((id, index) => {
                 const row = Math.floor(index / colLimit);
                 const col = index % colLimit;
+                // Formation is calculated in virtual space (850px)
                 updates[`relics/${id}/x`] = 30 + (col * spacing);
-                updates[`relics/${id}/y`] = 120 + (row * spacing);
+                updates[`relics/${id}/y`] = 30 + (row * spacing);
             });
             rtdb.ref().update(updates);
         }
