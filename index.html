@@ -36,7 +36,21 @@
             padding-top: env(safe-area-inset-top, 10px);
         }
 
-        #archive-grid { position: relative; width: 100%; min-height: 100vh; padding-bottom: 300px; box-sizing: border-box; }
+        #archive-grid { 
+            position: relative; width: 100%; min-height: 100vh; 
+            padding-bottom: 300px; box-sizing: border-box; 
+        }
+
+        /* Subtle Edit-Mode Grid Overlay */
+        .is-editing#archive-grid::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(rgba(140, 115, 64, 0.15) 1px, transparent 1px);
+            background-size: 20px 20px; /* Adjust for grid density */
+            pointer-events: none;
+            z-index: 1;
+        }
 
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
@@ -133,6 +147,7 @@
         const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null, lastTap = 0;
+        const SNAP_SIZE = 10; // Snap distance in pixels
 
         auth.onAuthStateChanged(user => { if (user) loadRelics(); else auth.signInAnonymously(); });
 
@@ -188,6 +203,11 @@
             window.onpointermove = (ev) => {
                 let nextX = origX + ev.clientX - startX;
                 let nextY = origY + ev.clientY - startY;
+                
+                // Snapping Logic
+                nextX = Math.round(nextX / SNAP_SIZE) * SNAP_SIZE;
+                nextY = Math.round(nextY / SNAP_SIZE) * SNAP_SIZE;
+
                 const maxX = window.innerWidth - el.offsetWidth - 10;
                 el.style.left = Math.max(10, Math.min(nextX, maxX)) + 'px';
                 el.style.top = Math.max(10, nextY) + 'px';
@@ -203,6 +223,9 @@
             const frame = el.querySelector('div');
             window.onpointermove = (ev) => {
                 let size = Math.max(45, startW + (ev.clientX - startX));
+                // Snapping Resize
+                size = Math.round(size / SNAP_SIZE) * SNAP_SIZE;
+
                 const maxX = window.innerWidth - parseInt(el.style.left) - 15;
                 size = Math.min(size, maxX);
                 el.style.width = size + 'px'; 
@@ -219,7 +242,7 @@
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const colLimit = window.innerWidth > 600 ? 5 : 3;
             const spacing = 110;
-            const startX = (window.innerWidth - (colLimit * spacing)) / 2 + 15;
+            const startX = Math.round(((window.innerWidth - (colLimit * spacing)) / 2 + 15) / SNAP_SIZE) * SNAP_SIZE;
             const startY = 100;
 
             items.forEach((id, index) => {
