@@ -15,20 +15,17 @@
     <style>
         :root { 
             --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89;
-            --scale: 1; 
         }
         
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            /* Allow scrolling by default, but we will toggle this via JS */
             overflow-x: hidden; overflow-y: auto;
             -webkit-user-select: none; user-select: none;
             -webkit-touch-callout: none;
         }
 
-        /* Class to freeze background when editing */
         .lock-scroll { overflow: hidden !important; }
 
         body {
@@ -51,19 +48,28 @@
             justify-content: flex-start;
         }
 
-        .is-editing#archive-grid {
-            background-image: radial-gradient(rgba(140, 115, 64, 0.1) 1px, transparent 1px);
-            background-size: 30px 30px;
+        /* Wiggle Animation for Edit Mode */
+        @keyframes wiggle {
+            0% { transform: rotate(-1deg); }
+            50% { transform: rotate(1deg); }
+            100% { transform: rotate(-1deg); }
+        }
+
+        .is-editing .relic-wrapper:not(.dragging) {
+            animation: wiggle 0.3s infinite ease-in-out;
         }
 
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; z-index: 10;
-            flex-shrink: 0;
-            touch-action: none; /* Prevents browser scroll during drag/resize */
+            flex-shrink: 0; transition: transform 0.2s ease;
+            touch-action: none;
         }
         
-        .dragging { opacity: 0.4; transform: scale(0.95); }
+        .dragging { opacity: 0.2; transform: scale(0.8); animation: none !important; }
+        
+        /* Visual cue for insertion point */
+        .drop-target { border: 2px dashed var(--gold); border-radius: 15px; }
 
         .relic-frame, .folder-frame { 
             border-radius: 15%; overflow: hidden; 
@@ -83,8 +89,7 @@
         
         .relic-name { 
             margin-top: 6px; font-family: 'Cinzel'; 
-            font-size: 0.7rem; 
-            color: #fff; text-align: center; width: 100%;
+            font-size: 0.7rem; color: #fff; text-align: center; width: 100%;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             pointer-events: none;
         }
@@ -92,8 +97,7 @@
         .resize-handle {
             position: absolute; bottom: -12px; right: -12px; width: 38px; height: 38px;
             background: var(--gold); border-radius: 50%; z-index: 50; display: none;
-            border: 3px solid #000; box-shadow: 0 0 10px rgba(0,0,0,0.8);
-            pointer-events: auto;
+            border: 3px solid #000; pointer-events: auto;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -159,7 +163,7 @@
                 .filter(([id, r]) => r.parent === currentFolder)
                 .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
 
-            items.forEach(([id, r]) => {
+            items.forEach(([id, r], index) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 wrap.id = `relic-${id}`;
@@ -176,21 +180,26 @@
                     <div class="resize-handle"></div>
                 `;
 
+                // Drag to Insert Logic
                 wrap.draggable = isEditMode;
-                wrap.ondragstart = (e) => { 
+                wrap.ondragstart = (e) => {
                     if (e.target.classList.contains('resize-handle')) return e.preventDefault();
-                    document.body.classList.add('lock-scroll');
-                    e.dataTransfer.setData('text', id); 
-                    wrap.classList.add('dragging'); 
+                    e.dataTransfer.setData('text/plain', id);
+                    wrap.classList.add('dragging');
                 };
-                wrap.ondragend = () => {
-                    wrap.classList.remove('dragging');
-                    document.body.classList.remove('lock-scroll');
+                wrap.ondragend = () => wrap.classList.remove('dragging');
+                
+                wrap.ondragover = (e) => {
+                    e.preventDefault();
+                    if (!wrap.classList.contains('dragging')) wrap.style.transform = "scale(1.1)";
                 };
-                wrap.ondragover = (e) => e.preventDefault();
+                wrap.ondragleave = () => wrap.style.transform = "scale(1)";
+                
                 wrap.ondrop = (e) => {
-                    const draggedId = e.dataTransfer.getData('text');
-                    if (draggedId && draggedId !== id) swapOrder(draggedId, id);
+                    e.preventDefault();
+                    wrap.style.transform = "scale(1)";
+                    const draggedId = e.dataTransfer.getData('text/plain');
+                    if (draggedId !== id) insertAt(draggedId, id);
                 };
 
                 let lastTap = 0;
@@ -198,7 +207,7 @@
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) {
                             e.stopPropagation();
-                            document.body.classList.add('lock-scroll'); // FREEZE SCROLL
+                            document.body.classList.add('lock-scroll');
                             handleResize(e, wrap, id);
                         } else {
                             const now = Date.now();
@@ -218,13 +227,22 @@
             });
         }
 
-        function swapOrder(id1, id2) {
-            const order1 = allRelics[id1].sortOrder || 0;
-            const order2 = allRelics[id2].sortOrder || 0;
-            rtdb.ref().update({
-                [`relics/${id1}/sortOrder`]: order2,
-                [`relics/${id2}/sortOrder`]: order1
-            });
+        // INSERTION LOGIC: Moves the item to the new position and shifts everything else
+        function insertAt(draggedId, targetId) {
+            const items = Object.entries(allRelics)
+                .filter(([id, r]) => r.parent === currentFolder)
+                .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0))
+                .map(([id]) => id);
+
+            const oldIdx = items.indexOf(draggedId);
+            const newIdx = items.indexOf(targetId);
+            
+            items.splice(oldIdx, 1);
+            items.splice(newIdx, 0, draggedId);
+
+            const updates = {};
+            items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
+            rtdb.ref().update(updates);
         }
 
         function handleResize(e, el, id) {
@@ -243,13 +261,12 @@
             const onEnd = () => {
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onEnd);
-                document.body.classList.remove('lock-scroll'); // ENABLE SCROLL
+                document.body.classList.remove('lock-scroll');
                 rtdb.ref(`relics/${id}`).update({ 
                     w: parseInt(frame.style.width), 
                     h: parseInt(frame.style.height) 
                 });
             };
-
             window.addEventListener('pointermove', onMove);
             window.addEventListener('pointerup', onEnd);
         }
