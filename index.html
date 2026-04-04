@@ -41,13 +41,12 @@
             padding-bottom: 300px; box-sizing: border-box; 
         }
 
-        /* Subtle Edit-Mode Grid Overlay */
         .is-editing#archive-grid::before {
             content: "";
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-image: radial-gradient(rgba(140, 115, 64, 0.15) 1px, transparent 1px);
-            background-size: 20px 20px; /* Adjust for grid density */
+            background-image: radial-gradient(rgba(140, 115, 64, 0.12) 1px, transparent 1px);
+            background-size: 20px 20px;
             pointer-events: none;
             z-index: 1;
         }
@@ -55,6 +54,7 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10; touch-action: none; 
+            transition: transform 0.2s ease; /* Smooth shifting transition */
         }
         
         .is-editing .relic-wrapper { animation: wiggleAnim 0.4s infinite; }
@@ -107,7 +107,7 @@
             <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.85rem;">Gothic Archive</span>
         </div>
         <div style="display:flex; gap: 4px;">
-            <button id="recenter-btn" class="toggle-btn" style="display:none; border-color: var(--crimson);" onclick="recenterRelics()">Recenter</button>
+            <button id="recenter-btn" class="toggle-btn" style="display:none; border-color: var(--crimson);" onclick="recenterRelics()">Formation</button>
             <button id="add-trigger" class="toggle-btn" style="display:none;" onclick="toggleAdminPanel()">Add</button>
             <button id="edit-toggle" class="toggle-btn">Edit</button>
         </div>
@@ -147,7 +147,7 @@
         const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null, lastTap = 0;
-        const SNAP_SIZE = 10; // Snap distance in pixels
+        const SNAP_SIZE = 10;
 
         auth.onAuthStateChanged(user => { if (user) loadRelics(); else auth.signInAnonymously(); });
 
@@ -169,6 +169,7 @@
 
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
+                wrap.id = `relic-${id}`;
                 const w = r.w || 80, h = r.h || 80;
                 
                 wrap.style.cssText = `width:${w}px; min-height:${h+20}px; left:${r.x || 20}px; top:${r.y || 20}px;`;
@@ -200,32 +201,60 @@
 
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top);
+            el.style.zIndex = 1000;
+            el.style.transition = 'none';
+
             window.onpointermove = (ev) => {
                 let nextX = origX + ev.clientX - startX;
                 let nextY = origY + ev.clientY - startY;
                 
-                // Snapping Logic
                 nextX = Math.round(nextX / SNAP_SIZE) * SNAP_SIZE;
                 nextY = Math.round(nextY / SNAP_SIZE) * SNAP_SIZE;
 
                 const maxX = window.innerWidth - el.offsetWidth - 10;
                 el.style.left = Math.max(10, Math.min(nextX, maxX)) + 'px';
                 el.style.top = Math.max(10, nextY) + 'px';
+
+                checkDisplacement(id, nextX, nextY, el.offsetWidth, el.offsetHeight);
             };
+
             window.onpointerup = () => {
                 window.onpointermove = null;
+                el.style.zIndex = 10;
+                el.style.transition = 'transform 0.2s ease';
                 rtdb.ref(`relics/${id}`).update({ x: parseInt(el.style.left), y: parseInt(el.style.top) });
             };
+        }
+
+        function checkDisplacement(draggingId, x, y, w, h) {
+            Object.keys(allRelics).forEach(id => {
+                if (id === draggingId || allRelics[id].parent !== currentFolder) return;
+                
+                const other = allRelics[id];
+                const otherEl = document.getElementById(`relic-${id}`);
+                if (!otherEl) return;
+
+                // Collision detection
+                const overlap = !(x + w < other.x || x > other.x + (other.w || 80) || 
+                                  y + h < other.y || y > other.y + (other.h || 80));
+
+                if (overlap) {
+                    // Shove the other item slightly to the right or down
+                    let newX = other.x + 100;
+                    if (newX + (other.w || 80) > window.innerWidth) {
+                        newX = 20;
+                        other.y += 100;
+                    }
+                    rtdb.ref(`relics/${id}`).update({ x: newX, y: other.y });
+                }
+            });
         }
 
         function handleResize(e, el, id) {
             let startX = e.clientX, startW = parseInt(el.style.width);
             const frame = el.querySelector('div');
             window.onpointermove = (ev) => {
-                let size = Math.max(45, startW + (ev.clientX - startX));
-                // Snapping Resize
-                size = Math.round(size / SNAP_SIZE) * SNAP_SIZE;
-
+                let size = Math.round((Math.max(45, startW + (ev.clientX - startX))) / SNAP_SIZE) * SNAP_SIZE;
                 const maxX = window.innerWidth - parseInt(el.style.left) - 15;
                 size = Math.min(size, maxX);
                 el.style.width = size + 'px'; 
@@ -238,7 +267,7 @@
         }
 
         function recenterRelics() {
-            if(!confirm("Teleport all items to a central formation?")) return;
+            if(!confirm("Execute formation?")) return;
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const colLimit = window.innerWidth > 600 ? 5 : 3;
             const spacing = 110;
@@ -248,18 +277,12 @@
             items.forEach((id, index) => {
                 const row = Math.floor(index / colLimit);
                 const col = index % colLimit;
-                rtdb.ref(`relics/${id}`).update({
-                    x: startX + (col * spacing),
-                    y: startY + (row * spacing)
-                });
+                rtdb.ref(`relics/${id}`).update({ x: startX + (col * spacing), y: startY + (row * spacing) });
             });
         }
 
         function menuOriginalSize() {
-            if(activeMenuId) {
-                rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 });
-                closeMenu();
-            }
+            if(activeMenuId) { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); closeMenu(); }
         }
 
         document.getElementById('r-save').onclick = () => {
