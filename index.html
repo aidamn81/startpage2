@@ -47,7 +47,7 @@
         .ritual-tool.expanded { max-height: 500px; opacity: 1; padding: 15px; }
 
         #archive-grid { 
-            position: relative; margin-top: 190px; width: 95vw; max-width: 1100px;
+            position: relative; margin-top: 200px; width: 95vw; max-width: 1100px;
             min-height: 80vh; display: block;
         }
 
@@ -58,7 +58,7 @@
         
         .wiggle { animation: wiggleAnim 0.3s infinite; }
         @keyframes wiggleAnim {
-            0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); }
+            0% { transform: rotate(-1.3deg); } 50% { transform: rotate(1.3deg); } 100% { transform: rotate(-1.3deg); }
         }
 
         .resize-handle {
@@ -80,13 +80,11 @@
             background-size: cover; z-index: 5; pointer-events: none;
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.7rem; color: #fff; text-align: center; }
+        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-align: center; text-shadow: 1px 1px 2px #000; }
 
-        /* INPUTS AT 16PX TO PREVENT IOS ZOOM */
         .time-input { 
             background: #111; border: 1px solid #333; color: #fff; padding: 12px; 
-            width: 100%; box-sizing: border-box; margin-bottom: 8px; border-radius: 6px; 
-            font-size: 16px; 
+            width: 100%; box-sizing: border-box; margin-bottom: 8px; border-radius: 6px; font-size: 16px; 
         }
         .calc-btn { background: var(--crimson); color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-family: 'Cinzel'; border-radius: 6px; }
         .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 16px; font-family: 'Cinzel'; font-size: 0.75rem; cursor: pointer; border-radius: 6px; }
@@ -99,9 +97,10 @@
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            z-index: 5000; border-radius: 8px; width: 160px;
+            z-index: 5000; border-radius: 8px; width: 180px; box-shadow: 0 0 20px #000;
         }
-        .menu-item { padding: 14px; font-family: 'Cinzel'; font-size: 0.75rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; cursor: pointer; }
+        .menu-item { padding: 14px; font-family: 'Cinzel'; font-size: 0.8rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; cursor: pointer; }
+        .menu-item:last-child { border-bottom: none; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -139,7 +138,7 @@
     <div id="context-menu">
         <div class="menu-item" onclick="menuRename()">Rename</div>
         <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
-        <div class="menu-item" style="color:var(--crimson)" onclick="menuDelete()">Banish</div>
+        <div class="menu-item" style="color:var(--crimson); font-weight:bold;" onclick="menuDelete()">Banish Relic</div>
     </div>
 
     <section id="admin-desk">
@@ -149,7 +148,10 @@
         </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
-        <select id="r-type" class="time-input"><option value="link">Relic</option><option value="folder">Folder</option></select>
+        <select id="r-type" class="time-input">
+            <option value="link">Relic</option>
+            <option value="folder">Folder</option>
+        </select>
         <input type="file" id="r-file" accept="image/*" class="time-input">
         <button id="r-save" class="calc-btn">Commemorate</button>
         <div id="save-status" style="font-size:0.6rem; color:#555; text-align:center; margin-top:10px;"></div>
@@ -197,8 +199,9 @@
                 wrap.className = 'relic-wrapper' + (isEditMode ? ' wiggle' : '');
                 
                 const w = r.w || 65, h = r.h || 65;
-                const x = r.x !== undefined ? r.x : (index % 4) * 85;
-                const y = r.y !== undefined ? r.y : Math.floor(index / 4) * 110;
+                // Defaulting new items to x:10, y:10 so they don't spawn off-screen
+                const x = r.x !== undefined ? r.x : 10;
+                const y = r.y !== undefined ? r.y : 10;
 
                 wrap.style = `width:${w}px; height:${h+20}px; left:${x}px; top:${y}px;`;
                 const frame = r.type === 'folder' ? 'folder-frame' : 'relic-frame';
@@ -265,7 +268,9 @@
                     type: document.getElementById('r-type').value,
                     imgUrl: b64 || "",
                     parent: currentFolder,
-                    owner: String(auth.currentUser.uid)
+                    owner: String(auth.currentUser.uid),
+                    x: 20, // Forced spawning at top left for visibility
+                    y: 20
                 };
                 rtdb.ref('relics').push(payload).then(() => {
                     nameInput.value = ''; urlInput.value = ''; document.getElementById('r-file').value='';
@@ -312,9 +317,19 @@
             renderGrid();
         };
 
-        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; }
+        function showMenu(e) { 
+            const m = document.getElementById('context-menu'); 
+            m.style.display = 'block'; 
+            m.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px'; 
+            m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px'; 
+        }
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref('relics/' + activeMenuId).update({ name: n, owner: String(auth.currentUser.uid) }); }
+        
+        function menuRename() { 
+            const n = prompt("Re-christen this object:", allRelics[activeMenuId].name); 
+            if(n) rtdb.ref('relics/' + activeMenuId).update({ name: n, owner: String(auth.currentUser.uid) }); 
+        }
+        
         function menuChangeImage() {
             const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
             input.onchange = (e) => {
@@ -324,7 +339,14 @@
             };
             input.click();
         }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref('relics/' + activeMenuId).remove(); }
+
+        function menuDelete() { 
+            const item = allRelics[activeMenuId];
+            const msg = item.type === 'folder' ? "Banish this folder and all its memories?" : "Banish this relic forever?";
+            if(confirm(msg)) {
+                rtdb.ref('relics/' + activeMenuId).remove(); 
+            }
+        }
     </script>
 </body>
 </html>
