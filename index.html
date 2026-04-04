@@ -22,28 +22,31 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            overflow: hidden; touch-action: none;
+            /* Enable scrolling down */
+            overflow-x: hidden; overflow-y: auto; 
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
-            display: flex; flex-direction: column;
+            min-height: 100vh;
         }
 
         #top-controls { 
             width: 100%; padding: 10px 15px; display: flex; justify-content: space-between; 
             align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
             box-sizing: border-box; z-index: 3000;
+            position: sticky; top: 0; /* Keeps menu at top while scrolling */
             padding-top: env(safe-area-inset-top, 10px);
         }
 
         #archive-grid { 
-            position: relative; flex-grow: 1; width: 100%;
-            box-sizing: border-box; z-index: 5; overflow: hidden;
+            position: relative; width: 100%; min-height: calc(100vh - 60px);
+            box-sizing: border-box; z-index: 5;
+            padding-bottom: 500px; /* Extra room for infinite feel */
         }
 
-        /* Snap Grid visible during Edit */
         .is-editing#archive-grid::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-image: radial-gradient(rgba(140, 115, 64, 0.2) 1px, transparent 1px);
@@ -163,8 +166,10 @@
                 
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
+                
+                // Allow vertical scrolling (no bottom limit), but lock horizontally and top
                 const displayX = Math.max(10, Math.min(r.x * scaleFactor, window.innerWidth - w - 10));
-                const displayY = Math.max(10, Math.min(r.y * scaleFactor, grid.offsetHeight - h - 35));
+                const displayY = Math.max(20, r.y * scaleFactor);
 
                 wrap.style.cssText = `width:${w}px; height:${h}px; left:${displayX}px; top:${displayY}px;`;
                 
@@ -201,7 +206,8 @@
             el.classList.add('dragging');
             window.onpointermove = (ev) => {
                 let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
-                let ny = Math.max(10, Math.min(origY + ev.clientY - startY, document.getElementById('archive-grid').offsetHeight - el.offsetHeight - 35));
+                // Lock to top (20px) but allow infinite down
+                let ny = Math.max(20, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
             window.onpointerup = () => {
@@ -214,8 +220,7 @@
         function handleResize(e, el, id) {
             e.stopPropagation();
             let startW = el.offsetWidth, startX = e.clientX;
-            el.style.transition = 'none'; // Fix: Kill transition during active resize
-
+            el.style.transition = 'none';
             window.onpointermove = (ev) => {
                 let nw = Math.max(40 * scaleFactor, startW + (ev.clientX - startX));
                 el.style.width = nw + 'px'; el.style.height = nw + 'px';
@@ -223,11 +228,8 @@
             window.onpointerup = () => {
                 window.onpointermove = null;
                 el.style.transition = 'left 0.3s ease, top 0.3s ease';
-                
                 const finalW = el.offsetWidth / scaleFactor;
                 const finalH = el.offsetHeight / scaleFactor;
-
-                // Local state update prevents snap-back during DB latency
                 if (allRelics[id]) { allRelics[id].w = finalW; allRelics[id].h = finalH; }
                 rtdb.ref(`relics/${id}`).update({ w: finalW, h: finalH });
             };
@@ -279,7 +281,7 @@
         }
 
         function menuDelete() {
-            if (confirm("Banish this relic into the void?")) rtdb.ref(`relics/${activeMenuId}`).remove();
+            if (confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
         }
 
         function recenterRelics() {
