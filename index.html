@@ -41,7 +41,10 @@
         }
 
         #archive-grid { 
-            position: relative; width: 100%; flex-grow: 1;
+            position: relative; 
+            width: 100%; 
+            flex-grow: 1;
+            margin: 0 auto;
             box-sizing: border-box; z-index: 5; padding-bottom: 300px;
         }
 
@@ -56,7 +59,7 @@
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
             transition: left 0.3s ease, top 0.3s ease;
-            will-change: transform, left, top; /* Performance boost for mobile */
+            will-change: transform, left, top;
         }
         
         .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
@@ -142,7 +145,6 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            // Slightly more conservative scaling to prevent clipping on iPhone Pro Max models
             scaleFactor = width < 500 ? width / 420 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
@@ -173,7 +175,6 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Safe coordinates check
                 const displayX = Math.max(5, Math.min(r.x * scaleFactor, window.innerWidth - w - 5));
                 const displayY = Math.max(10, r.y * scaleFactor);
 
@@ -206,7 +207,6 @@
                 };
                 grid.appendChild(wrap);
             });
-            // Ensure the grid always stays at least tall enough to scroll
             grid.style.height = Math.max(window.innerHeight, maxBottom + 200) + 'px';
         }
 
@@ -304,12 +304,21 @@
 
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
-            const cols = window.innerWidth < 500 ? 3 : 6;
-            const spacing = window.innerWidth < 500 ? 120 : 115;
+            const width = window.innerWidth;
+            const isMobile = width < 500;
+            
+            // Dynamic Grid Logic
+            const itemSize = isMobile ? 120 : 130; // space each item takes
+            const cols = Math.floor((width - 40) / (itemSize * scaleFactor));
+            const gridWidth = cols * (itemSize * scaleFactor);
+            const sideMargin = (width - gridWidth) / 2 / scaleFactor;
+
             items.forEach((id, i) => {
+                const row = Math.floor(i / cols);
+                const col = i % cols;
                 rtdb.ref(`relics/${id}`).update({ 
-                    x: 35 + (i % cols * spacing), 
-                    y: 35 + (Math.floor(i / cols) * spacing) 
+                    x: sideMargin + (col * itemSize), 
+                    y: 35 + (row * itemSize) 
                 });
             });
         }
