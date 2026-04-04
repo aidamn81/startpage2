@@ -48,20 +48,20 @@
         }
         .ritual-tool.expanded { max-height: 800px; opacity: 1; padding: 15px; }
 
-        /* Centering Container for the Canvas */
-        #canvas-wrapper {
-            width: 100%;
-            max-width: 1000px; /* Limits iPad stretch but fills iPhone */
+        /* The Centered Editing Table Platform */
+        #canvas-container {
+            width: 100vw;
             display: flex;
             justify-content: center;
-            position: relative;
+            padding-top: 185px;
+            min-height: 100vh;
         }
 
         #archive-grid { 
             position: relative;
-            margin-top: 185px; 
-            width: 100%; 
-            height: 150vh; /* Scrollable ritual space */
+            width: 100%;
+            max-width: 1200px; /* Expands to iPad/iPhone width comfortably */
+            height: 2000px; /* Deep scrollable canvas */
             box-sizing: border-box;
         }
 
@@ -72,6 +72,7 @@
             align-items: center; 
             cursor: pointer; 
             user-select: none; 
+            z-index: 10;
         }
         
         .wiggle { animation: wiggleAnim 0.3s infinite; }
@@ -81,17 +82,18 @@
             100% { transform: rotate(-1.2deg); }
         }
 
+        /* Resizer Handle */
         .resize-handle {
             display: none;
             position: absolute;
-            right: -8px;
-            bottom: 12px;
-            width: 20px;
-            height: 20px;
+            right: -5px;
+            bottom: 15px;
+            width: 18px;
+            height: 18px;
             background: var(--gold);
-            border: 2px solid var(--obsidian);
+            border: 2px solid #000;
             border-radius: 50%;
-            z-index: 10;
+            z-index: 20;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -179,7 +181,7 @@
         </div>
     </div>
 
-    <div id="canvas-wrapper">
+    <div id="canvas-container">
         <main id="archive-grid"></main>
     </div>
 
@@ -229,11 +231,12 @@
                 wrap.className = 'relic-wrapper' + (isEditMode ? ' wiggle' : '');
                 wrap.dataset.id = id;
 
+                // Position calculation
                 const w = r.w || 60;
                 const h = r.h || 60;
-                // Center-weighted default positioning if none exists
-                const x = r.x !== undefined ? r.x : (window.innerWidth / 2 - 30);
-                const y = r.y !== undefined ? r.y : (200 + index * 80);
+                // Default grid-like appearance if no coordinates exist
+                const x = r.x !== undefined ? r.x : (10 + (index % 4) * (w + 25));
+                const y = r.y !== undefined ? r.y : (10 + Math.floor(index / 4) * (h + 40));
 
                 wrap.style.width = w + 'px';
                 wrap.style.height = (h + 20) + 'px';
@@ -417,7 +420,7 @@
                 name: n, url: u, type: t, imgUrl: img || '', 
                 parent: currentFolder, 
                 owner: uid,
-                x: (window.innerWidth / 2 - 30), y: 300, w: 60, h: 60 
+                x: 20, y: 20, w: 60, h: 60 
             });
 
             if(f) { const r = new FileReader(); r.onload = (e) => push(e.target.result); r.readAsDataURL(f); } else push("");
