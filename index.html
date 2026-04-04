@@ -43,7 +43,7 @@
             box-sizing: border-box; z-index: 5; overflow: hidden;
         }
 
-        /* Snap Grid - Visible in Edit Mode */
+        /* Snap Grid visible during Edit */
         .is-editing#archive-grid::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-image: radial-gradient(rgba(140, 115, 64, 0.2) 1px, transparent 1px);
@@ -56,7 +56,7 @@
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
         }
         
-        .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; transform: scale(1.05); }
+        .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
 
         .relic-frame, .folder-frame { 
             width: 100%; height: 100%; border-radius: 15%; overflow: hidden; 
@@ -81,7 +81,7 @@
         }
 
         .resize-handle {
-            position: absolute; bottom: -5px; right: -5px; width: 22px; height: 22px;
+            position: absolute; bottom: -8px; right: -8px; width: 24px; height: 24px;
             background: var(--gold); border-radius: 50%; z-index: 25; display: none;
             border: 2.5px solid #000; box-shadow: 0 0 5px #000;
         }
@@ -89,7 +89,7 @@
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 170px; box-shadow: 0 0 30px #000;
+            border-radius: 8px; z-index: 5000; width: 175px; box-shadow: 0 0 30px #000;
         }
         .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
@@ -115,6 +115,7 @@
     <div id="context-menu">
         <div class="menu-item" onclick="menuRename()">Rename</div>
         <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
+        <div class="menu-item" onclick="menuSnapOriginal()">Snap to Original</div>
         <div class="menu-item" onclick="menuDelete()">Banish</div>
     </div>
 
@@ -151,7 +152,7 @@
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
-            isEditMode ? grid.classList.add('is-editing') : grid.classList.remove('is-editing');
+            if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.parent !== currentFolder) return;
@@ -179,7 +180,7 @@
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) handleResize(e, wrap, id);
                         else handleDrag(e, wrap, id);
-                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 600);
+                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 650);
                     }
                 };
                 wrap.onpointerup = () => clearTimeout(timer);
@@ -197,16 +198,13 @@
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top);
             el.classList.add('dragging');
-
             window.onpointermove = (ev) => {
                 let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
                 let ny = Math.max(10, Math.min(origY + ev.clientY - startY, document.getElementById('archive-grid').offsetHeight - el.offsetHeight - 35));
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
-
             window.onpointerup = () => {
-                window.onpointermove = null;
-                el.classList.remove('dragging');
+                window.onpointermove = null; el.classList.remove('dragging');
                 checkFolderDrop(id, parseInt(el.style.left), parseInt(el.style.top));
                 savePositions();
             };
@@ -229,9 +227,7 @@
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (id !== dragId && r.type === 'folder' && r.parent === currentFolder) {
                     const fx = r.x * scaleFactor, fy = r.y * scaleFactor, fw = (r.w || 80) * scaleFactor;
-                    if (x > fx && x < fx + fw && y > fy && y < fy + fw) {
-                        rtdb.ref(`relics/${dragId}`).update({ parent: id });
-                    }
+                    if (x > fx && x < fx + fw && y > fy && y < fy + fw) rtdb.ref(`relics/${dragId}`).update({ parent: id });
                 }
             });
         }
@@ -251,8 +247,8 @@
         function showMenu(e) {
             const m = document.getElementById('context-menu');
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX, window.innerWidth - 180) + 'px';
-            m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+            m.style.left = Math.min(e.clientX, window.innerWidth - 185) + 'px';
+            m.style.top = Math.min(e.clientY, window.innerHeight - 220) + 'px';
         }
 
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
@@ -263,8 +259,12 @@
         }
 
         function menuChangeImage() {
-            const url = prompt("Relic Essence (Image URL):");
+            const url = prompt("Relic Image URL:");
             if (url) rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: url });
+        }
+
+        function menuSnapOriginal() {
+            rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 });
         }
 
         function menuDelete() {
