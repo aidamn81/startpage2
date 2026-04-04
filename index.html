@@ -293,7 +293,7 @@
                     rtdb.ref(`relics/${id}`).update({ 
                         x: parseInt(el.style.left), 
                         y: parseInt(el.style.top),
-                        owner: auth.currentUser.uid // Must maintain owner for security rules
+                        owner: auth.currentUser.uid 
                     });
                 }
             }
@@ -362,17 +362,34 @@
             let url = document.getElementById('r-url').value;
             const type = document.getElementById('r-type').value;
             const file = document.getElementById('r-file').files[0];
+            
             if(!name) return;
-            if(!auth.currentUser) await auth.signInAnonymously();
+            
+            // Critical check for auth
+            let currentUser = auth.currentUser;
+            if(!currentUser) {
+                const cred = await auth.signInAnonymously();
+                currentUser = cred.user;
+            }
+
             const pushData = (img) => {
-                rtdb.ref('relics').push({ 
-                    name: name, url: url || '', type: type, imgUrl: img || '', 
-                    parent: currentFolder, owner: auth.currentUser.uid 
-                }).then(() => {
-                    document.getElementById('r-name').value = ''; document.getElementById('r-url').value = '';
+                const payload = { 
+                    name: name, 
+                    url: url || '', 
+                    type: type, 
+                    imgUrl: img || '', 
+                    parent: currentFolder, 
+                    owner: currentUser.uid // Force owner inclusion for rule validation
+                };
+                
+                rtdb.ref('relics').push(payload).then(() => {
+                    document.getElementById('r-name').value = ''; 
+                    document.getElementById('r-url').value = '';
+                    document.getElementById('r-file').value = '';
                     toggleAdminPanel();
-                });
+                }).catch(e => console.error("Ritual Failure:", e));
             };
+
             if(file) { 
                 const reader = new FileReader(); 
                 reader.onload = (e) => pushData(e.target.result); 
