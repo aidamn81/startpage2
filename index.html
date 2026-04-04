@@ -22,7 +22,7 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            overflow-x: hidden; /* Strict horizontal boundary */
+            overflow-x: hidden; /* Prevent side-scrolling overhang */
             overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
@@ -44,11 +44,9 @@
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; 
-            padding-bottom: 400px;
-            overflow: visible;
+            padding-bottom: 600px; /* Massive buffer for scrolling content */
         }
 
-        /* The Grid Guide (Visible only in Edit Mode) */
         .is-editing#archive-grid::before {
             content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-image: radial-gradient(rgba(140, 115, 64, 0.1) 1px, transparent 1px);
@@ -59,8 +57,7 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
-            /* Smooth transition for when 'Formation' is clicked */
-            transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1), top 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: left 0.4s ease, top 0.4s ease;
         }
         
         .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
@@ -82,15 +79,15 @@
         
         .relic-name { 
             margin-top: 8px; font-family: 'Cinzel'; 
-            font-size: calc(0.7rem * var(--scale)); 
-            color: #fff; text-align: center; width: 160%; transform: translateX(-18.5%); 
+            font-size: calc(0.72rem * var(--scale)); 
+            color: #fff; text-align: center; width: 180%; transform: translateX(-22.5%); 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         .resize-handle {
-            position: absolute; bottom: -8px; right: -8px; width: 25px; height: 25px;
+            position: absolute; bottom: -10px; right: -10px; width: 30px; height: 30px;
             background: var(--gold); border-radius: 50%; z-index: 25; display: none;
-            border: 2px solid #000;
+            border: 2.5px solid #000;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -103,7 +100,7 @@
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
         .folder-option { color: #fff; font-size: 0.8rem; background: #1a1a1a; }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.8rem; border-radius: 6px; cursor: pointer; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.8rem; border-radius: 6px; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -111,7 +108,7 @@
     <div id="top-controls">
         <div style="display:flex; align-items:center;">
             <button id="back-btn" class="toggle-btn" style="display:none; margin-right:8px;" onclick="goBack()">←</button>
-            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.9rem;">Gothic Archive</span>
+            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.95rem;">Gothic Archive</span>
         </div>
         <div style="display:flex; gap: 8px;">
             <button id="recenter-btn" class="toggle-btn" style="display:none; border-color: var(--crimson);" onclick="recenterRelics()">Formation</button>
@@ -145,8 +142,7 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            // iPad vs iPhone specific scaling
-            scaleFactor = width < 500 ? width / 430 : width / 1000;
+            scaleFactor = width < 500 ? width / 440 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -178,16 +174,16 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
                 
-                // Visual Clamping: Ensure icons never render outside the current viewport
-                const displayX = Math.max(20, Math.min(r.x * scaleFactor, screenW - w - 20));
-                const displayY = Math.max(20, r.y * scaleFactor);
+                // FORCE VISIBILITY: Clamps items to be within the current screen boundaries
+                const displayX = Math.max(15, Math.min(r.x * scaleFactor, screenW - w - 15));
+                const displayY = Math.max(15, r.y * scaleFactor);
 
                 if (displayY + h > maxBottom) maxBottom = displayY + h;
 
                 wrap.style.cssText = `width:${w}px; height:${h}px; left:${displayX}px; top:${displayY}px;`;
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:100%; height:100%;">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.1 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.2 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
@@ -198,7 +194,7 @@
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) handleResize(e, wrap, id);
                         else handleDrag(e, wrap, id);
-                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 700);
+                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 650);
                     }
                 };
                 wrap.onpointerup = () => clearTimeout(timer);
@@ -211,6 +207,7 @@
                 };
                 grid.appendChild(wrap);
             });
+            // Update page height dynamically to ensure all content is scrollable
             grid.style.height = (maxBottom + 500) + 'px';
         }
 
@@ -218,8 +215,8 @@
             let startX = e.clientX, startY = e.clientY, origX = parseFloat(el.style.left), origY = parseFloat(el.style.top);
             el.classList.add('dragging');
             window.onpointermove = (ev) => {
-                let nx = Math.max(15, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 15));
-                let ny = Math.max(15, origY + ev.clientY - startY); 
+                let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
+                let ny = Math.max(10, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
             window.onpointerup = () => {
@@ -238,7 +235,7 @@
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                el.style.transition = 'left 0.5s ease, top 0.5s ease';
+                el.style.transition = 'left 0.4s ease, top 0.4s ease';
                 savePositions();
             };
         }
@@ -261,8 +258,8 @@
             const m = document.getElementById('context-menu');
             document.getElementById('folder-list-container').style.display = 'none';
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px';
-            m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px';
+            m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
         }
 
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
@@ -291,7 +288,7 @@
         }
 
         function menuChangeImage() {
-            const url = prompt("Image URL:");
+            const url = prompt("Relic Image URL:");
             if (url) rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: url });
         }
 
@@ -300,7 +297,7 @@
         }
 
         function menuDelete() {
-            if (confirm("Are you sure you want to banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
+            if (confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
         }
 
         function recenterRelics() {
@@ -308,33 +305,29 @@
             const screenW = window.innerWidth;
             const updates = {};
             
-            // 1. Logic for Grid Sizing
             let maxW = 80;
             items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
             
-            const paddingX = 40; 
-            const paddingY = 70; 
-            const colWidth = (maxW + paddingX) * scaleFactor;
-            const rowHeight = (maxW + paddingY) * scaleFactor;
+            const gapH = 45; 
+            const gapV = 75; 
+            const colWidth = (maxW + gapH) * scaleFactor;
+            const rowHeight = (maxW + gapV) * scaleFactor;
             
-            // 2. Strict Boundary Logic:
-            // Calculate starting X and Y
-            let currentX = 25 * scaleFactor; 
+            let currentX = 30 * scaleFactor; 
             let currentY = 60 * scaleFactor;
 
             items.forEach((id) => {
                 const itemW = (allRelics[id].w || 80) * scaleFactor;
                 
-                // If adding this item pushes it past the right edge (ScreenW - 20 buffer)
+                // If item pushes past the right boundary, wrap it to the next row
                 if (currentX + itemW > screenW - 20) {
-                    currentX = 25 * scaleFactor; // Reset to start of next row
+                    currentX = 30 * scaleFactor; 
                     currentY += rowHeight; 
                 }
 
                 updates[`relics/${id}/x`] = currentX / scaleFactor;
                 updates[`relics/${id}/y`] = currentY / scaleFactor;
 
-                // Move X forward for the next item
                 currentX += colWidth;
             });
 
