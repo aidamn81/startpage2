@@ -43,6 +43,7 @@
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; padding-bottom: 300px;
+            overflow: hidden; /* Prevent horizontal scroll if something clips */
         }
 
         .is-editing#archive-grid::before {
@@ -140,7 +141,8 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            scaleFactor = width < 500 ? width / 400 : width / 950;
+            // Slightly smaller scale on phones to ensure 3-column fit
+            scaleFactor = width < 500 ? width / 440 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -161,6 +163,8 @@
             if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
             let maxBottom = 0;
+            const screenW = window.innerWidth;
+
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.parent !== currentFolder) return;
                 const wrap = document.createElement('div');
@@ -169,8 +173,10 @@
                 
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
-                const displayX = r.x * scaleFactor;
-                const displayY = r.y * scaleFactor;
+                
+                // Final safety check: icons must stay within 10px of screen edges
+                const displayX = Math.max(10, Math.min(r.x * scaleFactor, screenW - w - 10));
+                const displayY = Math.max(10, r.y * scaleFactor);
 
                 if (displayY + h > maxBottom) maxBottom = displayY + h;
 
@@ -208,7 +214,7 @@
             let startX = e.clientX, startY = e.clientY, origX = parseFloat(el.style.left), origY = parseFloat(el.style.top);
             el.classList.add('dragging');
             window.onpointermove = (ev) => {
-                let nx = Math.max(5, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 5));
+                let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
                 let ny = Math.max(10, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
@@ -297,28 +303,30 @@
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const width = window.innerWidth;
             
-            // 1. Determine the grid unit based on the largest item
+            // 1. Calculate spacing based on items
             let maxW = 80;
             items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
             
-            const padding = 45; 
-            const colWidth = (maxW + padding) * scaleFactor;
-            const rowHeight = (maxW + padding + 30) * scaleFactor;
+            const cellGap = 40; 
+            const colWidth = (maxW + cellGap) * scaleFactor;
+            const rowHeight = (maxW + cellGap + 35) * scaleFactor;
             
-            // 2. Calculate columns that fit inside the window boundaries
-            const maxCols = Math.floor((width - 20) / colWidth) || 1;
+            // 2. Strict Boundary: Calculate columns that fit with a mandatory 20px side buffer
+            const availableWidth = width - 40; 
+            const maxCols = Math.max(1, Math.floor(availableWidth / colWidth));
             
-            // 3. Center the block
-            const actualGridWidth = maxCols * colWidth;
-            const sideMargin = (width - actualGridWidth) / 2;
+            // 3. Center logic
+            const totalGridWidth = maxCols * colWidth;
+            const sideMargin = (width - totalGridWidth) / 2;
 
             items.forEach((id, i) => {
                 const row = Math.floor(i / maxCols);
                 const col = i % maxCols;
                 
+                // Final save values (normalized by scale)
                 rtdb.ref(`relics/${id}`).update({ 
-                    x: (sideMargin + (col * colWidth) + (padding * scaleFactor / 4)) / scaleFactor, 
-                    y: (40 + (row * rowHeight)) / scaleFactor
+                    x: (sideMargin + (col * colWidth) + (cellGap * scaleFactor / 4)) / scaleFactor, 
+                    y: (50 + (row * rowHeight)) / scaleFactor
                 });
             });
         }
