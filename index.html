@@ -32,6 +32,22 @@
             padding-top: env(safe-area-inset-top, 20px);
         }
 
+        #tool-nexus-top {
+            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
+            z-index: 2500; display: flex; flex-direction: column; align-items: center;
+            width: 95%; max-width: 800px; box-sizing: border-box;
+        }
+
+        .tool-trigger-row { display: flex; gap: 8px; justify-content: center; width: 100%; }
+        
+        .ritual-tool { 
+            max-height: 0; overflow: hidden; transition: 0.4s ease;
+            opacity: 0; background: rgba(5, 5, 5, 0.98); border: 1px solid var(--gold); 
+            width: 100%; font-family: 'Cinzel', serif; color: var(--gold); 
+            box-shadow: 0 10px 40px #000; text-align: center; margin-top: 5px; border-radius: 8px;
+        }
+        .ritual-tool.expanded { max-height: 800px; opacity: 1; padding: 15px; }
+
         #archive-grid { 
             position: relative; margin-top: 185px; width: 95vw; max-width: 1100px;
             min-height: 80vh; display: block;
@@ -40,19 +56,19 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; 
-            z-index: 10; touch-action: none; transition: transform 0.1s;
+            z-index: 10; touch-action: none;
         }
         
         .wiggle { animation: wiggleAnim 0.3s infinite; }
         @keyframes wiggleAnim {
-            0% { transform: rotate(-1.2deg); }
-            50% { transform: rotate(1.2deg); }
-            100% { transform: rotate(-1.2deg); }
+            0% { transform: rotate(-1.5deg); }
+            50% { transform: rotate(1.5deg); }
+            100% { transform: rotate(-1.5deg); }
         }
 
         .resize-handle {
             display: none; position: absolute; right: -5px; bottom: 20px;
-            width: 26px; height: 26px; background: var(--gold); border: 2px solid #000;
+            width: 24px; height: 24px; background: var(--gold); border: 2px solid #000;
             border-radius: 50%; z-index: 20;
         }
         .is-editing .resize-handle { display: block; }
@@ -60,7 +76,7 @@
         .relic-frame, .folder-frame { 
             width: 100%; height: 100%; position: relative; border-radius: 12px; 
             overflow: hidden; display: flex; align-items: center; justify-content: center; 
-            background: #000; border: 1px solid #222; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            background: #000; border: 1px solid #1a1a1a; 
         }
         
         .folder-frame::before {
@@ -68,36 +84,24 @@
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%237a0000' stroke-width='3'/%3E%3Crect x='5' y='5' width='54' height='54' rx='10' fill='none' stroke='%238c7340' stroke-width='1.5'/%3E%3C/svg%3E");
             background-size: cover; z-index: 5; pointer-events: none;
         }
-        
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.75rem; color: #eee; text-shadow: 1px 1px 2px #000; }
+        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.7rem; color: #fff; text-align: center; }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 14px; font-family: 'Cinzel'; font-size: 0.7rem; cursor: pointer; border-radius: 4px; }
-        .time-input { background: #111; border: 1px solid #333; color: #fff; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 10px; border-radius: 6px; }
-        .calc-btn { background: var(--crimson); color: white; border: none; padding: 14px; width: 100%; cursor: pointer; font-family: 'Cinzel'; border-radius: 6px; }
-
-        #admin-desk { 
-            display: none; position: fixed; bottom: 30px; width: 90%; max-width: 340px; 
-            background: rgba(5,5,5,0.98); border: 1px solid var(--gold); padding: 20px; 
-            z-index: 4000; border-radius: 12px; left: 50%; transform: translateX(-50%); 
-            box-shadow: 0 0 50px #000;
-        }
+        .time-input { background: #111; border: 1px solid #333; color: #fff; padding: 12px; width: 100%; box-sizing: border-box; font-size: 0.9rem; margin-bottom: 8px; border-radius: 6px; }
+        .calc-btn { background: var(--crimson); color: white; border: none; padding: 12px; width: 100%; cursor: pointer; font-family: 'Cinzel'; border-radius: 6px; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 16px; font-family: 'Cinzel'; font-size: 0.75rem; cursor: pointer; border-radius: 6px; }
         
+        #admin-desk { 
+            display: none; position: fixed; bottom: 20px; width: 90%; max-width: 320px; 
+            background: rgba(0,0,0,0.95); border: 1px solid var(--gold); padding: 15px; 
+            z-index: 4000; border-radius: 8px; left: 50%; transform: translateX(-50%); 
+        }
+
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            z-index: 5000; border-radius: 8px; width: 170px;
+            z-index: 5000; border-radius: 8px; width: 160px;
         }
-        .menu-item { padding: 15px; font-family: 'Cinzel'; color: var(--gold); border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
-
-        #tool-nexus-top {
-            position: fixed; top: 85px; left: 50%; transform: translateX(-50%);
-            z-index: 2500; display: flex; flex-direction: column; align-items: center; width: 90%;
-        }
-        .ritual-tool { 
-            max-height: 0; overflow: hidden; transition: 0.3s; opacity: 0; 
-            background: #000; width: 100%; border: 1px solid var(--gold); margin-top: 5px; border-radius: 8px;
-        }
-        .ritual-tool.expanded { max-height: 500px; opacity: 1; padding: 15px; }
+        .menu-item { padding: 14px; font-family: 'Cinzel'; font-size: 0.75rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; cursor: pointer; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -114,14 +118,19 @@
     </div>
 
     <div id="tool-nexus-top">
-        <div style="display:flex; gap:10px;">
+        <div class="tool-trigger-row">
             <button class="toggle-btn" onclick="toggleTool('time-widget')">Oracle</button>
-            <button class="toggle-btn" onclick="toggleTool('calc-widget')">Ritual</button>
+            <button class="toggle-btn" onclick="toggleTool('perc-widget')">Ritual</button>
         </div>
         <div id="time-widget" class="ritual-tool">
             <input type="time" id="work-start" class="time-input" value="09:00">
             <button class="calc-btn" onclick="calculateOracle()">Consult Oracle</button>
-            <div id="leave-time" style="margin-top:10px; text-align:center; color:var(--gold); font-size:1.2rem;"></div>
+            <div id="leave-time" style="margin-top:10px; color:var(--gold); font-weight:bold;"></div>
+        </div>
+        <div id="perc-widget" class="ritual-tool">
+            <input type="number" id="perc-val" class="time-input" placeholder="Amount">
+            <button class="calc-btn" onclick="calculatePerc()">20% Ritual</button>
+            <div id="perc-result" style="margin-top:10px; color:var(--gold);"></div>
         </div>
     </div>
 
@@ -133,19 +142,12 @@
     </div>
 
     <section id="admin-desk">
-        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-            <span style="font-family:'Cinzel'; color:var(--gold);">New Relic</span>
-            <span onclick="toggleAdminPanel()" style="cursor:pointer; color:var(--gold);">✕</span>
-        </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
-        <select id="r-type" class="time-input">
-            <option value="link">Relic (Link)</option>
-            <option value="folder">Folder</option>
-        </select>
+        <select id="r-type" class="time-input"><option value="link">Relic</option><option value="folder">Folder</option></select>
         <input type="file" id="r-file" accept="image/*" class="time-input">
         <button id="r-save" class="calc-btn">Commemorate</button>
-        <div id="debug-log" style="font-size:0.6rem; color:#666; margin-top:10px;"></div>
+        <div id="debug-info" style="font-size:0.6rem; color:#444; margin-top:5px;"></div>
     </section>
 
     <script>
@@ -162,8 +164,7 @@
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
 
         auth.onAuthStateChanged(user => { 
-            if (user) loadRelics(); 
-            else auth.signInAnonymously(); 
+            if (user) loadRelics(); else auth.signInAnonymously(); 
         });
 
         function loadRelics() {
@@ -176,6 +177,8 @@
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
+            if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
+            
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             
             items.forEach((id, index) => {
@@ -185,78 +188,30 @@
                 
                 const w = r.w || 65, h = r.h || 65;
                 const x = r.x !== undefined ? r.x : (index % 4) * 85;
-                const y = r.y !== undefined ? r.y : Math.floor(index / 4) * 105;
+                const y = r.y !== undefined ? r.y : Math.floor(index / 4) * 110;
 
                 wrap.style = `width:${w}px; height:${h+20}px; left:${x}px; top:${y}px;`;
-                const frame = r.type === 'folder' ? 'folder-frame' : 'relic-frame';
+                const frameClass = r.type === 'folder' ? 'folder-frame' : 'relic-frame';
                 const img = r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold)">${r.type[0].toUpperCase()}</div>`;
                 
-                wrap.innerHTML = `<div class="${frame}" style="width:${w}px; height:${h}px;">${img}</div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
+                wrap.innerHTML = `<div class="${frameClass}" style="width:${w}px; height:${h}px;">${img}</div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
                 
                 wrap.onpointerdown = (e) => {
                     if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
-                    if (isEditMode) {
-                        if (e.pointerType === 'touch' || e.button === 0) handleDrag(e, wrap, id);
-                    }
+                    if (isEditMode) handleDrag(e, wrap, id);
                 };
 
-                wrap.onclick = () => {
+                wrap.onclick = (e) => {
                     if (!isEditMode) {
                         if (r.type === 'folder') enterFolder(id, r.name);
                         else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
                     } else {
-                        activeMenuId = id;
-                        showMenu(event);
+                        activeMenuId = id; showMenu(e);
                     }
                 };
                 grid.appendChild(wrap);
             });
         }
-
-        document.getElementById('r-save').onclick = async () => {
-            const log = (msg) => document.getElementById('debug-log').innerText = msg;
-            const name = document.getElementById('r-name').value;
-            const url = document.getElementById('r-url').value;
-            const type = document.getElementById('r-type').value;
-            const file = document.getElementById('r-file').files[0];
-
-            if(!name) return log("Missing Name");
-            if(!auth.currentUser) return log("No Auth");
-
-            log("Preparing Payload...");
-            const pushToFirebase = (base64) => {
-                const data = {
-                    name: name,
-                    url: url || "",
-                    type: type,
-                    imgUrl: base64 || "",
-                    parent: currentFolder,
-                    owner: auth.currentUser.uid, // Required by your rules
-                    timestamp: Date.now()
-                };
-
-                log("Sending to Database...");
-                rtdb.ref('relics').push(data)
-                    .then(() => {
-                        log("Success!");
-                        document.getElementById('r-name').value = '';
-                        document.getElementById('r-url').value = '';
-                        toggleAdminPanel();
-                    })
-                    .catch(err => {
-                        log("Denied: " + err.message);
-                        console.error(err);
-                    });
-            };
-
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => pushToFirebase(e.target.result);
-                reader.readAsDataURL(file);
-            } else {
-                pushToFirebase("");
-            }
-        };
 
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top), moved = false;
@@ -274,13 +229,62 @@
             let startX = e.clientX, startW = parseInt(el.style.width);
             window.onpointermove = (ev) => {
                 let size = Math.max(40, startW + (ev.clientX - startX));
-                el.style.width = size + 'px'; el.querySelector('.relic-frame, .folder-frame').style.width = size + 'px';
-                el.querySelector('.relic-frame, .folder-frame').style.height = size + 'px';
+                el.style.width = size + 'px'; el.style.height = (size + 20) + 'px';
+                const frame = el.querySelector('.relic-frame, .folder-frame');
+                frame.style.width = size + 'px'; frame.style.height = size + 'px';
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
                 rtdb.ref(`relics/${id}`).update({ w: parseInt(el.style.width), h: parseInt(el.style.width), owner: auth.currentUser.uid });
             };
+        }
+
+        document.getElementById('r-save').onclick = () => {
+            const name = document.getElementById('r-name').value;
+            const url = document.getElementById('r-url').value;
+            const type = document.getElementById('r-type').value;
+            const file = document.getElementById('r-file').files[0];
+            const debug = document.getElementById('debug-info');
+
+            if(!name || !auth.currentUser) return;
+
+            const send = (base64) => {
+                // We send ONLY the fields required to avoid triggering validation errors
+                const data = {
+                    name: name,
+                    url: url || "",
+                    type: type,
+                    imgUrl: base64 || "",
+                    parent: currentFolder,
+                    owner: auth.currentUser.uid
+                };
+
+                rtdb.ref('relics').push(data)
+                    .then(() => {
+                        debug.innerText = "Ritual Success";
+                        document.getElementById('r-name').value = '';
+                        document.getElementById('r-url').value = '';
+                        toggleAdminPanel();
+                    })
+                    .catch(err => debug.innerText = "Error: " + err.message);
+            };
+
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => send(e.target.result);
+                reader.readAsDataURL(file);
+            } else send("");
+        };
+
+        function calculateOracle() {
+            const [h, m] = document.getElementById('work-start').value.split(':').map(Number);
+            let t = new Date(); t.setHours(h, m - 45, 0);
+            document.getElementById('leave-time').innerText = "Depart: " + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        }
+
+        function calculatePerc() {
+            const val = document.getElementById('perc-val').value;
+            document.getElementById('perc-result').innerText = val ? "20% is: " + (val * 0.2).toFixed(2) : "";
         }
 
         function toggleAdminPanel() { const d = document.getElementById('admin-desk'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; }
@@ -295,17 +299,10 @@
             renderGrid();
         };
 
-        function showMenu(e) {
-            const m = document.getElementById('context-menu');
-            m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px';
-        }
+        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; }
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref('relics/' + activeMenuId).update({ name: n, owner: auth.currentUser.uid }); }
         function menuDelete() { if(confirm("Banish?")) rtdb.ref('relics/' + activeMenuId).remove(); }
-        function calculateOracle() {
-            const [h, m] = document.getElementById('work-start').value.split(':').map(Number);
-            let t = new Date(); t.setHours(h, m - 45, 0);
-            document.getElementById('leave-time').innerText = "Depart: " + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        }
     </script>
 </body>
 </html>
