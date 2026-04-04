@@ -192,9 +192,11 @@
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, lastTap = 0, activeMenuId = null;
 
-        auth.onAuthStateChanged(user => { 
-            if (user) { loadRelics(); renderSavedShelf(); } 
-            else { auth.signInAnonymously(); } 
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+            auth.onAuthStateChanged(user => { 
+                if (user) { loadRelics(); renderSavedShelf(); } 
+                else { auth.signInAnonymously(); } 
+            });
         });
 
         function loadRelics() {
@@ -222,10 +224,8 @@
 
                 const w = r.w || cellW;
                 const h = r.h || cellW;
-                
                 const defaultX = (index % cols) * (cellW + gap + 15);
                 const defaultY = Math.floor(index / cols) * (cellW + gap + 35);
-
                 const x = r.x !== undefined ? r.x : defaultX;
                 const y = r.y !== undefined ? r.y : defaultY;
 
@@ -237,29 +237,17 @@
                 const frameClass = r.type === 'folder' ? 'folder-frame' : 'relic-frame';
                 const cover = r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold)">${r.type === 'folder' ? 'F' : 'R'}</div>`;
                 
-                wrap.innerHTML = `
-                    <div class="${frameClass}" style="width:${w}px; height:${h}px;">${cover}</div>
-                    <span class="relic-name">${r.name}</span>
-                    <div class="resize-handle"></div>
-                `;
+                wrap.innerHTML = `<div class="${frameClass}" style="width:${w}px; height:${h}px;">${cover}</div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
                 
                 let startPos = { x: 0, y: 0 };
                 let isDragging = false;
 
                 wrap.addEventListener('pointerdown', (e) => {
-                    if (e.target.classList.contains('resize-handle')) {
-                        handleResize(e, wrap, id);
-                        return;
-                    }
+                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
                     startPos = { x: e.clientX, y: e.clientY };
                     isDragging = false;
-
                     const now = Date.now();
-                    if (isEditMode && now - lastTap < 300) {
-                        e.preventDefault(); e.stopPropagation();
-                        showMenu(e, id);
-                        return;
-                    }
+                    if (isEditMode && now - lastTap < 300) { e.preventDefault(); e.stopPropagation(); showMenu(e, id); return; }
                     lastTap = now;
                     if (isEditMode) handleDrag(e, wrap, id, (moved) => { isDragging = moved; });
                 });
@@ -279,9 +267,8 @@
                 grid.appendChild(wrap);
             });
 
-            const wrappers = document.querySelectorAll('.relic-wrapper');
             let maxHeight = 500;
-            wrappers.forEach(el => {
+            document.querySelectorAll('.relic-wrapper').forEach(el => {
                 const bottom = parseInt(el.style.top) + parseInt(el.style.height);
                 if (bottom > maxHeight) maxHeight = bottom;
             });
@@ -292,22 +279,22 @@
             let startX = e.clientX, startY = e.clientY;
             let origX = parseInt(el.style.left), origY = parseInt(el.style.top);
             let moved = false;
-
             function onMove(ev) {
                 let dx = ev.clientX - startX, dy = ev.clientY - startY;
                 if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-                    moved = true;
-                    el.style.left = (origX + dx) + 'px';
-                    el.style.top = (origY + dy) + 'px';
+                    moved = true; el.style.left = (origX + dx) + 'px'; el.style.top = (origY + dy) + 'px';
                     if (callback) callback(true);
                 }
             }
-
             function onUp() {
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
                 if (moved) {
-                    rtdb.ref(`relics/${id}`).update({ x: parseInt(el.style.left), y: parseInt(el.style.top) });
+                    rtdb.ref(`relics/${id}`).update({ 
+                        x: parseInt(el.style.left), 
+                        y: parseInt(el.style.top),
+                        owner: auth.currentUser.uid // Must maintain owner for security rules
+                    });
                 }
             }
             window.addEventListener('pointermove', onMove);
@@ -318,20 +305,20 @@
             e.preventDefault(); e.stopPropagation();
             let startX = e.clientX, startW = parseInt(el.style.width);
             let frame = el.querySelector('.folder-frame, .relic-frame');
-
             function onMove(ev) {
                 let dx = ev.clientX - startX;
                 let newSize = Math.max(40, startW + dx);
-                el.style.width = newSize + 'px';
-                el.style.height = (newSize + 25) + 'px';
-                frame.style.width = newSize + 'px';
-                frame.style.height = newSize + 'px';
+                el.style.width = newSize + 'px'; el.style.height = (newSize + 25) + 'px';
+                frame.style.width = newSize + 'px'; frame.style.height = newSize + 'px';
             }
-
             function onUp() {
                 window.removeEventListener('pointermove', onMove);
                 window.removeEventListener('pointerup', onUp);
-                rtdb.ref(`relics/${id}`).update({ w: parseInt(el.style.width), h: parseInt(el.style.width) });
+                rtdb.ref(`relics/${id}`).update({ 
+                    w: parseInt(el.style.width), 
+                    h: parseInt(el.style.width),
+                    owner: auth.currentUser.uid 
+                });
             }
             window.addEventListener('pointermove', onMove);
             window.addEventListener('pointerup', onUp);
@@ -354,14 +341,12 @@
 
         function enterFolder(id, name) { 
             currentFolder = id; document.getElementById('status-text').innerText = name; 
-            document.getElementById('back-btn').style.display = 'block'; 
-            renderGrid(); window.scrollTo(0,0);
+            document.getElementById('back-btn').style.display = 'block'; renderGrid();
         }
 
         function goBack() { 
             currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; 
-            document.getElementById('back-btn').style.display = 'none'; 
-            renderGrid(); window.scrollTo(0,0);
+            document.getElementById('back-btn').style.display = 'none'; renderGrid();
         }
         
         document.getElementById('edit-toggle').onclick = () => {
@@ -372,17 +357,58 @@
             renderGrid();
         };
 
-        document.getElementById('r-save').onclick = () => {
-            const n = document.getElementById('r-name').value, u = document.getElementById('r-url').value, t = document.getElementById('r-type').value, f = document.getElementById('r-file').files[0];
-            if(!n || !auth.currentUser) return;
-            const push = (img) => rtdb.ref('relics').push({ 
-                name: n, url: u, type: t, imgUrl: img || '', 
-                parent: currentFolder, owner: auth.currentUser.uid 
-            });
-            if(f) { const r = new FileReader(); r.onload = (e) => push(e.target.result); r.readAsDataURL(f); } else push("");
-            document.getElementById('r-name').value = ''; document.getElementById('r-url').value = '';
-            toggleAdminPanel();
+        document.getElementById('r-save').onclick = async () => {
+            const name = document.getElementById('r-name').value;
+            let url = document.getElementById('r-url').value;
+            const type = document.getElementById('r-type').value;
+            const file = document.getElementById('r-file').files[0];
+            if(!name) return;
+            if(!auth.currentUser) await auth.signInAnonymously();
+            const pushData = (img) => {
+                rtdb.ref('relics').push({ 
+                    name: name, url: url || '', type: type, imgUrl: img || '', 
+                    parent: currentFolder, owner: auth.currentUser.uid 
+                }).then(() => {
+                    document.getElementById('r-name').value = ''; document.getElementById('r-url').value = '';
+                    toggleAdminPanel();
+                });
+            };
+            if(file) { 
+                const reader = new FileReader(); 
+                reader.onload = (e) => pushData(e.target.result); 
+                reader.readAsDataURL(file); 
+            } else pushData("");
         };
+
+        function menuRename() {
+            const n = prompt("Rename Ritual:", allRelics[activeMenuId].name);
+            if(n) rtdb.ref('relics/' + activeMenuId).update({ name: n, owner: auth.currentUser.uid });
+            closeMenu();
+        }
+
+        function menuUpload() { document.getElementById('menu-file-input').click(); closeMenu(); }
+        
+        function handleMenuFileUpload(input) {
+            if(!input.files[0] || !activeMenuId) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                rtdb.ref('relics/' + activeMenuId).update({ imgUrl: e.target.result, owner: auth.currentUser.uid });
+                input.value = "";
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+
+        function menuDelete() {
+            if(confirm(`Banish ritual?`)) rtdb.ref('relics/' + activeMenuId).remove();
+            closeMenu();
+        }
+
+        function toggleTool(id, btn) {
+            const tool = document.getElementById(id);
+            const isOpen = tool.classList.contains('expanded');
+            document.querySelectorAll('.ritual-tool').forEach(t => t.classList.remove('expanded'));
+            if(!isOpen) tool.classList.add('expanded');
+        }
 
         function calculateOracle() {
             const start = document.getElementById('work-start').value;
@@ -392,13 +418,6 @@
             let leaveTime = new Date(workTime.getTime() - (45 * 60000));
             document.getElementById('leave-time').innerText = "Depart: " + leaveTime.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
             document.getElementById('result-box').style.display = 'block';
-        }
-
-        function toggleTool(id, btn) {
-            const tool = document.getElementById(id);
-            const isOpen = tool.classList.contains('expanded');
-            document.querySelectorAll('.ritual-tool').forEach(t => t.classList.remove('expanded'));
-            if(!isOpen) tool.classList.add('expanded');
         }
 
         function renderSavedShelf() {
