@@ -70,7 +70,6 @@
         }
         .folder-frame::after {
             content: ""; position: absolute; inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%237a0000' stroke-width='4'/%3E%3C/svg%3E");
             background-size: 100% 100%;
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
@@ -89,7 +88,7 @@
         .is-editing .resize-handle { display: block; }
 
         /* Admin Modal */
-        #admin-modal {
+        #admin-modal, #calc-modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); display: none; justify-content: center;
             align-items: center; z-index: 6000; padding: 20px; box-sizing: border-box;
@@ -102,6 +101,9 @@
             width: 100%; padding: 12px; margin-bottom: 15px; background: #111;
             border: 1px solid #333; color: var(--gold); border-radius: 5px; box-sizing: border-box;
         }
+
+        /* Percentage Calculator Styles */
+        #calc-result { font-size: 1.5rem; color: var(--gold); text-align: center; margin-top: 10px; border-top: 1px solid #333; padding-top: 10px; }
 
         /* Context Menu */
         #context-menu {
@@ -125,9 +127,22 @@
     <div id="top-controls">
         <button id="back-btn" class="toggle-btn" style="display:none;" onclick="goBack()">←</button>
         <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Gothic Archive</span>
+        <button class="toggle-btn" onclick="openCalc()">%</button>
         <a href="oracle.html" class="toggle-btn">Oracle</a>
         <button class="toggle-btn" onclick="openAdmin()">Summon</button>
         <button id="edit-toggle" class="toggle-btn">Edit</button>
+    </div>
+
+    <div id="calc-modal" onclick="if(event.target==this) closeCalc()">
+        <div class="modal-content">
+            <h2 style="color: var(--gold); margin-top: 0; text-align: center;">Tithe Calculator</h2>
+            <label style="font-size: 0.7rem; color: var(--gold);">Base Number</label>
+            <input type="number" id="calc-base" placeholder="Enter amount..." oninput="runCalc()">
+            <label style="font-size: 0.7rem; color: var(--gold);">Percentage (%)</label>
+            <input type="number" id="calc-percent" value="20" oninput="runCalc()">
+            <div id="calc-result">Result: 0</div>
+            <button class="toggle-btn" style="width:100%; margin-top: 15px;" onclick="closeCalc()">Dismiss</button>
+        </div>
     </div>
 
     <input type="file" id="image-upload" style="display:none;" accept="image/*">
@@ -171,6 +186,16 @@
         const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null, pendingImage = null;
+
+        // --- Percentage Calculator Logic ---
+        function openCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
+        function closeCalc() { document.getElementById('calc-modal').style.display = 'none'; }
+        function runCalc() {
+            const num = parseFloat(document.getElementById('calc-base').value) || 0;
+            const perc = parseFloat(document.getElementById('calc-percent').value) || 0;
+            const result = (num * (perc / 100)).toFixed(2);
+            document.getElementById('calc-result').innerText = `Result: ${result}`;
+        }
 
         auth.onAuthStateChanged(user => { if (user) syncData(); else auth.signInAnonymously(); });
 
