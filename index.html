@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>The Gothic Archive</title>
     
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/compass--v1.png">
@@ -14,45 +14,41 @@
 
     <style>
         :root { 
-            --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; 
+            --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89;
+            --scale: 1; 
         }
         
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            /* Allow natural scrolling in both directions */
-            overflow: auto; 
+            overflow-x: hidden; overflow-y: auto;
             -webkit-overflow-scrolling: touch;
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
-            display: block; 
-            min-width: 100vw; min-height: 100vh;
         }
 
         #top-controls { 
-            width: 100vw; padding: 10px 15px; display: flex; justify-content: space-between; 
+            width: 100%; padding: 10px 15px; display: flex; justify-content: space-between; 
             align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
             box-sizing: border-box; z-index: 3000; position: fixed; top: 0; left: 0;
             padding-top: env(safe-area-inset-top, 10px);
         }
 
-        /* The Canvas: Expands to fit content */
         #archive-grid { 
-            position: relative; 
-            min-width: 100vw; min-height: 100vh;
-            padding-top: 80px; padding-bottom: 500px; padding-right: 500px;
+            position: relative; width: 100%; min-height: 100vh;
+            padding-top: 100px; padding-bottom: 400px;
             box-sizing: border-box; z-index: 5;
         }
 
-        /* High-Visibility Grid (Infinite repeating) */
+        /* High-Visibility Grid scaled to the phone */
         .is-editing#archive-grid::before {
-            content: ""; position: absolute; top: 0; left: 0; width: 5000px; height: 5000px;
-            background-image: radial-gradient(rgba(140, 115, 64, 0.4) 1.5px, transparent 1.5px);
-            background-size: 30px 30px;
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: radial-gradient(rgba(140, 115, 64, 0.35) 1px, transparent 1px);
+            background-size: calc(25px * var(--scale)) calc(25px * var(--scale));
             pointer-events: none; z-index: 1;
         }
 
@@ -62,7 +58,7 @@
             transition: left 0.3s ease, top 0.3s ease;
         }
         
-        .dragging { transition: none !important; z-index: 2000 !important; }
+        .dragging { transition: none !important; z-index: 2000 !important; transform: scale(1.05); }
 
         .relic-frame, .folder-frame { 
             width: 100%; height: 100%; border-radius: 15%; overflow: hidden; 
@@ -77,9 +73,15 @@
         }
 
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.8rem; color: #fff; text-align: center; width: 150%; transform: translateX(-16%); }
+        
+        .relic-name { 
+            margin-top: 5px; font-family: 'Cinzel'; 
+            font-size: calc(0.7rem * var(--scale)); 
+            color: #fff; text-align: center; width: 180%; transform: translateX(-22.5%); 
+            white-space: nowrap; text-overflow: ellipsis; overflow: hidden;
+        }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 6px 10px; font-family: 'Cinzel'; font-size: 0.7rem; border-radius: 6px; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -87,9 +89,9 @@
     <div id="top-controls">
         <div style="display:flex; align-items:center;">
             <button id="back-btn" class="toggle-btn" style="display:none; margin-right:8px;" onclick="goBack()">←</button>
-            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold);">Gothic Archive</span>
+            <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); font-size: 0.8rem;">Gothic Archive</span>
         </div>
-        <div style="display:flex; gap: 5px;">
+        <div style="display:flex; gap: 4px;">
             <button id="recenter-btn" class="toggle-btn" style="display:none; border-color: var(--crimson);" onclick="recenterRelics()">Formation</button>
             <button id="edit-toggle" class="toggle-btn">Edit</button>
         </div>
@@ -108,7 +110,16 @@
         const rtdb = firebase.database();
         const auth = firebase.auth();
 
-        let isEditMode = false, currentFolder = 'root', allRelics = {};
+        let isEditMode = false, currentFolder = 'root', allRelics = {}, scaleFactor = 1;
+
+        // More aggressive scaling: Forces a virtual 800px width onto the phone screen
+        function updateScale() {
+            const targetWidth = window.innerWidth > 768 ? window.innerWidth : 850; 
+            scaleFactor = window.innerWidth / targetWidth;
+            document.documentElement.style.setProperty('--scale', scaleFactor);
+        }
+        window.addEventListener('resize', updateScale);
+        updateScale();
 
         auth.onAuthStateChanged(user => { 
             if (user) {
@@ -129,11 +140,17 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 wrap.id = `relic-${id}`;
-                const w = r.w || 80, h = r.h || 80;
-                wrap.style.cssText = `width:${w}px; left:${r.x}px; top:${r.y}px;`;
+                
+                const w = (r.w || 80) * scaleFactor;
+                const h = (r.h || 80) * scaleFactor;
+                
+                // Calculate display position
+                wrap.style.cssText = `width:${w}px; left:${r.x * scaleFactor}px; top:${r.y * scaleFactor}px;`;
+                
                 wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${w}px; height:${h}px;">
-                    ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold)">${r.type[0].toUpperCase()}</div>`}
+                    ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
                 </div><span class="relic-name">${r.name}</span>`;
+                
                 wrap.onpointerdown = (e) => { if (isEditMode) handleDrag(e, wrap, id); };
                 wrap.onclick = () => {
                     if (!isEditMode) {
@@ -151,9 +168,8 @@
             window.onpointermove = (ev) => {
                 let nextX = origX + ev.clientX - startX;
                 let nextY = origY + ev.clientY - startY;
-                // Boundary checking: Don't let items go off the top/left visible edge
-                nextX = Math.max(10, nextX);
-                nextY = Math.max(10, nextY);
+                nextX = Math.max(5, nextX);
+                nextY = Math.max(80, nextY);
                 el.style.left = nextX + 'px';
                 el.style.top = nextY + 'px';
                 reflowGrid(id, nextX, nextY, el.offsetWidth, el.offsetHeight);
@@ -166,21 +182,32 @@
         }
 
         function reflowGrid(draggingId, x, y, w, h) {
-            // Virtual Boundary: Allows items to push much further on iPad than iPhone
-            const canvasWidth = Math.max(window.innerWidth, 1200); 
+            const boundary = window.innerWidth - 10;
+            const spacing = 110 * scaleFactor;
 
             Object.keys(allRelics).forEach(id => {
                 if (id === draggingId || allRelics[id].parent !== currentFolder) return;
                 const other = allRelics[id];
                 const otherEl = document.getElementById(`relic-${id}`);
                 if (!otherEl) return;
-                const overlap = !(x + w < other.x || x > other.x + (other.w || 80) || y + h < other.y || y > other.y + (other.h || 80));
+                
+                const ox = other.x * scaleFactor;
+                const oy = other.y * scaleFactor;
+                const ow = (other.w || 80) * scaleFactor;
+                const oh = (other.h || 80) * scaleFactor;
+
+                const overlap = !(x + w < ox || x > ox + ow || y + h < oy || y > oy + oh);
+
                 if (overlap) {
-                    let newX = other.x + 110;
-                    let newY = other.y;
-                    if (newX + (other.w || 80) > canvasWidth - 50) { newX = 20; newY += 120; }
-                    other.x = newX; other.y = newY;
-                    otherEl.style.left = newX + 'px'; otherEl.style.top = newY + 'px';
+                    let nextX = ox + spacing;
+                    let nextY = oy;
+                    if (nextX + ow > boundary) { nextX = 15; nextY += spacing; }
+                    
+                    other.x = nextX / scaleFactor;
+                    other.y = nextY / scaleFactor;
+                    
+                    otherEl.style.left = nextX + 'px'; 
+                    otherEl.style.top = nextY + 'px';
                 }
             });
         }
@@ -189,21 +216,24 @@
             const updates = {};
             Object.keys(allRelics).forEach(rid => {
                 const el = document.getElementById(`relic-${rid}`);
-                if (el) { updates[`relics/${rid}/x`] = parseInt(el.style.left); updates[`relics/${rid}/y`] = parseInt(el.style.top); }
+                if (el) { 
+                    updates[`relics/${rid}/x`] = parseInt(el.style.left) / scaleFactor; 
+                    updates[`relics/${rid}/y`] = parseInt(el.style.top) / scaleFactor; 
+                }
             });
             rtdb.ref().update(updates);
         }
 
         function recenterRelics() {
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
-            const colLimit = window.innerWidth > 700 ? 6 : 3;
-            const spacing = 110;
+            const colLimit = window.innerWidth > 700 ? 7 : 6; 
+            const spacing = 115; // Base spacing for 850px virtual width
             const updates = {};
             items.forEach((id, index) => {
                 const row = Math.floor(index / colLimit);
                 const col = index % colLimit;
                 updates[`relics/${id}/x`] = 30 + (col * spacing);
-                updates[`relics/${id}/y`] = 100 + (row * spacing);
+                updates[`relics/${id}/y`] = 120 + (row * spacing);
             });
             rtdb.ref().update(updates);
         }
@@ -211,7 +241,7 @@
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
         document.getElementById('edit-toggle').onclick = () => { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; document.getElementById('recenter-btn').style.display = isEditMode ? 'inline-block' : 'none'; renderGrid(); };
-        function closeMenu() {} // Placeholder to prevent errors from body onclick
+        function closeMenu() {}
     </script>
 </body>
 </html>
