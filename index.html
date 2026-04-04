@@ -22,33 +22,26 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            /* Scroll padding ensures sticky header doesn't overlap top items */
-            scroll-padding-top: 80px; 
-            overflow-x: hidden; overflow-y: auto; 
+            scroll-padding-top: 80px; overflow-x: hidden; overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
-            min-height: 100vh;
-            display: block; /* Switched from flex to block to allow natural document growth */
+            min-height: 100vh; display: block;
         }
 
         #top-controls { 
             width: 100%; padding: 10px 15px; display: flex; justify-content: space-between; 
             align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
-            box-sizing: border-box; z-index: 3000;
-            position: sticky; top: 0;
+            box-sizing: border-box; z-index: 3000; position: sticky; top: 0;
             padding-top: env(safe-area-inset-top, 10px);
         }
 
         #archive-grid { 
-            position: relative; width: 100%; 
-            /* Fix: Grid min-height now ensures it covers the full viewport */
-            min-height: 120vh; 
-            box-sizing: border-box; z-index: 5;
-            padding-bottom: 200px; /* Buffer space at the very bottom */
+            position: relative; width: 100%; min-height: 120vh; 
+            box-sizing: border-box; z-index: 5; padding-bottom: 200px;
         }
 
         .is-editing#archive-grid::before {
@@ -97,10 +90,13 @@
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 175px; box-shadow: 0 0 30px #000;
+            border-radius: 8px; z-index: 5000; width: 190px; box-shadow: 0 0 30px #000;
+            max-height: 80vh; overflow-y: auto;
         }
         .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
+        .menu-item:hover { background: #111; }
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
+        .folder-option { color: #fff; font-size: 0.75rem; background: #1a1a1a; }
 
         .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; }
     </style>
@@ -123,7 +119,9 @@
     <div id="context-menu">
         <div class="menu-item" onclick="menuRename()">Rename</div>
         <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
-        <div class="menu-item" onclick="menuSnapOriginal()">Snap to Original</div>
+        <div class="menu-item" onclick="menuSnapOriginal()">Snap to Original Shape</div>
+        <div class="menu-item" onclick="toggleMoveOptions(event)">Move to Folder...</div>
+        <div id="folder-list-container" style="display:none;"></div>
         <div class="menu-item" onclick="menuDelete()">Banish</div>
     </div>
 
@@ -142,11 +140,7 @@
 
         function updateScale() {
             const width = window.innerWidth;
-            if (width < 500) {
-                scaleFactor = width / 450; // iPhone: Stronger zoom
-            } else {
-                scaleFactor = width / 950; // iPad: Standard wider view
-            }
+            scaleFactor = width < 500 ? width / 450 : width / 950;
             document.documentElement.style.setProperty('--scale', scaleFactor);
         }
         window.addEventListener('resize', () => { updateScale(); renderGrid(); });
@@ -167,7 +161,6 @@
             if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
             let maxBottom = 0;
-
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.parent !== currentFolder) return;
                 const wrap = document.createElement('div');
@@ -176,15 +169,12 @@
                 
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
-                
                 const displayX = Math.max(10, Math.min(r.x * scaleFactor, window.innerWidth - w - 10));
                 const displayY = Math.max(20, r.y * scaleFactor);
 
-                // Track the furthest relic down to resize the grid
                 if (displayY + h > maxBottom) maxBottom = displayY + h;
 
                 wrap.style.cssText = `width:${w}px; height:${h}px; left:${displayX}px; top:${displayY}px;`;
-                
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:100%; height:100%;">
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.2 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
@@ -211,8 +201,6 @@
                 };
                 grid.appendChild(wrap);
             });
-
-            // Update grid height dynamically based on relics
             grid.style.minHeight = (maxBottom + 250) + 'px';
         }
 
@@ -226,7 +214,6 @@
             };
             window.onpointerup = () => {
                 window.onpointermove = null; el.classList.remove('dragging');
-                checkFolderDrop(id, parseInt(el.style.left), parseInt(el.style.top));
                 savePositions();
             };
         }
@@ -249,15 +236,6 @@
             };
         }
 
-        function checkFolderDrop(dragId, x, y) {
-            Object.entries(allRelics).forEach(([id, r]) => {
-                if (id !== dragId && r.type === 'folder' && r.parent === currentFolder) {
-                    const fx = r.x * scaleFactor, fy = r.y * scaleFactor, fw = (r.w || 80) * scaleFactor;
-                    if (x > fx && x < fx + fw && y > fy && y < fy + fw) rtdb.ref(`relics/${dragId}`).update({ parent: id });
-                }
-            });
-        }
-
         function savePositions() {
             const updates = {};
             Object.keys(allRelics).forEach(rid => {
@@ -272,12 +250,34 @@
 
         function showMenu(e) {
             const m = document.getElementById('context-menu');
+            document.getElementById('folder-list-container').style.display = 'none';
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX, window.innerWidth - 185) + 'px';
-            m.style.top = Math.min(e.clientY, window.innerHeight - 220) + 'px';
+            m.style.left = Math.min(e.clientX, window.innerWidth - 195) + 'px';
+            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
         }
 
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
+
+        function toggleMoveOptions(e) {
+            e.stopPropagation();
+            const container = document.getElementById('folder-list-container');
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                return;
+            }
+            container.innerHTML = `<div class="menu-item folder-option" onclick="moveRelic('root')">🏛 Index (Root)</div>`;
+            Object.entries(allRelics).forEach(([id, r]) => {
+                if (r.type === 'folder' && id !== activeMenuId) {
+                    container.innerHTML += `<div class="menu-item folder-option" onclick="moveRelic('${id}')">📁 ${r.name}</div>`;
+                }
+            });
+            container.style.display = 'block';
+        }
+
+        function moveRelic(destId) {
+            rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId });
+            closeMenu();
+        }
 
         function menuRename() {
             const n = prompt("Relic Title:", allRelics[activeMenuId].name);
@@ -310,8 +310,8 @@
             });
         }
 
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
+        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); window.scrollTo(0,0); }
+        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); window.scrollTo(0,0); }
         document.getElementById('edit-toggle').onclick = () => { 
             isEditMode = !isEditMode; 
             document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; 
