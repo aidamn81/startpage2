@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>The Gothic Archive</title>
     
     <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/compass--v1.png">
@@ -15,14 +15,14 @@
     <style>
         :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; }
         
-        /* The "Anti-Zoom" and "Pro-Scroll" Foundation */
         html, body { 
             width: 100%; min-height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            /* touch-action manipulation allows scrolling but kills double-tap zoom */
+            /* Allow natural scrolling but prevent double-tap zoom */
             touch-action: manipulation; 
-            overflow-x: hidden; -webkit-overflow-scrolling: touch;
+            overflow-x: hidden; overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -39,15 +39,14 @@
         }
 
         #archive-grid { 
-            position: relative; width: 100vw; min-height: 120vh; /* Extra height to ensure scroll works */
-            margin-top: 20px;
+            position: relative; width: 100vw; min-height: 100vh;
+            margin-top: 10px; padding-bottom: 100px;
         }
 
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
-            /* none here is required so the drag-and-drop code handles the movement */
-            touch-action: none; 
+            touch-action: none; /* Required for dragging */
         }
         
         .is-editing .relic-wrapper { animation: wiggleAnim 0.3s infinite; }
@@ -57,7 +56,7 @@
 
         .resize-handle {
             display: none; position: absolute; right: -10px; bottom: 25px;
-            width: 32px; height: 32px; background: var(--gold); border: 2px solid #000;
+            width: 30px; height: 30px; background: var(--gold); border: 2px solid #000;
             border-radius: 50%; z-index: 20;
         }
         .is-editing .resize-handle { display: block; }
@@ -75,25 +74,23 @@
         }
 
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.8rem; color: #fff; text-shadow: 1px 1px 2px #000; }
+        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-shadow: 1px 1px 2px #000; text-align: center; }
 
-        /* CRITICAL: Font-size 16px kills auto-zoom on click */
         .time-input { background: #111; border: 1px solid #333; color: #fff; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 10px; border-radius: 6px; font-size: 16px !important; }
-        .calc-btn { background: var(--crimson); color: white; border: none; padding: 14px; width: 100%; cursor: pointer; font-family: 'Cinzel'; border-radius: 6px; font-size: 16px; margin-bottom: 5px; }
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 16px; font-family: 'Cinzel'; font-size: 0.85rem; cursor: pointer; border-radius: 6px; }
+        .calc-btn { background: var(--crimson); color: white; border: none; padding: 14px; width: 100%; cursor: pointer; font-family: 'Cinzel'; border-radius: 6px; font-size: 16px; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 16px; font-family: 'Cinzel'; font-size: 0.8rem; cursor: pointer; border-radius: 6px; }
         
         #admin-desk { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 90%; max-width: 340px; background: rgba(5,5,5,0.99); border: 2px solid var(--gold); 
-            padding: 25px; z-index: 4000; border-radius: 12px; box-shadow: 0 0 50px #000;
+            width: 85%; max-width: 320px; background: rgba(5,5,5,0.98); border: 2px solid var(--gold); 
+            padding: 20px; z-index: 4000; border-radius: 12px;
         }
 
         #context-menu {
-            position: fixed; display: none; background: #0a0a0a; border: 2px solid var(--gold);
-            z-index: 5000; border-radius: 10px; width: 200px; box-shadow: 0 0 40px #000;
+            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
+            z-index: 5000; border-radius: 8px; width: 180px; box-shadow: 0 0 30px #000;
         }
-        .menu-item { padding: 16px; font-family: 'Cinzel'; font-size: 0.9rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; }
-        .menu-item:last-child { border-bottom: none; }
+        .menu-item { padding: 14px; font-family: 'Cinzel'; font-size: 0.85rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; cursor: pointer; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -121,7 +118,7 @@
     <section id="admin-desk">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
             <span style="font-family:'Cinzel'; color:var(--gold);">Commemorate</span>
-            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer; font-size:1.5rem; padding: 5px;">✕</span>
+            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer;">✕</span>
         </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
@@ -144,6 +141,13 @@
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null, lastTap = 0;
 
         auth.onAuthStateChanged(user => { if (user) loadRelics(); else auth.signInAnonymously(); });
+
+        // FORCE SCALE RESET
+        function resetView() {
+            const viewport = document.querySelector('meta[name="viewport"]');
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+            window.scrollTo(0, 0);
+        }
 
         function loadRelics() {
             rtdb.ref('relics').on('value', snap => {
@@ -174,14 +178,10 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // Handle Double Tap and Single Tap
                 wrap.addEventListener('touchstart', (e) => {
                     const now = Date.now();
-                    if (now - lastTap < 350 && isEditMode) { 
-                        e.preventDefault(); 
-                        activeMenuId = id; 
-                        showMenu(e.touches[0]); 
-                        return;
+                    if (now - lastTap < 300 && isEditMode) { 
+                        e.preventDefault(); activeMenuId = id; showMenu(e.touches[0]); 
                     }
                     lastTap = now;
                 }, {passive: false});
@@ -238,6 +238,7 @@
             const send = (b64) => {
                 rtdb.ref('relics').push({ name:n, url:u, type:t, imgUrl:b64||"", parent:currentFolder, x:20, y:20 });
                 toggleAdminPanel();
+                resetView();
             };
             if(f) { const r = new FileReader(); r.onload=(e)=>send(e.target.result); r.readAsDataURL(f); } else send("");
         };
@@ -245,14 +246,15 @@
         function showMenu(e) {
             const m = document.getElementById('context-menu');
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX || e.pageX, window.innerWidth - 210) + 'px';
-            m.style.top = Math.min(e.clientY || e.pageY, window.innerHeight - 250) + 'px';
+            m.style.left = Math.min(e.clientX || e.pageX, window.innerWidth - 190) + 'px';
+            m.style.top = Math.min(e.clientY || e.pageY, window.innerHeight - 200) + 'px';
         }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; resetView(); }
 
         function menuRename() {
-            const n = prompt("Re-christen this object:", allRelics[activeMenuId].name);
+            const n = prompt("New Name:", allRelics[activeMenuId].name);
             if(n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n });
+            resetView();
         }
 
         function menuChangeImage() {
@@ -265,21 +267,31 @@
         }
 
         function menuMove() {
-            const dest = prompt("Enter Folder Name or ID (use 'root' for home):", "root");
+            const dest = prompt("Move to Folder Name or ID:", "root");
             if(dest) rtdb.ref(`relics/${activeMenuId}`).update({ parent: dest });
+            resetView();
         }
 
         function menuDelete() {
             if(confirm("Banish this object forever?")) rtdb.ref(`relics/${activeMenuId}`).remove();
+            resetView();
         }
 
         function toggleAdminPanel() { 
             const d = document.getElementById('admin-desk'); 
             d.style.display = d.style.display==='block'?'none':'block'; 
+            if(d.style.display==='none') resetView();
         }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); window.scrollTo(0,0); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); window.scrollTo(0,0); }
-        document.getElementById('edit-toggle').onclick = () => { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; document.getElementById('add-trigger').style.display = isEditMode ? 'inline-block' : 'none'; renderGrid(); };
+        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); resetView(); }
+        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); resetView(); }
+        
+        document.getElementById('edit-toggle').onclick = () => { 
+            isEditMode = !isEditMode; 
+            document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; 
+            document.getElementById('add-trigger').style.display = isEditMode ? 'inline-block' : 'none'; 
+            renderGrid(); 
+            resetView();
+        };
     </script>
 </body>
 </html>
