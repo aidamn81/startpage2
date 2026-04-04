@@ -22,7 +22,7 @@
             color: var(--text); font-family: 'Playfair Display', serif;
             margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
             overflow-y: auto; overflow-x: hidden; padding-bottom: 80px; -webkit-tap-highlight-color: transparent;
-            touch-action: none; /* Controlled via JS for scrolling vs dragging */
+            touch-action: none;
         }
 
         #top-controls { 
@@ -48,7 +48,6 @@
         }
         .ritual-tool.expanded { max-height: 800px; opacity: 1; padding: 15px; }
 
-        /* The Editing Table Platform */
         #archive-grid { 
             position: relative;
             margin-top: 185px; 
@@ -200,7 +199,7 @@
             const gridWidth = grid.offsetWidth;
             const cols = window.innerWidth > 600 ? 5 : 4;
             const gap = 15;
-            const cellW = (gridWidth - (gap * (cols - 1))) / cols;
+            const cellW = 65; // Default small size
 
             items.forEach((id, index) => {
                 const r = allRelics[id];
@@ -208,12 +207,13 @@
                 wrap.className = 'relic-wrapper' + (isEditMode ? ' wiggle' : '');
                 wrap.dataset.id = id;
 
+                // Priority: Saved Size -> Default Small Size
                 const w = r.w || cellW;
                 const h = r.h || cellW;
                 
-                // If coordinates don't exist, calculate standard grid position
-                const defaultX = (index % cols) * (cellW + gap);
-                const defaultY = Math.floor(index / cols) * (cellW + gap + 25);
+                // Priority: Saved Position -> Calculated Grid Position
+                const defaultX = (index % cols) * (cellW + gap + 15);
+                const defaultY = Math.floor(index / cols) * (cellW + gap + 35);
 
                 const x = r.x !== undefined ? r.x : defaultX;
                 const y = r.y !== undefined ? r.y : defaultY;
@@ -244,7 +244,7 @@
                         showMenu(e, id);
                     } else if (!isEditMode) {
                         if(r.type === 'folder') enterFolder(id, r.name);
-                        else if(r.url) window.open(r.url, '_blank');
+                        else if(r.url) window.open(r.url, '_blank'); // Explicit new tab
                     }
                     lastTap = now;
                     if (isEditMode) handleDrag(e, wrap, id);
@@ -252,7 +252,7 @@
                 grid.appendChild(wrap);
             });
 
-            // Adjust grid container height to allow scrolling
+            // Maintain scrollable height
             const wrappers = document.querySelectorAll('.relic-wrapper');
             let maxHeight = 500;
             wrappers.forEach(el => {
