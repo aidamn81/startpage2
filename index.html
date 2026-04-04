@@ -61,7 +61,7 @@
             0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); }
         }
 
-        /* RESTORED RESIZE HANDLE */
+        /* RESIZE HANDLES PRESERVED */
         .resize-handle {
             display: none; position: absolute; right: -5px; bottom: 25px;
             width: 24px; height: 24px; background: var(--gold); border: 2px solid #000;
@@ -139,8 +139,8 @@
 
     <section id="admin-desk">
         <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-            <span style="font-family:'Cinzel'; color:var(--gold);">Commemorate</span>
-            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer;">✕</span>
+            <span style="font-family:'Cinzel'; color:var(--gold); font-size:0.8rem;">Commemorate</span>
+            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer; font-weight:bold;">✕</span>
         </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
@@ -253,32 +253,33 @@
 
             if(!name || !auth.currentUser) return;
 
-            const sendData = (b64) => {
-                // CLEAN PAYLOAD: Only core fields to satisfy strict security rules
+            const sendMinimalData = (b64) => {
+                // ULTRA-STRICT PAYLOAD: No x,y,w,h fields sent on initial creation.
+                // This prevents .validate rules from blocking the write if they expect exactly these 6 keys.
                 const data = {
-                    name: name,
-                    url: url || "",
-                    type: type,
-                    imgUrl: b64 || "",
-                    parent: currentFolder,
+                    name: String(name),
+                    url: String(url || ""),
+                    type: String(type),
+                    imgUrl: String(b64 || ""),
+                    parent: String(currentFolder),
                     owner: String(auth.currentUser.uid) 
                 };
 
                 rtdb.ref('relics').push(data).then(() => {
-                    status.innerText = "Ritual Commemorated";
+                    status.innerText = "Ritual Success";
                     document.getElementById('r-name').value = '';
                     document.getElementById('r-url').value = '';
                     toggleAdminPanel();
                 }).catch(err => {
-                    status.innerText = "Error: " + err.message;
+                    status.innerText = "Denied: " + err.message;
                 });
             };
 
             if(file) {
                 const reader = new FileReader();
-                reader.onload = (e) => sendData(e.target.result);
+                reader.onload = (e) => sendMinimalData(e.target.result);
                 reader.readAsDataURL(file);
-            } else sendData("");
+            } else sendMinimalData("");
         };
 
         function calculateOracle() {
@@ -291,7 +292,7 @@
 
         function calculatePerc() {
             const v = document.getElementById('perc-val').value;
-            document.getElementById('perc-result').innerText = v ? "20% is: " + (v * 0.2).toFixed(2) : "";
+            document.getElementById('perc-result').innerText = v ? "20% Result: " + (v * 0.2).toFixed(2) : "";
         }
 
         function toggleAdminPanel() { 
