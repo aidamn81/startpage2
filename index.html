@@ -19,7 +19,6 @@
             width: 100%; min-height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
-            /* Allow natural scrolling but prevent double-tap zoom */
             touch-action: manipulation; 
             overflow-x: hidden; overflow-y: auto;
             -webkit-overflow-scrolling: touch;
@@ -40,24 +39,24 @@
 
         #archive-grid { 
             position: relative; width: 100vw; min-height: 100vh;
-            margin-top: 10px; padding-bottom: 100px;
+            margin-top: 10px; padding-bottom: 150px;
         }
 
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
-            touch-action: none; /* Required for dragging */
+            touch-action: none; 
         }
         
         .is-editing .relic-wrapper { animation: wiggleAnim 0.3s infinite; }
         @keyframes wiggleAnim {
-            0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); }
+            0% { transform: rotate(-0.5deg); } 50% { transform: rotate(0.5deg); } 100% { transform: rotate(-0.5deg); }
         }
 
         .resize-handle {
-            display: none; position: absolute; right: -10px; bottom: 25px;
-            width: 30px; height: 30px; background: var(--gold); border: 2px solid #000;
-            border-radius: 50%; z-index: 20;
+            display: none; position: absolute; right: -12px; bottom: 20px;
+            width: 32px; height: 32px; background: var(--gold); border: 2px solid #000;
+            border-radius: 50%; z-index: 30; box-shadow: 0 0 10px rgba(0,0,0,0.5);
         }
         .is-editing .resize-handle { display: block; }
 
@@ -65,16 +64,25 @@
             width: 100%; height: 100%; border-radius: 12px; 
             overflow: hidden; display: flex; align-items: center; justify-content: center; 
             background: #000; border: 1px solid #1a1a1a; pointer-events: none;
+            position: relative;
         }
         
-        .folder-frame::before {
-            content: ""; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+        /* Fixed folder overlay logic */
+        .folder-frame::after {
+            content: ""; position: absolute; inset: 0;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%237a0000' stroke-width='3'/%3E%3Crect x='5' y='5' width='54' height='54' rx='10' fill='none' stroke='%238c7340' stroke-width='1.5'/%3E%3C/svg%3E");
-            background-size: cover; z-index: 5;
+            background-size: 100% 100%; z-index: 5; pointer-events: none;
         }
 
-        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-shadow: 1px 1px 2px #000; text-align: center; }
+        .relic-frame img, .folder-frame img { 
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+
+        .relic-name { 
+            margin-top: 8px; font-family: 'Cinzel'; font-size: 0.75rem; 
+            color: #fff; text-shadow: 1px 1px 3px #000; text-align: center; 
+            width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
 
         .time-input { background: #111; border: 1px solid #333; color: #fff; padding: 12px; width: 100%; box-sizing: border-box; margin-bottom: 10px; border-radius: 6px; font-size: 16px !important; }
         .calc-btn { background: var(--crimson); color: white; border: none; padding: 14px; width: 100%; cursor: pointer; font-family: 'Cinzel'; border-radius: 6px; font-size: 16px; }
@@ -82,15 +90,15 @@
         
         #admin-desk { 
             display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 85%; max-width: 320px; background: rgba(5,5,5,0.98); border: 2px solid var(--gold); 
+            width: 85%; max-width: 320px; background: rgba(5,5,5,0.99); border: 2px solid var(--gold); 
             padding: 20px; z-index: 4000; border-radius: 12px;
         }
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            z-index: 5000; border-radius: 8px; width: 180px; box-shadow: 0 0 30px #000;
+            z-index: 5000; border-radius: 8px; width: 180px; box-shadow: 0 0 40px #000;
         }
-        .menu-item { padding: 14px; font-family: 'Cinzel'; font-size: 0.85rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; cursor: pointer; }
+        .menu-item { padding: 16px; font-family: 'Cinzel'; font-size: 0.85rem; color: var(--gold); border-bottom: 1px solid #1a1a1a; text-align: center; cursor: pointer; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -111,14 +119,14 @@
     <div id="context-menu">
         <div class="menu-item" onclick="menuRename()">Rename</div>
         <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
-        <div class="menu-item" onclick="menuMove()">Move Folder</div>
+        <div class="menu-item" onclick="menuMove()">Move to Folder</div>
         <div class="menu-item" style="color:var(--crimson); font-weight:bold;" onclick="menuDelete()">Banish (Delete)</div>
     </div>
 
     <section id="admin-desk">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
             <span style="font-family:'Cinzel'; color:var(--gold);">Commemorate</span>
-            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer;">✕</span>
+            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer; font-size: 1.2rem;">✕</span>
         </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
@@ -142,13 +150,6 @@
 
         auth.onAuthStateChanged(user => { if (user) loadRelics(); else auth.signInAnonymously(); });
 
-        // FORCE SCALE RESET
-        function resetView() {
-            const viewport = document.querySelector('meta[name="viewport"]');
-            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-            window.scrollTo(0, 0);
-        }
-
         function loadRelics() {
             rtdb.ref('relics').on('value', snap => {
                 allRelics = snap.val() || {};
@@ -167,17 +168,21 @@
 
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
-                const w = r.w || 65, h = r.h || 65;
-                wrap.style.cssText = `width:${w}px; height:${h+25}px; left:${r.x || 20}px; top:${r.y || 20}px;`;
                 
+                // Use saved dimensions or default to 80x80 to prevent "half image" clipping
+                const w = r.w || 80, h = r.h || 80;
+                wrap.style.cssText = `width:${w}px; min-height:${h+20}px; left:${r.x || 20}px; top:${r.y || 20}px;`;
+                
+                const frameClass = r.type === 'folder' ? 'folder-frame' : 'relic-frame';
                 wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${w}px; height:${h}px;">
+                    <div class="${frameClass}" style="width:${w}px; height:${h}px;">
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold)">${r.type[0].toUpperCase()}</div>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
                 `;
 
+                // Double Tap logic
                 wrap.addEventListener('touchstart', (e) => {
                     const now = Date.now();
                     if (now - lastTap < 300 && isEditMode) { 
@@ -219,13 +224,13 @@
             let startX = e.clientX, startW = parseInt(el.style.width);
             const frame = el.querySelector('div');
             window.onpointermove = (ev) => {
-                let size = Math.max(40, startW + (ev.clientX - startX));
-                el.style.width = size + 'px'; el.style.height = (size + 25) + 'px';
+                let size = Math.max(50, startW + (ev.clientX - startX));
+                el.style.width = size + 'px'; 
                 frame.style.width = size + 'px'; frame.style.height = size + 'px';
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                rtdb.ref(`relics/${id}`).update({ w: parseInt(el.style.width), h: parseInt(el.style.width) });
+                rtdb.ref(`relics/${id}`).update({ w: parseInt(frame.style.width), h: parseInt(frame.style.height) });
             };
         }
 
@@ -236,9 +241,8 @@
             const f = document.getElementById('r-file').files[0];
             if(!n) return;
             const send = (b64) => {
-                rtdb.ref('relics').push({ name:n, url:u, type:t, imgUrl:b64||"", parent:currentFolder, x:20, y:20 });
+                rtdb.ref('relics').push({ name:n, url:u, type:t, imgUrl:b64||"", parent:currentFolder, x:20, y:20, w:80, h:80 });
                 toggleAdminPanel();
-                resetView();
             };
             if(f) { const r = new FileReader(); r.onload=(e)=>send(e.target.result); r.readAsDataURL(f); } else send("");
         };
@@ -249,12 +253,11 @@
             m.style.left = Math.min(e.clientX || e.pageX, window.innerWidth - 190) + 'px';
             m.style.top = Math.min(e.clientY || e.pageY, window.innerHeight - 200) + 'px';
         }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; resetView(); }
+        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
 
         function menuRename() {
             const n = prompt("New Name:", allRelics[activeMenuId].name);
             if(n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n });
-            resetView();
         }
 
         function menuChangeImage() {
@@ -267,31 +270,21 @@
         }
 
         function menuMove() {
-            const dest = prompt("Move to Folder Name or ID:", "root");
+            const dest = prompt("Enter Folder ID or 'root':", "root");
             if(dest) rtdb.ref(`relics/${activeMenuId}`).update({ parent: dest });
-            resetView();
         }
 
         function menuDelete() {
             if(confirm("Banish this object forever?")) rtdb.ref(`relics/${activeMenuId}`).remove();
-            resetView();
         }
 
         function toggleAdminPanel() { 
             const d = document.getElementById('admin-desk'); 
             d.style.display = d.style.display==='block'?'none':'block'; 
-            if(d.style.display==='none') resetView();
         }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); resetView(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); resetView(); }
-        
-        document.getElementById('edit-toggle').onclick = () => { 
-            isEditMode = !isEditMode; 
-            document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; 
-            document.getElementById('add-trigger').style.display = isEditMode ? 'inline-block' : 'none'; 
-            renderGrid(); 
-            resetView();
-        };
+        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
+        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
+        document.getElementById('edit-toggle').onclick = () => { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; document.getElementById('add-trigger').style.display = isEditMode ? 'inline-block' : 'none'; renderGrid(); };
     </script>
 </body>
 </html>
