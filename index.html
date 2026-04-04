@@ -62,10 +62,11 @@
             0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); }
         }
 
+        /* RE-ADDED RESIZE HANDLE */
         .resize-handle {
-            display: none; position: absolute; right: -5px; bottom: 20px;
+            display: none; position: absolute; right: -5px; bottom: 25px;
             width: 24px; height: 24px; background: var(--gold); border: 2px solid #000;
-            border-radius: 50%; z-index: 20;
+            border-radius: 50%; z-index: 20; cursor: nwse-resize;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -121,11 +122,11 @@
         <div id="time-widget" class="ritual-tool">
             <input type="time" id="work-start" class="time-input" value="09:00">
             <button class="calc-btn" onclick="calculateOracle()">Consult Oracle</button>
-            <div id="leave-time" style="margin-top:10px; color:var(--gold); font-size:1.1rem; text-align:center;"></div>
+            <div id="leave-time" style="margin-top:10px; color:var(--gold); text-align:center;"></div>
         </div>
         <div id="perc-widget" class="ritual-tool">
-            <input type="number" id="perc-val" class="time-input" placeholder="Enter Amount">
-            <button class="calc-btn" onclick="calculatePerc()">Calculate 20%</button>
+            <input type="number" id="perc-val" class="time-input" placeholder="Amount">
+            <button class="calc-btn" onclick="calculatePerc()">20% Calculator</button>
             <div id="perc-result" style="margin-top:10px; color:var(--gold); text-align:center;"></div>
         </div>
     </div>
@@ -138,12 +139,16 @@
     </div>
 
     <section id="admin-desk">
-        <input type="text" id="r-name" placeholder="Relic Name" class="time-input">
-        <input type="text" id="r-url" placeholder="Sanctuary URL" class="time-input">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <span style="font-family:'Cinzel'; font-size:0.8rem; color:var(--gold);">Commemorate</span>
+            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer; font-family:'Cinzel';">✕</span>
+        </div>
+        <input type="text" id="r-name" placeholder="Name" class="time-input">
+        <input type="text" id="r-url" placeholder="URL" class="time-input">
         <select id="r-type" class="time-input"><option value="link">Relic</option><option value="folder">Folder</option></select>
         <input type="file" id="r-file" accept="image/*" class="time-input">
         <button id="r-save" class="calc-btn">Commemorate</button>
-        <div id="debug-text" style="font-size:0.6rem; color:#444; margin-top:5px; text-align:center;"></div>
+        <div id="save-status" style="font-size:0.6rem; color:#555; text-align:center; margin-top:5px;"></div>
     </section>
 
     <script>
@@ -173,6 +178,8 @@
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
+            if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
+            
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             
             items.forEach((id, index) => {
@@ -191,7 +198,11 @@
                 wrap.innerHTML = `<div class="${frame}" style="width:${w}px; height:${h}px;">${img}</div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
                 
                 wrap.onpointerdown = (e) => {
-                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
+                    if (e.target.classList.contains('resize-handle')) { 
+                        e.stopPropagation();
+                        handleResize(e, wrap, id); 
+                        return; 
+                    }
                     if (isEditMode) handleDrag(e, wrap, id);
                 };
 
@@ -210,26 +221,27 @@
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top), moved = false;
             window.onpointermove = (ev) => {
-                moved = true; el.style.left = (origX + ev.clientX - startX) + 'px'; el.style.top = (origY + ev.clientY - startY) + 'px';
+                moved = true; 
+                el.style.left = (origX + ev.clientX - startX) + 'px'; 
+                el.style.top = (origY + ev.clientY - startY) + 'px';
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                if (moved) rtdb.ref(`relics/${id}`).update({ x: parseInt(el.style.left), y: parseInt(el.style.top), owner: auth.currentUser.uid });
+                if (moved) rtdb.ref(`relics/${id}`).update({ x: parseInt(el.style.left), y: parseInt(el.style.top), owner: String(auth.currentUser.uid) });
             };
         }
 
         function handleResize(e, el, id) {
-            e.stopPropagation();
             let startX = e.clientX, startW = parseInt(el.style.width);
+            const frame = el.querySelector('.relic-frame, .folder-frame');
             window.onpointermove = (ev) => {
                 let size = Math.max(40, startW + (ev.clientX - startX));
                 el.style.width = size + 'px'; el.style.height = (size + 20) + 'px';
-                const f = el.querySelector('.relic-frame, .folder-frame');
-                f.style.width = f.style.height = size + 'px';
+                frame.style.width = size + 'px'; frame.style.height = size + 'px';
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                rtdb.ref(`relics/${id}`).update({ w: parseInt(el.style.width), h: parseInt(el.style.width), owner: auth.currentUser.uid });
+                rtdb.ref(`relics/${id}`).update({ w: parseInt(el.style.width), h: parseInt(el.style.width), owner: String(auth.currentUser.uid) });
             };
         }
 
@@ -238,29 +250,41 @@
             const url = document.getElementById('r-url').value;
             const type = document.getElementById('r-type').value;
             const file = document.getElementById('r-file').files[0];
-            const debug = document.getElementById('debug-text');
+            const status = document.getElementById('save-status');
 
-            if(!name || !auth.currentUser) return alert("Archive requires a name and connection.");
+            if(!name || !auth.currentUser) return;
 
-            const pushRitual = (img) => {
-                const data = { name, url: url || "", type, imgUrl: img || "", parent: currentFolder, owner: auth.currentUser.uid };
+            const sendData = (b64) => {
+                const data = {
+                    name: name,
+                    url: url || "",
+                    type: type,
+                    imgUrl: b64 || "",
+                    parent: currentFolder,
+                    owner: String(auth.currentUser.uid) // Strict cast for Firebase Rule validation
+                };
+
                 rtdb.ref('relics').push(data).then(() => {
-                    debug.innerText = "Ritual Commemorated";
+                    status.innerText = "Ritual Commemorated";
                     document.getElementById('r-name').value = '';
                     document.getElementById('r-url').value = '';
                     toggleAdminPanel();
-                }).catch(e => debug.innerText = "Denied: " + e.message);
+                }).catch(err => {
+                    status.innerText = "Error: " + err.message;
+                });
             };
 
             if(file) {
                 const reader = new FileReader();
-                reader.onload = (e) => pushRitual(e.target.result);
+                reader.onload = (e) => sendData(e.target.result);
                 reader.readAsDataURL(file);
-            } else pushRitual("");
+            } else sendData("");
         };
 
         function calculateOracle() {
-            const [h, m] = document.getElementById('work-start').value.split(':').map(Number);
+            const val = document.getElementById('work-start').value;
+            if(!val) return;
+            const [h, m] = val.split(':').map(Number);
             let t = new Date(); t.setHours(h, m - 45, 0);
             document.getElementById('leave-time').innerText = "Departure: " + t.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         }
@@ -270,7 +294,10 @@
             document.getElementById('perc-result').innerText = v ? "20% Result: " + (v * 0.2).toFixed(2) : "";
         }
 
-        function toggleAdminPanel() { const d = document.getElementById('admin-desk'); d.style.display = d.style.display === 'block' ? 'none' : 'block'; }
+        function toggleAdminPanel() { 
+            const d = document.getElementById('admin-desk'); 
+            d.style.display = (d.style.display === 'block') ? 'none' : 'block'; 
+        }
         function toggleTool(id) { document.getElementById(id).classList.toggle('expanded'); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
@@ -284,7 +311,7 @@
 
         function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; }
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref('relics/' + activeMenuId).update({ name: n, owner: auth.currentUser.uid }); }
+        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref('relics/' + activeMenuId).update({ name: n, owner: String(auth.currentUser.uid) }); }
         function menuDelete() { if(confirm("Banish?")) rtdb.ref('relics/' + activeMenuId).remove(); }
     </script>
 </body>
