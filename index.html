@@ -38,14 +38,16 @@
 
         #archive-grid { 
             position: relative; width: 100%; min-height: 100vh; 
-            padding-bottom: 300px; box-sizing: border-box; 
+            padding-bottom: 400px; box-sizing: border-box; 
         }
 
+        /* Enhanced High-Visibility Grid */
         .is-editing#archive-grid::before {
             content: "";
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-image: radial-gradient(rgba(140, 115, 64, 0.12) 1px, transparent 1px);
+            background-image: 
+                radial-gradient(rgba(140, 115, 64, 0.3) 1.5px, transparent 1.5px);
             background-size: 20px 20px;
             pointer-events: none;
             z-index: 1;
@@ -54,8 +56,10 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10; touch-action: none; 
-            transition: transform 0.2s ease; /* Smooth shifting transition */
+            transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
+        
+        .dragging { transition: none !important; z-index: 2000 !important; }
         
         .is-editing .relic-wrapper { animation: wiggleAnim 0.4s infinite; }
         @keyframes wiggleAnim { 0% { transform: rotate(-0.8deg); } 50% { transform: rotate(0.8deg); } 100% { transform: rotate(-0.8deg); } }
@@ -147,7 +151,7 @@
         const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null, lastTap = 0;
-        const SNAP_SIZE = 10;
+        const SNAP_SIZE = 20; // Increased to match visible grid
 
         auth.onAuthStateChanged(user => { if (user) loadRelics(); else auth.signInAnonymously(); });
 
@@ -201,51 +205,74 @@
 
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top);
-            el.style.zIndex = 1000;
-            el.style.transition = 'none';
+            el.classList.add('dragging');
 
             window.onpointermove = (ev) => {
                 let nextX = origX + ev.clientX - startX;
                 let nextY = origY + ev.clientY - startY;
                 
+                // Snap & Clamp
                 nextX = Math.round(nextX / SNAP_SIZE) * SNAP_SIZE;
                 nextY = Math.round(nextY / SNAP_SIZE) * SNAP_SIZE;
-
                 const maxX = window.innerWidth - el.offsetWidth - 10;
-                el.style.left = Math.max(10, Math.min(nextX, maxX)) + 'px';
-                el.style.top = Math.max(10, nextY) + 'px';
+                nextX = Math.max(10, Math.min(nextX, maxX));
+                nextY = Math.max(10, nextY);
 
-                checkDisplacement(id, nextX, nextY, el.offsetWidth, el.offsetHeight);
+                el.style.left = nextX + 'px';
+                el.style.top = nextY + 'px';
+
+                reflowGrid(id, nextX, nextY, el.offsetWidth, el.offsetHeight);
             };
 
             window.onpointerup = () => {
                 window.onpointermove = null;
-                el.style.zIndex = 10;
-                el.style.transition = 'transform 0.2s ease';
-                rtdb.ref(`relics/${id}`).update({ x: parseInt(el.style.left), y: parseInt(el.style.top) });
+                el.classList.remove('dragging');
+                // Batch save all shifted positions to Firebase
+                const updates = {};
+                Object.keys(allRelics).forEach(rid => {
+                    if (allRelics[rid].parent === currentFolder) {
+                        const relEl = document.getElementById(`relic-${rid}`);
+                        if (relEl) {
+                            updates[`relics/${rid}/x`] = parseInt(relEl.style.left);
+                            updates[`relics/${rid}/y`] = parseInt(relEl.style.top);
+                        }
+                    }
+                });
+                rtdb.ref().update(updates);
             };
         }
 
-        function checkDisplacement(draggingId, x, y, w, h) {
-            Object.keys(allRelics).forEach(id => {
-                if (id === draggingId || allRelics[id].parent !== currentFolder) return;
-                
+        function reflowGrid(draggingId, x, y, w, h) {
+            const items = Object.keys(allRelics)
+                .filter(id => id !== draggingId && allRelics[id].parent === currentFolder)
+                .sort((a, b) => {
+                    // Sort items by current top-to-bottom, left-to-right order
+                    return (allRelics[a].y - allRelics[b].y) || (allRelics[a].x - allRelics[b].x);
+                });
+
+            items.forEach(id => {
                 const other = allRelics[id];
                 const otherEl = document.getElementById(`relic-${id}`);
                 if (!otherEl) return;
 
-                // Collision detection
+                // If collision detected
                 const overlap = !(x + w < other.x || x > other.x + (other.w || 80) || 
                                   y + h < other.y || y > other.y + (other.h || 80));
 
                 if (overlap) {
-                    // Shove the other item slightly to the right or down
-                    let newX = other.x + 100;
-                    if (newX + (other.w || 80) > window.innerWidth) {
+                    let newX = other.x + 110;
+                    let newY = other.y;
+
+                    // If hitting right edge, wrap to next line
+                    if (newX + (other.w || 80) > window.innerWidth - 10) {
                         newX = 20;
-                        other.y += 100;
+                        newY += 120;
                     }
-                    rtdb.ref(`relics/${id}`).update({ x: newX, y: other.y });
+
+                    other.x = newX;
+                    other.y = newY;
+                    otherEl.style.left = newX + 'px';
+                    otherEl.style.top = newY + 'px';
                 }
             });
         }
@@ -267,18 +294,21 @@
         }
 
         function recenterRelics() {
-            if(!confirm("Execute formation?")) return;
+            if(!confirm("Teleport all items to a central formation?")) return;
             const items = Object.keys(allRelics).filter(id => allRelics[id].parent === currentFolder);
             const colLimit = window.innerWidth > 600 ? 5 : 3;
             const spacing = 110;
             const startX = Math.round(((window.innerWidth - (colLimit * spacing)) / 2 + 15) / SNAP_SIZE) * SNAP_SIZE;
             const startY = 100;
 
+            const updates = {};
             items.forEach((id, index) => {
                 const row = Math.floor(index / colLimit);
                 const col = index % colLimit;
-                rtdb.ref(`relics/${id}`).update({ x: startX + (col * spacing), y: startY + (row * spacing) });
+                updates[`relics/${id}/x`] = startX + (col * spacing);
+                updates[`relics/${id}/y`] = startY + (row * spacing);
             });
+            rtdb.ref().update(updates);
         }
 
         function menuOriginalSize() {
@@ -292,7 +322,7 @@
             const f = document.getElementById('r-file').files[0];
             if(!n) return;
             const send = (b64) => {
-                rtdb.ref('relics').push({ name:n, url:u, type:t, imgUrl:b64||"", parent:currentFolder, x:30, y:30, w:80, h:80 });
+                rtdb.ref('relics').push({ name:n, url:u, type:t, imgUrl:b64||"", parent:currentFolder, x:20, y:20, w:80, h:80 });
                 toggleAdminPanel();
             };
             if(f) { const r = new FileReader(); r.onload=(e)=>send(e.target.result); r.readAsDataURL(f); } else send("");
