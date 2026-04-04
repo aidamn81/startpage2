@@ -22,7 +22,7 @@
             color: var(--text); font-family: 'Playfair Display', serif;
             margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center;
             overflow-x: hidden; padding-bottom: 60px; -webkit-tap-highlight-color: transparent;
-            touch-action: none; /* Required for clean dragging */
+            touch-action: none;
         }
 
         #top-controls { 
@@ -48,12 +48,20 @@
         }
         .ritual-tool.expanded { max-height: 800px; opacity: 1; padding: 15px; }
 
-        /* The Editing Table Platform */
+        /* Centering Container for the Canvas */
+        #canvas-wrapper {
+            width: 100%;
+            max-width: 1000px; /* Limits iPad stretch but fills iPhone */
+            display: flex;
+            justify-content: center;
+            position: relative;
+        }
+
         #archive-grid { 
             position: relative;
-            padding-top: 185px; 
-            width: 100vw; 
-            height: 200vh; /* Extended canvas for free placement */
+            margin-top: 185px; 
+            width: 100%; 
+            height: 150vh; /* Scrollable ritual space */
             box-sizing: border-box;
         }
 
@@ -64,7 +72,6 @@
             align-items: center; 
             cursor: pointer; 
             user-select: none; 
-            transition: transform 0.1s ease;
         }
         
         .wiggle { animation: wiggleAnim 0.3s infinite; }
@@ -74,18 +81,17 @@
             100% { transform: rotate(-1.2deg); }
         }
 
-        /* Resizer Handle */
         .resize-handle {
             display: none;
             position: absolute;
-            right: -5px;
-            bottom: -5px;
-            width: 15px;
-            height: 15px;
+            right: -8px;
+            bottom: 12px;
+            width: 20px;
+            height: 20px;
             background: var(--gold);
+            border: 2px solid var(--obsidian);
             border-radius: 50%;
             z-index: 10;
-            cursor: nwse-resize;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -102,7 +108,7 @@
             background-size: cover; z-index: 5; pointer-events: none;
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.6rem; color: #fff; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.65rem; color: #fff; text-align: center; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
@@ -173,7 +179,9 @@
         </div>
     </div>
 
-    <main id="archive-grid"></main>
+    <div id="canvas-wrapper">
+        <main id="archive-grid"></main>
+    </div>
 
     <section id="admin-desk">
         <input type="text" id="r-name" placeholder="Name" class="time-input">
@@ -221,15 +229,14 @@
                 wrap.className = 'relic-wrapper' + (isEditMode ? ' wiggle' : '');
                 wrap.dataset.id = id;
 
-                // Setup Initial Positioning & Sizing
                 const w = r.w || 60;
                 const h = r.h || 60;
-                // If no saved pos, stack them slightly offset as default
-                const x = r.x !== undefined ? r.x : (20 + (index % 4) * 80);
-                const y = r.y !== undefined ? r.y : (200 + Math.floor(index / 4) * 100);
+                // Center-weighted default positioning if none exists
+                const x = r.x !== undefined ? r.x : (window.innerWidth / 2 - 30);
+                const y = r.y !== undefined ? r.y : (200 + index * 80);
 
                 wrap.style.width = w + 'px';
-                wrap.style.height = (h + 20) + 'px'; // +20 for name
+                wrap.style.height = (h + 20) + 'px';
                 wrap.style.left = x + 'px';
                 wrap.style.top = y + 'px';
                 
@@ -253,7 +260,6 @@
                         e.preventDefault(); e.stopPropagation();
                         showMenu(e, id);
                     } else if (!isEditMode) {
-                        // Regular Click Action
                         if(r.type === 'folder') enterFolder(id, r.name);
                         else if(r.url) window.open(r.url, '_blank');
                     }
@@ -264,7 +270,6 @@
             });
         }
 
-        // --- NEW DRAG LOGIC (Absolute Position) ---
         function handleDrag(e, el, id) {
             let startX = e.clientX;
             let startY = e.clientY;
@@ -290,7 +295,6 @@
             window.addEventListener('pointerup', onUp);
         }
 
-        // --- NEW RESIZE LOGIC ---
         function handleResize(e, el, id) {
             e.preventDefault();
             e.stopPropagation();
@@ -302,7 +306,7 @@
                 let dx = e.clientX - startX;
                 let newSize = Math.max(40, startW + dx);
                 el.style.width = newSize + 'px';
-                el.style.height = (newSize + 20) + 'px';
+                el.style.height = (newSize + 22) + 'px';
                 frame.style.width = newSize + 'px';
                 frame.style.height = newSize + 'px';
             }
@@ -312,7 +316,7 @@
                 window.removeEventListener('pointerup', onUp);
                 rtdb.ref(`relics/${id}`).update({
                     w: parseInt(el.style.width),
-                    h: parseInt(el.style.width) // Keep square
+                    h: parseInt(el.style.width)
                 });
             }
             window.addEventListener('pointermove', onMove);
@@ -409,12 +413,11 @@
             if(!n || !auth.currentUser) return;
             const uid = auth.currentUser.uid;
             
-            // Default placement for new items
             const push = (img) => rtdb.ref('relics').push({ 
                 name: n, url: u, type: t, imgUrl: img || '', 
                 parent: currentFolder, 
                 owner: uid,
-                x: 50, y: 300, w: 60, h: 60 // Default size/pos
+                x: (window.innerWidth / 2 - 30), y: 300, w: 60, h: 60 
             });
 
             if(f) { const r = new FileReader(); r.onload = (e) => push(e.target.result); r.readAsDataURL(f); } else push("");
