@@ -41,7 +41,7 @@
 
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
-            box-sizing: border-box; z-index: 5; padding-bottom: 500px;
+            box-sizing: border-box; z-index: 5; padding-bottom: 600px;
         }
 
         .is-editing#archive-grid::before {
@@ -54,10 +54,10 @@
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
-            transition: left 0.5s cubic-bezier(0.2, 0, 0.2, 1), top 0.5s cubic-bezier(0.2, 0, 0.2, 1);
+            transition: left 0.4s ease, top 0.4s ease;
         }
         
-        .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.8; }
+        .dragging { transition: none !important; z-index: 2000 !important; opacity: 0.9; }
 
         .relic-frame, .folder-frame { 
             width: 100%; height: 100%; border-radius: 15%; overflow: hidden; 
@@ -76,15 +76,15 @@
         
         .relic-name { 
             margin-top: 8px; font-family: 'Cinzel'; 
-            font-size: calc(0.7rem * var(--scale)); 
+            font-size: calc(0.72rem * var(--scale)); 
             color: #fff; text-align: center; width: 180%; transform: translateX(-22.5%); 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
         .resize-handle {
-            position: absolute; bottom: -10px; right: -10px; width: 30px; height: 30px;
+            position: absolute; bottom: -12px; right: -12px; width: 32px; height: 32px;
             background: var(--gold); border-radius: 50%; z-index: 25; display: none;
-            border: 2.5px solid #000;
+            border: 2px solid #000;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -161,14 +161,18 @@
             const screenW = window.innerWidth;
             let maxBottom = 0;
 
-            // TRACKER for current row layout to ensure visibility
-            let rowX = 25 * scaleFactor;
-            let rowY = 60 * scaleFactor;
-            let rowHeightMax = 0;
+            // ADAPTIVE LAYOUT LOGIC:
+            // We calculate a virtual grid for current device to prevent overlap on load
+            const baseMargin = 25 * scaleFactor;
+            const horizontalGap = 45 * scaleFactor;
+            const verticalGap = 90 * scaleFactor;
+            
+            let currentX = baseMargin;
+            let currentY = 60 * scaleFactor;
 
-            Object.entries(allRelics).forEach(([id, r]) => {
-                if (r.parent !== currentFolder) return;
+            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder);
 
+            items.forEach(([id, r]) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 wrap.id = `relic-${id}`;
@@ -176,20 +180,21 @@
                 const w = (r.w || 80) * scaleFactor;
                 const h = (r.h || 80) * scaleFactor;
 
-                // VISIBILITY ENGINE: 
-                // If the item's saved X coordinate is too wide for this screen, 
-                // we calculate a temporary "Flow" position for it so it's not hidden.
-                let finalX = r.x * scaleFactor;
-                let finalY = r.y * scaleFactor;
+                // Determine Position:
+                // 1. If r.x exists and fits screen, use it.
+                // 2. If r.x is missing or too wide, auto-place it in the next available row/col slot.
+                let finalX = (r.x !== undefined) ? r.x * scaleFactor : -1;
+                let finalY = (r.y !== undefined) ? r.y * scaleFactor : -1;
 
-                if (finalX + w > screenW - 10) {
-                    // Force onto a new line if it would be cut off
-                    finalX = rowX;
-                    finalY = rowY;
-                    rowX += (w + 40 * scaleFactor);
-                    if (rowX + w > screenW) {
-                        rowX = 25 * scaleFactor;
-                        rowY += (h + 80 * scaleFactor);
+                if (finalX === -1 || finalX + w > screenW - 10) {
+                    finalX = currentX;
+                    finalY = currentY;
+                    
+                    // Increment for next item
+                    currentX += (w + horizontalGap);
+                    if (currentX + w > screenW - 10) {
+                        currentX = baseMargin;
+                        currentY += verticalGap;
                     }
                 }
 
@@ -198,18 +203,19 @@
                 wrap.style.cssText = `width:${w}px; height:${h}px; left:${finalX}px; top:${finalY}px;`;
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:100%; height:100%;">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.1 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:${1.2 * scaleFactor}rem;">${r.type[0].toUpperCase()}</div>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
                 `;
 
+                // INPUT HANDLING (Finger/Pen/Mouse)
                 let timer;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
                         if (e.target.classList.contains('resize-handle')) handleResize(e, wrap, id);
                         else handleDrag(e, wrap, id);
-                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 750);
+                        timer = setTimeout(() => { activeMenuId = id; showMenu(e); }, 700);
                     }
                 };
                 wrap.onpointerup = () => clearTimeout(timer);
@@ -226,15 +232,20 @@
         }
 
         function handleDrag(e, el, id) {
-            let startX = e.clientX, startY = e.clientY, origX = parseFloat(el.style.left), origY = parseFloat(el.style.top);
+            let startX = e.clientX, startY = e.clientY;
+            let origX = parseFloat(el.style.left);
+            let origY = parseFloat(el.style.top);
             el.classList.add('dragging');
+            
             window.onpointermove = (ev) => {
                 let nx = Math.max(10, Math.min(origX + ev.clientX - startX, window.innerWidth - el.offsetWidth - 10));
                 let ny = Math.max(10, origY + ev.clientY - startY); 
                 el.style.left = nx + 'px'; el.style.top = ny + 'px';
             };
+            
             window.onpointerup = () => {
-                window.onpointermove = null; el.classList.remove('dragging');
+                window.onpointermove = null;
+                el.classList.remove('dragging');
                 savePositions();
             };
         }
@@ -249,7 +260,7 @@
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
-                el.style.transition = 'left 0.5s ease, top 0.5s ease';
+                el.style.transition = 'left 0.4s ease, top 0.4s ease';
                 savePositions();
             };
         }
@@ -258,7 +269,7 @@
             const updates = {};
             Object.keys(allRelics).forEach(rid => {
                 const el = document.getElementById(`relic-${rid}`);
-                if (el) { 
+                if (el && allRelics[rid].parent === currentFolder) { 
                     updates[`relics/${rid}/x`] = parseFloat(el.style.left) / scaleFactor; 
                     updates[`relics/${rid}/y`] = parseFloat(el.style.top) / scaleFactor; 
                     updates[`relics/${rid}/w`] = el.offsetWidth / scaleFactor;
@@ -297,7 +308,7 @@
         }
 
         function menuRename() {
-            const n = prompt("Title:", allRelics[activeMenuId].name);
+            const n = prompt("Relic Title:", allRelics[activeMenuId].name);
             if (n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n });
         }
 
@@ -311,7 +322,7 @@
         }
 
         function menuDelete() {
-            if (confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
+            if (confirm("Are you sure you want to banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove();
         }
 
         function recenterRelics() {
@@ -322,21 +333,22 @@
             let maxW = 80;
             items.forEach(id => { if((allRelics[id].w || 80) > maxW) maxW = allRelics[id].w; });
             
-            const gapX = 40 * scaleFactor; 
-            const gapY = 80 * scaleFactor; 
+            const gapX = 45 * scaleFactor; 
+            const gapY = 90 * scaleFactor; 
             
             let curX = 25 * scaleFactor; 
             let curY = 60 * scaleFactor;
 
             items.forEach((id) => {
                 const itemW = (allRelics[id].w || 80) * scaleFactor;
+                // Force into row/column formation
                 if (curX + itemW > screenW - 20) {
                     curX = 25 * scaleFactor; 
-                    curY += (maxW * scaleFactor + 80 * scaleFactor); 
+                    curY += gapY; 
                 }
                 updates[`relics/${id}/x`] = curX / scaleFactor;
                 updates[`relics/${id}/y`] = curY / scaleFactor;
-                curX += (itemW + 40 * scaleFactor);
+                curX += (itemW + gapX);
             });
 
             rtdb.ref().update(updates);
