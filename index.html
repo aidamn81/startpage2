@@ -23,7 +23,6 @@
             background-color: var(--obsidian);
             color: var(--text); font-family: 'Playfair Display', serif;
             overflow-x: hidden; overflow-y: auto; 
-            -webkit-overflow-scrolling: touch;
         }
 
         body {
@@ -42,33 +41,27 @@
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; padding: 20px;
-            display: grid; 
-            /* Default grid: adapts to screen width */
-            grid-template-columns: repeat(auto-fill, minmax(calc(100px * var(--scale)), 1fr));
-            grid-gap: calc(40px * var(--scale));
-            justify-items: center;
+            display: flex; flex-wrap: wrap; gap: 25px; align-content: flex-start;
         }
 
-        /* The Grid Guide: ONLY in Edit Mode */
+        /* Guide grid only in edit mode */
         .is-editing#archive-grid {
-            background-image: radial-gradient(rgba(140, 115, 64, 0.15) 1px, transparent 1px);
-            background-size: 40px 40px;
+            background-image: radial-gradient(rgba(140, 115, 64, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
         }
 
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; user-select: none; z-index: 10;
-            width: calc(90px * var(--scale));
         }
         
-        .dragging { opacity: 0.5; z-index: 2000; }
+        .dragging { opacity: 0.4; transform: scale(0.95); }
 
         .relic-frame, .folder-frame { 
-            width: calc(80px * var(--scale)); height: calc(80px * var(--scale)); 
-            border-radius: 18%; overflow: hidden; 
+            width: 100%; height: 100%; border-radius: 15%; overflow: hidden; 
             display: flex; align-items: center; justify-content: center; 
             background: #111; border: 1.5px solid #222; position: relative;
-            box-shadow: 0 8px 15px rgba(0,0,0,0.5);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.6);
         }
         
         .folder-frame::after {
@@ -80,20 +73,28 @@
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
         
         .relic-name { 
-            margin-top: 10px; font-family: 'Cinzel'; 
-            font-size: calc(0.75rem * var(--scale)); 
-            color: #fff; text-align: center; width: 140%;
+            margin-top: 8px; font-family: 'Cinzel'; 
+            font-size: calc(0.7rem * var(--scale)); 
+            color: #fff; text-align: center; width: 120%;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
+        /* RESIZE HANDLE */
+        .resize-handle {
+            position: absolute; bottom: -8px; right: -8px; width: 28px; height: 28px;
+            background: var(--gold); border-radius: 50%; z-index: 25; display: none;
+            border: 2px solid #000; cursor: nwse-resize;
+        }
+        .is-editing .resize-handle { display: block; }
+
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 200px; box-shadow: 0 0 40px #000;
+            border-radius: 8px; z-index: 5000; width: 190px; box-shadow: 0 0 40px #000;
         }
-        .menu-item { padding: 15px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.9rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
+        .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
         .menu-item:last-child { border-bottom: none; color: var(--crimson); }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 8px 15px; font-family: 'Cinzel'; font-size: 0.85rem; border-radius: 6px; cursor: pointer; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 14px; font-family: 'Cinzel'; font-size: 0.8rem; border-radius: 6px; cursor: pointer; }
     </style>
 </head>
 <body onclick="closeMenu()">
@@ -128,15 +129,7 @@
         const rtdb = firebase.database();
         const auth = firebase.auth();
 
-        let isEditMode = false, currentFolder = 'root', allRelics = {}, scaleFactor = 1, activeMenuId = null;
-
-        function updateScale() {
-            const width = window.innerWidth;
-            scaleFactor = width < 500 ? 0.9 : 1.2;
-            document.documentElement.style.setProperty('--scale', scaleFactor);
-        }
-        window.addEventListener('resize', updateScale);
-        updateScale();
+        let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
 
         auth.onAuthStateChanged(user => { if (user) syncData(); else auth.signInAnonymously(); });
 
@@ -152,7 +145,6 @@
             grid.innerHTML = '';
             if(isEditMode) grid.classList.add('is-editing'); else grid.classList.remove('is-editing');
             
-            // Sort items by a 'sortOrder' value to keep your custom row arrangement
             const items = Object.entries(allRelics)
                 .filter(([id, r]) => r.parent === currentFolder)
                 .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
@@ -161,32 +153,42 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 wrap.id = `relic-${id}`;
-                wrap.draggable = isEditMode;
                 
+                const w = r.w || 80;
+                const h = r.h || 80;
+
+                wrap.style.width = w + 'px';
+                wrap.style.height = (h + 25) + 'px'; // +25 for text space
+
                 wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:1.5rem;">${r.type[0].toUpperCase()}</div>`}
+                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${w}px; height:${h}px;">
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<div style="color:var(--gold); font-size:1.4rem;">${r.type[0].toUpperCase()}</div>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
+                    <div class="resize-handle"></div>
                 `;
 
-                // Drag and Drop Logic for Reordering Rows/Cols
-                wrap.ondragstart = (e) => { e.dataTransfer.setData('text/plain', id); wrap.classList.add('dragging'); };
+                // Drag to reorder
+                wrap.draggable = isEditMode;
+                wrap.ondragstart = (e) => { e.dataTransfer.setData('text', id); wrap.classList.add('dragging'); };
                 wrap.ondragend = () => wrap.classList.remove('dragging');
                 wrap.ondragover = (e) => e.preventDefault();
                 wrap.ondrop = (e) => {
-                    e.preventDefault();
-                    const draggedId = e.dataTransfer.getData('text/plain');
-                    if (draggedId !== id) swapItems(draggedId, id);
+                    const draggedId = e.dataTransfer.getData('text');
+                    if (draggedId !== id) swapOrder(draggedId, id);
                 };
 
-                // Double Tap for Menu
+                // Resize & Double Tap logic
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
-                        const now = Date.now();
-                        if (now - lastTap < 300) { activeMenuId = id; showMenu(e); }
-                        lastTap = now;
+                        if (e.target.classList.contains('resize-handle')) {
+                            handleResize(e, wrap, id);
+                        } else {
+                            const now = Date.now();
+                            if (now - lastTap < 300) { activeMenuId = id; showMenu(e); }
+                            lastTap = now;
+                        }
                     }
                 };
 
@@ -200,7 +202,7 @@
             });
         }
 
-        function swapItems(id1, id2) {
+        function swapOrder(id1, id2) {
             const order1 = allRelics[id1].sortOrder || 0;
             const order2 = allRelics[id2].sortOrder || 0;
             const updates = {};
@@ -209,11 +211,31 @@
             rtdb.ref().update(updates);
         }
 
+        function handleResize(e, el, id) {
+            e.preventDefault();
+            const frame = el.querySelector('.relic-frame, .folder-frame');
+            const startW = frame.offsetWidth;
+            const startX = e.clientX;
+
+            window.onpointermove = (ev) => {
+                const nw = Math.max(50, startW + (ev.clientX - startX));
+                frame.style.width = nw + 'px';
+                frame.style.height = nw + 'px';
+                el.style.width = nw + 'px';
+                el.style.height = (nw + 25) + 'px';
+            };
+
+            window.onpointerup = () => {
+                window.onpointermove = null;
+                rtdb.ref(`relics/${id}`).update({ w: frame.offsetWidth, h: frame.offsetHeight });
+            };
+        }
+
         function showMenu(e) {
             const m = document.getElementById('context-menu');
             document.getElementById('folder-list-container').style.display = 'none';
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px';
+            m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
             m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px';
         }
 
@@ -232,19 +254,15 @@
         }
 
         function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId }); closeMenu(); }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if (n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n }); }
-        function menuChangeImage() { const url = prompt("Image URL:"); if (url) rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: url }); }
+        function menuRename() { const n = prompt("Name:", allRelics[activeMenuId].name); if (n) rtdb.ref(`relics/${activeMenuId}`).update({ name: n }); }
+        function menuChangeImage() { const url = prompt("URL:"); if (url) rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: url }); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); }
-        function menuDelete() { if (confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove(); }
+        function menuDelete() { if (confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); }
 
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
         
-        document.getElementById('edit-toggle').onclick = () => { 
-            isEditMode = !isEditMode; 
-            document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; 
-            renderGrid(); 
-        };
+        document.getElementById('edit-toggle').onclick = () => { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); };
     </script>
 </body>
 </html>
