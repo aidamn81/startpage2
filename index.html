@@ -61,7 +61,7 @@
             0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); }
         }
 
-        /* RESIZE HANDLES PRESERVED */
+        /* PRESERVED RESIZE HANDLE */
         .resize-handle {
             display: none; position: absolute; right: -5px; bottom: 25px;
             width: 24px; height: 24px; background: var(--gold); border: 2px solid #000;
@@ -139,15 +139,15 @@
 
     <section id="admin-desk">
         <div style="display:flex; justify-content:space-between; margin-bottom:12px;">
-            <span style="font-family:'Cinzel'; color:var(--gold); font-size:0.8rem;">Commemorate</span>
-            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer; font-weight:bold;">✕</span>
+            <span style="font-family:'Cinzel'; color:var(--gold);">Commemorate</span>
+            <span onclick="toggleAdminPanel()" style="color:var(--gold); cursor:pointer;">✕</span>
         </div>
         <input type="text" id="r-name" placeholder="Name" class="time-input">
         <input type="text" id="r-url" placeholder="URL" class="time-input">
         <select id="r-type" class="time-input"><option value="link">Relic</option><option value="folder">Folder</option></select>
         <input type="file" id="r-file" accept="image/*" class="time-input">
         <button id="r-save" class="calc-btn">Commemorate</button>
-        <div id="save-status" style="font-size:0.6rem; color:#555; text-align:center; margin-top:5px;"></div>
+        <div id="save-status" style="font-size:0.6rem; color:#555; text-align:center; margin-top:10px; word-break:break-all;"></div>
     </section>
 
     <script>
@@ -198,9 +198,7 @@
                 
                 wrap.onpointerdown = (e) => {
                     if (e.target.classList.contains('resize-handle')) { 
-                        e.stopPropagation();
-                        handleResize(e, wrap, id); 
-                        return; 
+                        e.stopPropagation(); handleResize(e, wrap, id); return; 
                     }
                     if (isEditMode) handleDrag(e, wrap, id);
                 };
@@ -220,9 +218,7 @@
         function handleDrag(e, el, id) {
             let startX = e.clientX, startY = e.clientY, origX = parseInt(el.style.left), origY = parseInt(el.style.top), moved = false;
             window.onpointermove = (ev) => {
-                moved = true; 
-                el.style.left = (origX + ev.clientX - startX) + 'px'; 
-                el.style.top = (origY + ev.clientY - startY) + 'px';
+                moved = true; el.style.left = (origX + ev.clientX - startX) + 'px'; el.style.top = (origY + ev.clientY - startY) + 'px';
             };
             window.onpointerup = () => {
                 window.onpointermove = null;
@@ -245,41 +241,31 @@
         }
 
         document.getElementById('r-save').onclick = () => {
-            const name = document.getElementById('r-name').value;
-            const url = document.getElementById('r-url').value;
-            const type = document.getElementById('r-type').value;
-            const file = document.getElementById('r-file').files[0];
+            const nameInput = document.getElementById('r-name');
+            const urlInput = document.getElementById('r-url');
             const status = document.getElementById('save-status');
 
-            if(!name || !auth.currentUser) return;
+            if(!nameInput.value || !auth.currentUser) return;
 
-            const sendMinimalData = (b64) => {
-                // ULTRA-STRICT PAYLOAD: No x,y,w,h fields sent on initial creation.
-                // This prevents .validate rules from blocking the write if they expect exactly these 6 keys.
-                const data = {
-                    name: String(name),
-                    url: String(url || ""),
-                    type: String(type),
-                    imgUrl: String(b64 || ""),
-                    parent: String(currentFolder),
-                    owner: String(auth.currentUser.uid) 
-                };
-
-                rtdb.ref('relics').push(data).then(() => {
-                    status.innerText = "Ritual Success";
-                    document.getElementById('r-name').value = '';
-                    document.getElementById('r-url').value = '';
-                    toggleAdminPanel();
-                }).catch(err => {
-                    status.innerText = "Denied: " + err.message;
-                });
+            // DIAGNOSTIC CHANGE: We try a "raw" save first to bypass image/file issues.
+            const payload = {
+                name: nameInput.value,
+                url: urlInput.value || "",
+                type: document.getElementById('r-type').value,
+                parent: currentFolder,
+                owner: String(auth.currentUser.uid)
             };
 
-            if(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => sendMinimalData(e.target.result);
-                reader.readAsDataURL(file);
-            } else sendMinimalData("");
+            status.innerText = "Attempting save...";
+
+            rtdb.ref('relics').push(payload).then(() => {
+                status.innerText = "Success! Clearing...";
+                nameInput.value = ''; urlInput.value = '';
+                setTimeout(toggleAdminPanel, 500);
+            }).catch(err => {
+                status.innerText = "Firebase Denied: " + err.message;
+                console.error("Save failed:", err);
+            });
         };
 
         function calculateOracle() {
@@ -292,7 +278,7 @@
 
         function calculatePerc() {
             const v = document.getElementById('perc-val').value;
-            document.getElementById('perc-result').innerText = v ? "20% Result: " + (v * 0.2).toFixed(2) : "";
+            document.getElementById('perc-result').innerText = v ? "20% is: " + (v * 0.2).toFixed(2) : "";
         }
 
         function toggleAdminPanel() { 
