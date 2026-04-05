@@ -22,14 +22,15 @@
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian); color: var(--text);
-            font-family: 'Playfair Display', serif; overflow-x: hidden;
+            font-family: 'Playfair Display', serif; overflow: hidden;
             -webkit-user-select: none; user-select: none;
+            touch-action: none; /* Prevents browser interference on mobile */
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
-            display: flex; flex-direction: column; min-height: 100vh;
+            display: flex; flex-direction: column; height: 100vh;
         }
 
         #top-controls { 
@@ -39,12 +40,14 @@
             padding-top: env(safe-area-inset-top, 10px);
         }
 
+        /* Full page drop zone */
         #archive-grid { 
             position: relative; width: 100%; max-width: 1200px; margin: 0 auto;
             flex-grow: 1; box-sizing: border-box; z-index: 5; padding: 25px;
             display: flex; flex-wrap: wrap; gap: 30px;
             justify-content: flex-start; align-content: flex-start;
-            min-height: 80vh; /* Ensures a large area for dropping */
+            overflow-y: auto; overflow-x: hidden;
+            min-height: 90vh;
         }
 
         .relic-wrapper { 
@@ -99,7 +102,7 @@
 <body onclick="closeMenu()">
 
     <div id="top-controls">
-        <button id="back-btn" class="toggle-btn" style="display:none;" onclick="goBack()">←</button>
+        <button id="back-btn" class="toggle-btn" onclick="goBack()" style="display:none;">←</button>
         <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; text-align:center;">Gothic Archive</span>
         <button class="toggle-btn" onclick="openCalc()">%</button>
         <a href="oracle.html" class="toggle-btn" style="text-decoration:none;">Oracle</a>
@@ -107,24 +110,8 @@
         <button id="edit-toggle" class="toggle-btn" onclick="toggleEdit()">Edit</button>
     </div>
 
-    <div id="calc-modal" onclick="if(event.target==this) closeCalc()">
-        <div class="modal-content">
-            <h2 style="text-align:center; color:var(--gold); margin-top:0;">Tithe</h2>
-            <input type="number" id="calc-base" placeholder="Amount" oninput="runCalc()">
-            <input type="number" id="calc-percent" value="20" oninput="runCalc()">
-            <div id="calc-result" style="text-align:center; font-size:1.5rem; color:var(--gold); margin-top:10px;">Result: 0</div>
-        </div>
-    </div>
-
-    <div id="admin-modal" onclick="if(event.target==this) closeAdmin()">
-        <div class="modal-content">
-            <h2>Manifest</h2>
-            <select id="creation-type"><option value="relic">Relic</option><option value="folder">Folder</option></select>
-            <input type="text" id="new-name" placeholder="Name">
-            <input type="text" id="new-url" placeholder="URL">
-            <button class="toggle-btn" style="width:100%; background:var(--gold); color:#000;" onclick="createSomething()">Manifest</button>
-        </div>
-    </div>
+    <div id="calc-modal" onclick="if(event.target==this) closeCalc()"><div class="modal-content"><h2 style="text-align:center; color:var(--gold);">Tithe</h2><input type="number" id="calc-base" placeholder="Amount" oninput="runCalc()"><input type="number" id="calc-percent" value="20" oninput="runCalc()"><div id="calc-result" style="text-align:center; font-size:1.5rem; color:var(--gold); margin-top:10px;">Result: 0</div></div></div>
+    <div id="admin-modal" onclick="if(event.target==this) closeAdmin()"><div class="modal-content"><h2>Manifest</h2><select id="creation-type"><option value="relic">Relic</option><option value="folder">Folder</option></select><input type="text" id="new-name" placeholder="Name"><input type="text" id="new-url" placeholder="URL"><button class="toggle-btn" style="width:100%; background:var(--gold); color:#000;" onclick="createSomething()">Manifest</button></div></div>
 
     <input type="file" id="image-input" style="display:none;" accept="image/*">
     <main id="archive-grid"></main>
@@ -151,31 +138,20 @@
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
 
-        auth.onAuthStateChanged(user => {
-            if (user) syncData();
-            else auth.signInAnonymously();
-        });
+        auth.onAuthStateChanged(user => { if (user) syncData(); else auth.signInAnonymously(); });
+        function syncData() { rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; renderGrid(); }); }
 
-        function syncData() {
-            rtdb.ref('relics').on('value', snap => {
-                allRelics = snap.val() || {};
-                renderGrid();
-            });
-        }
-
-        // GRID DROP LISTENER (Handles "Empty Row" drops)
-        const grid = document.getElementById('archive-grid');
-        grid.ondragover = (e) => e.preventDefault();
-        grid.ondrop = (e) => {
+        // --- GLOBAL DRAG PREVENTION (Fixes Search Issue) ---
+        window.addEventListener('dragover', e => e.preventDefault(), false);
+        window.addEventListener('drop', e => {
+            e.preventDefault(); 
             if (!isEditMode) return;
-            const draggedId = e.dataTransfer.getData('text/plain');
-            // If drop target is the grid itself (empty space), move to end
-            if (e.target === grid) {
-                moveToEnd(draggedId);
-            }
-        };
+            const id = e.dataTransfer.getData('text/plain');
+            if (id && e.target === document.getElementById('archive-grid')) moveToEnd(id);
+        }, false);
 
         function renderGrid() {
+            const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
             document.body.classList.toggle('is-editing', isEditMode);
             
@@ -202,13 +178,9 @@
                     e.dataTransfer.setData('text/plain', id);
                     wrap.classList.add('dragging');
                 };
-                wrap.ondragover = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation(); // Stops grid from taking the drop if we are over an item
-                };
+                
                 wrap.ondrop = (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                    e.preventDefault(); e.stopPropagation();
                     const draggedId = e.dataTransfer.getData('text/plain');
                     if (draggedId !== id) insertAt(draggedId, id);
                 };
@@ -216,15 +188,10 @@
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
-                        if (e.target.classList.contains('resize-handle')) {
-                            handleResize(e, wrap, id);
-                        } else {
+                        if (e.target.classList.contains('resize-handle')) handleResize(e, wrap, id);
+                        else {
                             const now = Date.now();
-                            if (now - lastTap < 300) { 
-                                activeMenuId = id; 
-                                showMenu(e); 
-                                e.preventDefault();
-                            }
+                            if (now - lastTap < 300) { activeMenuId = id; showMenu(e); e.preventDefault(); }
                             lastTap = now;
                         }
                     }
@@ -291,8 +258,7 @@
 
         function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId, sortOrder: Date.now() }); closeMenu(); }
         function showMenu(e) { 
-            const m = document.getElementById('context-menu'); 
-            m.style.display = 'flex'; 
+            const m = document.getElementById('context-menu'); m.style.display = 'flex'; 
             m.style.left = Math.min(e.clientX, window.innerWidth - 250) + 'px'; 
             m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px';
             document.getElementById('folder-move-list').style.display = 'none';
@@ -300,13 +266,11 @@
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); closeMenu(); }
-        function menuDelete() { if(confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
+        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
         function menuChangeImage() { document.getElementById('image-input').click(); }
-        
         document.getElementById('image-input').onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (event) => { rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: event.target.result }); closeMenu(); };
+            const reader = new FileReader(); reader.onload = (event) => { rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: event.target.result }); closeMenu(); };
             reader.readAsDataURL(file);
         };
 
@@ -325,8 +289,7 @@
         function openCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
         function closeCalc() { document.getElementById('calc-modal').style.display = 'none'; }
         function runCalc() {
-            const b = document.getElementById('calc-base').value;
-            const p = document.getElementById('calc-percent').value;
+            const b = document.getElementById('calc-base').value; const p = document.getElementById('calc-percent').value;
             document.getElementById('calc-result').innerText = "Result: " + (b * (p/100)).toFixed(2);
         }
     </script>
