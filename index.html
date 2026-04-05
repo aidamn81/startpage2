@@ -30,7 +30,6 @@
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
         }
 
-        /* Top Navigation - Right Aligned */
         #top-nav {
             position: absolute; top: 0; right: 0; padding: 15px;
             display: flex; gap: 10px; z-index: 4000;
@@ -53,7 +52,6 @@
             padding: 50px; box-sizing: border-box;
         }
 
-        /* Relic Styles */
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; align-items: center; 
             cursor: pointer; z-index: 10; touch-action: none;
@@ -67,6 +65,14 @@
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
         .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.65rem; color: #fff; text-align: center; }
 
+        /* Resize Handle */
+        .resize-handle {
+            position: absolute; bottom: -5px; right: -5px; width: 24px; height: 24px;
+            background: var(--gold); border-radius: 50%; z-index: 50; display: none;
+            border: 2px solid #000; pointer-events: auto;
+        }
+        body.is-editing .resize-handle { display: block; }
+
         /* Modals */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.85);
@@ -74,12 +80,16 @@
         }
         .modal-content {
             background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px;
-            width: 90%; max-width: 380px; padding: 25px;
+            width: 90%; max-width: 380px; padding: 25px; position: relative;
         }
-        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .close-ritual {
+            position: absolute; top: 10px; right: 10px; color: var(--gold);
+            font-family: 'Cinzel'; font-size: 0.7rem; cursor: pointer; border: 1px solid var(--gold);
+            padding: 2px 6px; border-radius: 4px;
+        }
+        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-sizing: border-box; }
         .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 15px; border-radius: 4px; font-family: 'Cinzel'; cursor: pointer; font-weight: bold; }
 
-        /* Grid Overlay (Edit Mode) */
         #guide-grid {
             position: fixed; inset: 0; pointer-events: none; opacity: 0;
             background-image: radial-gradient(circle, #ffffff11 1px, transparent 1px);
@@ -88,8 +98,9 @@
         body.is-editing #guide-grid { opacity: 1; }
 
         .dragging { opacity: 0.7; z-index: 5000 !important; transition: none !important; }
-        #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 180px; }
+        #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 200px; max-height: 80vh; overflow-y: auto; }
         .menu-item { padding: 12px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.75rem; }
+        #move-sub-menu { display: none; background: #050505; }
     </style>
 </head>
 <body onclick="closeModals(); closeMenu();">
@@ -109,6 +120,7 @@
 
     <div id="calc-modal" class="modal-overlay" onclick="event.stopPropagation()">
         <div class="modal-content">
+            <div class="close-ritual" onclick="closeModals()">X</div>
             <input type="number" id="calc-amount" class="modal-input" placeholder="Amount">
             <input type="number" id="calc-percent" class="modal-input" value="20">
             <button class="ritual-btn" onclick="runCalcRitual()">CALCULATE RITUAL</button>
@@ -117,6 +129,7 @@
 
     <div id="summon-modal" class="modal-overlay" onclick="event.stopPropagation()">
         <div class="modal-content">
+            <div class="close-ritual" onclick="closeModals()">X</div>
             <input type="text" id="sum-name" class="modal-input" placeholder="Name">
             <input type="text" id="sum-url" class="modal-input" placeholder="URL">
             <select id="sum-type" class="modal-input"><option value="relic">Relic</option><option value="folder">Folder</option></select>
@@ -127,7 +140,9 @@
 
     <div id="context-menu" onclick="event.stopPropagation()">
         <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Change Image</div>
+        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Upload Image</div>
+        <div class="menu-item" onclick="toggleMoveMenu()">Move to Folder...</div>
+        <div id="move-sub-menu"></div>
         <div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div>
         <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson)">Banish</div>
     </div>
@@ -162,12 +177,9 @@
             items.forEach(([id, r], index) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
-                
                 const px = r.x !== undefined ? r.x : centerX + (Math.cos(index) * (index * 45));
                 const py = r.y !== undefined ? r.y : centerY + (Math.sin(index) * (index * 45));
-                
-                wrap.style.left = px + 'px';
-                wrap.style.top = py + 'px';
+                wrap.style.left = px + 'px'; wrap.style.top = py + 'px';
                 wrap.style.width = (r.w || 80) + 'px';
 
                 wrap.innerHTML = `
@@ -175,6 +187,7 @@
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
+                    <div class="resize-handle"></div>
                 `;
 
                 wrap.onpointerdown = (e) => {
@@ -183,30 +196,22 @@
                         else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
                         return;
                     }
+                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
+
                     const now = Date.now();
                     if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
                     wrap.lastTap = now;
 
-                    dragEl = wrap;
-                    const rect = wrap.getBoundingClientRect();
-                    startX = e.clientX; startY = e.clientY;
-                    initialX = rect.left + grid.scrollLeft;
-                    initialY = rect.top + grid.scrollTop;
-                    wrap.classList.add('dragging');
-                    wrap.setPointerCapture(e.pointerId);
+                    dragEl = wrap; const rect = wrap.getBoundingClientRect(); startX = e.clientX; startY = e.clientY;
+                    initialX = rect.left + grid.scrollLeft; initialY = rect.top + grid.scrollTop;
+                    wrap.classList.add('dragging'); wrap.setPointerCapture(e.pointerId);
                 };
 
                 wrap.onpointermove = (e) => {
                     if (!dragEl || dragEl !== wrap) return;
-                    let nx = initialX + (e.clientX - startX);
-                    let ny = initialY + (e.clientY - startY);
-                    
-                    // Soft snap to 40px grid
-                    nx = Math.round(nx / 40) * 40;
-                    ny = Math.round(ny / 40) * 40;
-
-                    wrap.style.left = nx + 'px';
-                    wrap.style.top = ny + 'px';
+                    let nx = Math.round((initialX + (e.clientX - startX)) / 40) * 40;
+                    let ny = Math.round((initialY + (e.clientY - startY)) / 40) * 40;
+                    wrap.style.left = nx + 'px'; wrap.style.top = ny + 'px';
                 };
 
                 wrap.onpointerup = (e) => {
@@ -215,21 +220,56 @@
                     rtdb.ref(`relics/${id}`).update({ x: parseInt(wrap.style.left), y: parseInt(wrap.style.top) });
                     dragEl = null;
                 };
-
                 grid.appendChild(wrap);
             });
         }
 
-        // Logic Functions
+        function handleResize(e, el, id) {
+            e.stopPropagation();
+            const frame = el.querySelector('.relic-frame, .folder-frame');
+            const startW = frame.offsetWidth; const sX = e.clientX;
+            const onM = (ev) => {
+                const nw = Math.max(40, startW + (ev.clientX - sX));
+                frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px';
+            };
+            const onU = () => {
+                window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU);
+                rtdb.ref(`relics/${id}`).update({ w: parseInt(frame.style.width), h: parseInt(frame.style.height) });
+            };
+            window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU);
+        }
+
+        function showMenu(e) {
+            const m = document.getElementById('context-menu');
+            m.style.display = 'block'; m.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
+            document.getElementById('move-sub-menu').style.display = 'none';
+        }
+
+        function toggleMoveMenu() {
+            const sub = document.getElementById('move-sub-menu');
+            sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`;
+            Object.entries(allRelics).forEach(([id, r]) => {
+                if(r.type === 'folder' && id !== activeMenuId) {
+                    sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
+                }
+            });
+            sub.style.display = sub.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function moveRelic(dest) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: dest }); closeMenu(); }
         function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
         function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
+        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        
         function runCalcRitual() {
             const a = parseFloat(document.getElementById('calc-amount').value);
             const p = parseFloat(document.getElementById('calc-percent').value);
             if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`);
             closeModals();
         }
+
         function runSummonRitual() {
             const name = document.getElementById('sum-name').value;
             const url = document.getElementById('sum-url').value;
@@ -243,13 +283,10 @@
             if (file) { const reader = new FileReader(); reader.onload = (e) => save(e.target.result); reader.readAsDataURL(file); } else save("");
         }
 
-        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
+        function menuDelete() { if(confirm("Banish this relic forever?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({w:80, h:80}); closeMenu(); }
         function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
-        
         function toggleEdit() { isEditMode = !isEditMode; render(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
