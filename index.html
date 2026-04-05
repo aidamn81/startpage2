@@ -80,7 +80,6 @@
         body.is-editing .resize-handle { display: block; }
         .dragging { opacity: 0.6; z-index: 5000 !important; }
 
-        /* Modals & Menus */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
             display: none; align-items: center; justify-content: center; z-index: 9999;
@@ -158,12 +157,16 @@
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
         let dragEl = null, startX, startY, initialX, initialY, hasMoved = false;
 
+        const isMobile = () => window.innerWidth <= 600;
+        const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
+
         firebase.auth().onAuthStateChanged(user => { if (user) sync(); else firebase.auth().signInAnonymously(); });
         function sync() { rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; render(); }); }
 
         function render() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
+            const platform = getPlatformKey();
             document.body.classList.toggle('is-editing', isEditMode);
             document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
 
@@ -173,16 +176,19 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 
-                // Smart Proportional Positioning
-                let px = r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20;
-                let py = r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80;
+                const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
                 
+                // Fallback to legacy or default grid if layout doesn't exist
+                let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20);
+                let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
+                let pWidth = layout.w || r.w || null;
+
                 wrap.style.left = px + 'px';
                 wrap.style.top = py + 'px';
-                if(r.w) wrap.style.width = r.w + 'px';
+                if(pWidth) wrap.style.width = pWidth + 'px';
 
                 wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w?r.w+'px':''}; height:${r.w?r.w+'px':''};">
+                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
@@ -193,11 +199,7 @@
                     if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
                     hasMoved = false;
                     const now = Date.now();
-                    
-                    // Double Tap logic
-                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { 
-                        activeMenuId = id; showMenu(e); return; 
-                    }
+                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
                     wrap.lastTap = now;
 
                     if (isEditMode) {
@@ -214,11 +216,8 @@
                     hasMoved = true;
                     let nx = initialX + (e.clientX - startX);
                     let ny = initialY + (e.clientY - startY);
-                    
-                    // Tight Grid Snapping (10px)
                     nx = Math.round(nx / 10) * 10;
                     ny = Math.round(ny / 10) * 10;
-                    
                     wrap.style.left = nx + 'px';
                     wrap.style.top = ny + 'px';
                 };
@@ -226,8 +225,8 @@
                 wrap.onpointerup = (e) => {
                     if (dragEl === wrap) {
                         dragEl.classList.remove('dragging');
-                        // Store as Viewport Percentages for Cross-Device consistency
-                        rtdb.ref(`relics/${id}`).update({ 
+                        const platform = getPlatformKey();
+                        rtdb.ref(`relics/${id}/layouts/${platform}`).update({ 
                             vx: (parseInt(wrap.style.left) / window.innerWidth) * 100, 
                             vy: (parseInt(wrap.style.top) / window.innerHeight) * 100 
                         });
@@ -243,6 +242,7 @@
 
         function handleResize(e, el, id) {
             e.stopPropagation();
+            const platform = getPlatformKey();
             const frame = el.querySelector('.relic-frame, .folder-frame');
             const startW = frame.offsetWidth; const sX = e.clientX;
             const onM = (ev) => {
@@ -252,7 +252,7 @@
             };
             const onU = () => {
                 window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU);
-                rtdb.ref(`relics/${id}`).update({ w: parseInt(frame.style.width) });
+                rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) });
             };
             window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU);
         }
@@ -280,7 +280,7 @@
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
-        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({w: null}); closeMenu(); }
+        function menuSnapOriginal() { const platform = getPlatformKey(); rtdb.ref(`relics/${activeMenuId}/layouts/${platform}`).update({w: null}); closeMenu(); }
         function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
         function runCalcRitual() { const a = parseFloat(document.getElementById('calc-amount').value); const p = parseFloat(document.getElementById('calc-percent').value); if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`); closeModals(); }
         function runSummonRitual() {
@@ -289,7 +289,7 @@
             const type = document.getElementById('sum-type').value;
             const file = document.getElementById('sum-file').files[0];
             if (!name) return;
-            const save = (img) => { rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", vx: 10, vy: 15 }); closeModals(); };
+            const save = (img) => { rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", layouts: { mobile: {vx: 10, vy: 15}, tablet: {vx: 10, vy: 15} } }); closeModals(); };
             if (file) { const r = new FileReader(); r.onload = (e) => save(e.target.result); r.readAsDataURL(file); } else save("");
         }
         function toggleEdit() { isEditMode = !isEditMode; render(); }
