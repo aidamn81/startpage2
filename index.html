@@ -106,6 +106,7 @@
 
     <input type="file" id="image-input" style="display:none;" accept="image/*">
     <input type="file" id="summon-image-input" style="display:none;" accept="image/*">
+    
     <main id="archive-grid"></main>
 
     <div id="context-menu" onclick="event.stopPropagation()">
@@ -138,24 +139,11 @@
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
             document.body.classList.toggle('is-editing', isEditMode);
-            
-            const items = Object.entries(allRelics)
-                .filter(([id, r]) => r.parent === currentFolder)
-                .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
-
+            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
             items.forEach(([id, r]) => {
                 const wrap = document.createElement('div');
-                wrap.className = 'relic-wrapper';
-                wrap.dataset.id = id;
-                wrap.style.width = (r.w || 80) + 'px';
-                wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||80}px; height:${r.h||80}px;">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0].toUpperCase()}</span>`}
-                    </div>
-                    <span class="relic-name">${r.name}</span>
-                    <div class="resize-handle"></div>
-                `;
-
+                wrap.className = 'relic-wrapper'; wrap.dataset.id = id; wrap.style.width = (r.w || 80) + 'px';
+                wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||80}px; height:${r.h||80}px;">${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0].toUpperCase()}</span>`}</div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
                 wrap.onpointerdown = (e) => {
                     if (!isEditMode) {
                         if (r.type === 'folder') enterFolder(id, r.name);
@@ -163,94 +151,34 @@
                         return;
                     }
                     if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
-
-                    const now = Date.now();
-                    if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
-                    wrap.lastTap = now;
-
-                    dragEl = wrap;
-                    const rect = wrap.getBoundingClientRect();
-                    startX = e.clientX; startY = e.clientY;
-                    initialX = rect.left; initialY = rect.top;
-
-                    placeholder = wrap.cloneNode(true);
-                    placeholder.classList.add('placeholder');
-                    wrap.before(placeholder);
-
-                    wrap.classList.add('dragging');
-                    wrap.style.left = initialX + 'px';
-                    wrap.style.top = initialY + 'px';
-                    wrap.style.width = rect.width + 'px';
-                    wrap.setPointerCapture(e.pointerId);
+                    const now = Date.now(); if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
+                    wrap.lastTap = now; dragEl = wrap; const rect = wrap.getBoundingClientRect(); startX = e.clientX; startY = e.clientY; initialX = rect.left; initialY = rect.top;
+                    placeholder = wrap.cloneNode(true); placeholder.classList.add('placeholder'); wrap.before(placeholder);
+                    wrap.classList.add('dragging'); wrap.style.left = initialX + 'px'; wrap.style.top = initialY + 'px'; wrap.style.width = rect.width + 'px'; wrap.setPointerCapture(e.pointerId);
                 };
-
                 wrap.onpointermove = (e) => {
-                    if (!dragEl || dragEl !== wrap) return;
-                    wrap.style.left = (initialX + (e.clientX - startX)) + 'px';
-                    wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
-
-                    const target = document.elementFromPoint(e.clientX, e.clientY);
-                    const over = target?.closest('.relic-wrapper:not(.dragging):not(.placeholder)');
-                    if (over && over !== placeholder) {
-                        const children = Array.from(grid.children);
-                        if (children.indexOf(over) > children.indexOf(placeholder)) over.after(placeholder);
-                        else over.before(placeholder);
-                    }
+                    if (!dragEl || dragEl !== wrap) return; wrap.style.left = (initialX + (e.clientX - startX)) + 'px'; wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
+                    const target = document.elementFromPoint(e.clientX, e.clientY); const over = target?.closest('.relic-wrapper:not(.dragging):not(.placeholder)');
+                    if (over && over !== placeholder) { const children = Array.from(grid.children); if (children.indexOf(over) > children.indexOf(placeholder)) over.after(placeholder); else over.before(placeholder); }
                 };
-
                 wrap.onpointerup = (e) => {
-                    if (!dragEl || dragEl !== wrap) return;
-                    wrap.releasePointerCapture(e.pointerId);
-                    
-                    placeholder.after(wrap);
-                    placeholder.remove();
-
+                    if (!dragEl || dragEl !== wrap) return; wrap.releasePointerCapture(e.pointerId); placeholder.after(wrap); placeholder.remove();
                     const order = Array.from(grid.querySelectorAll('.relic-wrapper:not(.placeholder)')).map(el => el.dataset.id);
-                    const updates = {};
-                    order.forEach((fid, i) => { if(fid) updates[`relics/${fid}/sortOrder`] = i; });
-                    rtdb.ref().update(updates);
-
-                    wrap.classList.remove('dragging');
-                    wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = ''; wrap.style.width = (allRelics[id].w || 80) + 'px';
-                    dragEl = null; placeholder = null;
+                    const updates = {}; order.forEach((fid, i) => { if(fid) updates[`relics/${fid}/sortOrder`] = i; });
+                    rtdb.ref().update(updates); wrap.classList.remove('dragging'); wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = ''; wrap.style.width = (allRelics[id].w || 80) + 'px'; dragEl = null; placeholder = null;
                 };
-
                 grid.appendChild(wrap);
             });
         }
 
         function handleResize(e, el, id) {
-            const frame = el.querySelector('.relic-frame, .folder-frame');
-            const startW = frame.offsetWidth; const sX = e.clientX;
-            const onM = (ev) => {
-                const nw = Math.max(40, startW + (ev.clientX - sX));
-                frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px';
-            };
-            const onU = () => {
-                window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU);
-                rtdb.ref(`relics/${id}`).update({ w: parseInt(frame.style.width), h: parseInt(frame.style.height) });
-            };
+            const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX;
+            const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; };
+            const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}`).update({ w: parseInt(frame.style.width), h: parseInt(frame.style.height) }); };
             window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU);
         }
 
-        function toggleMoveList() {
-            const list = document.getElementById('folder-move-list');
-            list.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`;
-            Object.entries(allRelics).forEach(([id, r]) => {
-                if (r.type === 'folder' && id !== activeMenuId) {
-                    list.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
-                }
-            });
-            list.style.display = list.style.display === 'none' ? 'block' : 'none';
-        }
-
-        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId, sortOrder: Date.now() }); closeMenu(); }
-        function showMenu(e) { 
-            const m = document.getElementById('context-menu'); m.style.display = 'flex'; 
-            m.style.left = Math.min(e.clientX, window.innerWidth - 250) + 'px'; 
-            m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px';
-            document.getElementById('folder-move-list').style.display = 'none';
-        }
+        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'flex'; m.style.left = Math.min(e.clientX, window.innerWidth - 250) + 'px'; m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px'; document.getElementById('folder-move-list').style.display = 'none'; }
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); closeMenu(); }
@@ -265,48 +193,72 @@
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
-        
-        // --- UPDATED SUMMON & CALC ---
+
+        // --- FIXED SUMMON FLOW ---
         function openAdmin() {
             const type = prompt("relic or folder?", "relic");
-            const name = prompt("Name:");
+            if (!type) return;
+            const name = prompt("Name of the Summoned:");
             if (!name) return;
             const url = type === 'relic' ? prompt("URL (optional):", "") : "";
-            const targetFolder = prompt("Target Parent (ID or 'root'):", currentFolder);
-            
-            if (confirm("Upload custom image for this summoning?")) {
-                const summonInput = document.getElementById('summon-image-input');
-                summonInput.onchange = (e) => {
-                    const file = e.target.files[0];
+            const targetFolder = prompt("Target Folder ID (current folder is default):", currentFolder);
+
+            const summonInput = document.getElementById('summon-image-input');
+            summonInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
                     const reader = new FileReader();
-                    reader.onload = (ev) => {
-                        finishSummon(name, url, type, targetFolder, ev.target.result);
-                    };
+                    reader.onload = (ev) => { finalizeSummon(name, url, type, targetFolder, ev.target.result); };
                     reader.readAsDataURL(file);
-                };
+                } else {
+                    finalizeSummon(name, url, type, targetFolder, "");
+                }
+            };
+
+            if (confirm("Would you like to upload a custom seal (image)?")) {
                 summonInput.click();
             } else {
-                finishSummon(name, url, type, targetFolder, "");
+                finalizeSummon(name, url, type, targetFolder, "");
             }
         }
 
-        function finishSummon(name, url, type, parent, imgUrl) {
+        function finalizeSummon(name, url, type, parent, imgUrl) {
             rtdb.ref('relics').push({
-                name, url, type, parent,
+                name: name,
+                url: url || "",
+                type: type,
+                parent: parent || "root",
                 imgUrl: imgUrl || "",
                 w: 80, h: 80,
                 sortOrder: Date.now()
             });
         }
 
+        // --- FIXED TITHE CALCULATOR ---
         function openCalc() {
-            const amount = parseFloat(prompt("Enter Amount:"));
-            if (isNaN(amount)) return;
-            const percent = parseFloat(prompt("Enter Percentage:", "20"));
-            if (isNaN(percent)) return;
-            const result = (amount * (percent / 100)).toFixed(2);
-            alert(`Tithe (${percent}%): ${result}`);
+            const amountStr = prompt("Enter Amount:");
+            if (amountStr === null) return;
+            const amount = parseFloat(amountStr);
+            
+            const percentStr = prompt("Enter Percentage:", "20");
+            if (percentStr === null) return;
+            const percent = parseFloat(percentStr);
+
+            if (!isNaN(amount) && !isNaN(percent)) {
+                const result = (amount * (percent / 100)).toFixed(2);
+                alert(`Tithe Result (${percent}%): ${result}`);
+            } else {
+                alert("Invalid numbers provided.");
+            }
         }
+
+        function toggleMoveList() {
+            const list = document.getElementById('folder-move-list');
+            list.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`;
+            Object.entries(allRelics).forEach(([id, r]) => { if (r.type === 'folder' && id !== activeMenuId) list.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; });
+            list.style.display = list.style.display === 'none' ? 'block' : 'none';
+        }
+        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId, sortOrder: Date.now() }); closeMenu(); }
     </script>
 </body>
 </html>
