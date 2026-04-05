@@ -105,6 +105,7 @@
     </div>
 
     <input type="file" id="image-input" style="display:none;" accept="image/*">
+    <input type="file" id="summon-image-input" style="display:none;" accept="image/*">
     <main id="archive-grid"></main>
 
     <div id="context-menu" onclick="event.stopPropagation()">
@@ -264,13 +265,48 @@
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
+        
+        // --- UPDATED SUMMON & CALC ---
         function openAdmin() {
             const type = prompt("relic or folder?", "relic");
-            const name = prompt("Name?");
-            const url = prompt("URL?");
-            if (name) rtdb.ref('relics').push({ name, url, type, parent: currentFolder, w: 80, h: 80, sortOrder: Date.now() });
+            const name = prompt("Name:");
+            if (!name) return;
+            const url = type === 'relic' ? prompt("URL (optional):", "") : "";
+            const targetFolder = prompt("Target Parent (ID or 'root'):", currentFolder);
+            
+            if (confirm("Upload custom image for this summoning?")) {
+                const summonInput = document.getElementById('summon-image-input');
+                summonInput.onchange = (e) => {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        finishSummon(name, url, type, targetFolder, ev.target.result);
+                    };
+                    reader.readAsDataURL(file);
+                };
+                summonInput.click();
+            } else {
+                finishSummon(name, url, type, targetFolder, "");
+            }
         }
-        function openCalc() { const b = prompt("Amount:"); if(b) alert("Tithe: " + (b*0.2).toFixed(2)); }
+
+        function finishSummon(name, url, type, parent, imgUrl) {
+            rtdb.ref('relics').push({
+                name, url, type, parent,
+                imgUrl: imgUrl || "",
+                w: 80, h: 80,
+                sortOrder: Date.now()
+            });
+        }
+
+        function openCalc() {
+            const amount = parseFloat(prompt("Enter Amount:"));
+            if (isNaN(amount)) return;
+            const percent = parseFloat(prompt("Enter Percentage:", "20"));
+            if (isNaN(percent)) return;
+            const result = (amount * (percent / 100)).toFixed(2);
+            alert(`Tithe (${percent}%): ${result}`);
+        }
     </script>
 </body>
 </html>
