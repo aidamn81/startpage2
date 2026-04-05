@@ -22,8 +22,7 @@
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian); color: var(--text);
             font-family: 'Playfair Display', serif; overflow-x: hidden;
-            -webkit-user-select: none; user-select: none;
-            touch-action: none; 
+            -webkit-user-select: none; user-select: none; touch-action: none; 
         }
 
         body {
@@ -47,24 +46,20 @@
             min-height: 85vh;
         }
 
-        /* Subtle Grid Guide from User Instructions */
-        .is-editing #archive-grid {
-            background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; z-index: 10;
-            touch-action: none; transition: transform 0.2s;
+            touch-action: none; transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
         }
         
-        .is-editing .relic-wrapper { animation: wiggle 0.3s infinite ease-in-out; }
+        .is-editing .relic-wrapper:not(.dragging) { animation: wiggle 0.3s infinite ease-in-out; }
+        .ghost { opacity: 0.2 !important; filter: grayscale(1); }
         .dragging { 
-            opacity: 0.6; transform: scale(1.1) !important; z-index: 5000 !important; 
+            opacity: 0.9; transform: scale(1.15) !important; z-index: 5000 !important; 
             animation: none !important; pointer-events: none; position: fixed !important;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
         }
-        @keyframes wiggle { 0% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } 100% { transform: rotate(-1.5deg); } }
+        @keyframes wiggle { 0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); } }
 
         .relic-frame, .folder-frame { 
             border-radius: 15%; overflow: hidden; 
@@ -87,12 +82,19 @@
         }
         .is-editing .resize-handle { display: block; }
 
+        /* Drop Zone for New Rows */
+        #new-row-zone {
+            flex-grow: 1; min-width: 100px; min-height: 100px;
+            display: none; border: 1.5px dashed rgba(140, 115, 64, 0.3);
+            border-radius: 15px; margin-left: 10px;
+        }
+        .is-editing #new-row-zone { display: block; }
+
         .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; }
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
             border-radius: 8px; z-index: 5000; width: 240px; flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0,0,0,1);
         }
         .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
         #folder-move-list { max-height: 200px; overflow-y: auto; background: #050505; display: none; border-top: 1px solid var(--gold); }
@@ -109,24 +111,6 @@
         <button id="edit-toggle" class="toggle-btn" onclick="toggleEdit()">Edit</button>
     </div>
 
-    <div id="calc-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:6000; align-items:center; justify-content:center;" onclick="this.style.display='none'">
-        <div class="modal-content" style="background:#0a0a0a; border:2px solid var(--gold); padding:25px; border-radius:12px; width:80%; max-width:300px;" onclick="event.stopPropagation()">
-            <h2 style="color:var(--gold); text-align:center;">Tithe</h2>
-            <input type="number" id="calc-base" placeholder="Amount" oninput="runCalc()" style="width:100%; padding:10px; margin-bottom:10px; background:#111; color:var(--gold); border:1px solid #333;">
-            <div id="calc-result" style="text-align:center; color:var(--gold); font-size:1.2rem;">Result: 0</div>
-        </div>
-    </div>
-
-    <div id="admin-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:6000; align-items:center; justify-content:center;" onclick="this.style.display='none'">
-        <div class="modal-content" style="background:#0a0a0a; border:2px solid var(--gold); padding:25px; border-radius:12px; width:80%; max-width:300px;" onclick="event.stopPropagation()">
-            <h2 style="color:var(--gold);">Manifest</h2>
-            <select id="creation-type" style="width:100%; padding:10px; margin-bottom:10px;"><option value="relic">Relic</option><option value="folder">Folder</option></select>
-            <input type="text" id="new-name" placeholder="Name" style="width:100%; padding:10px; margin-bottom:10px;">
-            <input type="text" id="new-url" placeholder="URL" style="width:100%; padding:10px; margin-bottom:10px;">
-            <button class="toggle-btn" style="width:100%;" onclick="createSomething()">Create</button>
-        </div>
-    </div>
-
     <input type="file" id="image-input" style="display:none;" accept="image/*">
     <main id="archive-grid"></main>
 
@@ -136,7 +120,7 @@
         <div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div>
         <div class="menu-item" onclick="toggleMoveList()">Move to Folder...</div>
         <div id="folder-move-list"></div>
-        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson); border-bottom:none;">Banish</div>
+        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson);">Banish</div>
     </div>
 
     <script>
@@ -148,13 +132,11 @@
         };
         firebase.initializeApp(firebaseConfig);
         const rtdb = firebase.database();
-        const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragId = null, dragEl = null, startX, startY, initialX, initialY;
+        let dragId = null, dragClone = null, startX, startY, initialX, initialY;
 
-        auth.onAuthStateChanged(user => { if (user) syncData(); else auth.signInAnonymously(); });
-        function syncData() { rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; renderGrid(); }); }
+        rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; renderGrid(); });
 
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
@@ -170,89 +152,84 @@
                 wrap.className = 'relic-wrapper';
                 wrap.dataset.id = id;
                 wrap.style.width = (r.w || 80) + 'px';
-                
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||80}px; height:${r.h||80}px;">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0].toUpperCase()}</span>`}
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold);">${r.type[0].toUpperCase()}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
                 `;
 
-                let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (!isEditMode) {
                         if (r.type === 'folder') enterFolder(id, r.name);
                         else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
                         return;
                     }
+                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
 
-                    if (e.target.classList.contains('resize-handle')) {
-                        handleResize(e, wrap, id); return;
-                    }
-
+                    // Double tap for menu
                     const now = Date.now();
-                    if (now - lastTap < 300) { activeMenuId = id; showMenu(e); return; }
-                    lastTap = now;
+                    if (now - wrap.lastTap < 300) { activeMenuId = id; showMenu(e); return; }
+                    wrap.lastTap = now;
 
-                    // DRAG START
-                    dragId = id; dragEl = wrap;
+                    // Setup Drag Clone
+                    dragId = id;
                     const rect = wrap.getBoundingClientRect();
                     startX = e.clientX; startY = e.clientY;
                     initialX = rect.left; initialY = rect.top;
+                    
+                    dragClone = wrap.cloneNode(true);
+                    dragClone.classList.add('dragging');
+                    dragClone.style.width = wrap.offsetWidth + 'px';
+                    dragClone.style.left = initialX + 'px';
+                    dragClone.style.top = initialY + 'px';
+                    document.body.appendChild(dragClone);
+                    
+                    wrap.classList.add('ghost');
                     wrap.setPointerCapture(e.pointerId);
-                    wrap.classList.add('dragging');
-                    wrap.style.left = initialX + 'px'; wrap.style.top = initialY + 'px';
                 };
 
                 wrap.onpointermove = (e) => {
-                    if (!dragEl || dragId !== id) return;
-                    wrap.style.left = (initialX + (e.clientX - startX)) + 'px';
-                    wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
+                    if (!dragClone || dragId !== id) return;
+                    dragClone.style.left = (initialX + (e.clientX - startX)) + 'px';
+                    dragClone.style.top = (initialY + (e.clientY - startY)) + 'px';
+
+                    // Dynamic Reordering Visual
+                    const target = document.elementFromPoint(e.clientX, e.clientY);
+                    const overWrap = target?.closest('.relic-wrapper');
+                    if (overWrap && overWrap !== wrap) {
+                        const allWraps = Array.from(document.querySelectorAll('.relic-wrapper:not(.dragging)'));
+                        const dragIdx = allWraps.indexOf(wrap);
+                        const overIdx = allWraps.indexOf(overWrap);
+                        if (overIdx > dragIdx) overWrap.after(wrap);
+                        else overWrap.before(wrap);
+                    }
                 };
 
                 wrap.onpointerup = (e) => {
-                    if (!dragEl || dragId !== id) return;
+                    if (!dragClone || dragId !== id) return;
                     wrap.releasePointerCapture(e.pointerId);
-                    wrap.classList.remove('dragging');
-                    wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = '';
-
-                    // FIND DROP TARGET
-                    const target = document.elementFromPoint(e.clientX, e.clientY);
-                    const overWrap = target?.closest('.relic-wrapper');
                     
-                    if (overWrap && overWrap.dataset.id !== dragId) {
-                        insertAt(dragId, overWrap.dataset.id);
-                    } else {
-                        // If dropped in empty row/space
-                        moveToEnd(dragId);
-                    }
-                    dragEl = null; dragId = null;
+                    // Final Database Sync based on visual position
+                    const finalOrder = Array.from(document.querySelectorAll('.relic-wrapper:not(.dragging)'))
+                                          .map(el => el.dataset.id);
+                    const updates = {};
+                    finalOrder.forEach((fid, i) => { updates[`relics/${fid}/sortOrder`] = i; });
+                    rtdb.ref().update(updates);
+
+                    dragClone.remove();
+                    wrap.classList.remove('ghost');
+                    dragClone = null; dragId = null;
                 };
 
                 grid.appendChild(wrap);
             });
-        }
 
-        function insertAt(draggedId, targetId) {
-            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
-            const oldIdx = items.indexOf(draggedId); const newIdx = items.indexOf(targetId);
-            if (oldIdx === -1) return;
-            items.splice(oldIdx, 1); items.splice(newIdx, 0, draggedId);
-            updateSort(items);
-        }
-
-        function moveToEnd(draggedId) {
-            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
-            const oldIdx = items.indexOf(draggedId);
-            if (oldIdx !== -1) items.splice(oldIdx, 1);
-            items.push(draggedId);
-            updateSort(items);
-        }
-
-        function updateSort(items) {
-            const updates = {}; items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
-            rtdb.ref().update(updates);
+            const zone = document.createElement('div');
+            zone.id = 'new-row-zone';
+            zone.onpointerenter = () => { if(dragId) grid.appendChild(document.querySelector(`[data-id="${dragId}"]`)); };
+            grid.appendChild(zone);
         }
 
         function handleResize(e, el, id) {
@@ -301,19 +278,13 @@
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
-        function openAdmin() { document.getElementById('admin-modal').style.display = 'flex'; }
-        function createSomething() {
-            const type = document.getElementById('creation-type').value;
-            const name = document.getElementById('new-name').value || "Unnamed";
-            const url = document.getElementById('new-url').value || "";
-            rtdb.ref('relics').push({ name, url, type, parent: currentFolder, w: 80, h: 80, sortOrder: Date.now() });
-            document.getElementById('admin-modal').style.display = 'none';
+        function openAdmin() {
+            const type = prompt("Type (relic/folder):", "relic");
+            const name = prompt("Name:");
+            const url = prompt("URL:");
+            if(name) rtdb.ref('relics').push({ name, url, type, parent: currentFolder, w: 80, h: 80, sortOrder: Date.now() });
         }
-        function openCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
-        function runCalc() {
-            const b = document.getElementById('calc-base').value;
-            document.getElementById('calc-result').innerText = "Result: " + (b * 0.2).toFixed(2);
-        }
+        function openCalc() { const b = prompt("Amount:"); if(b) alert("Tithe (20%): " + (b * 0.2).toFixed(2)); }
     </script>
 </body>
 </html>
