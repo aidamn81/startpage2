@@ -46,11 +46,6 @@
             min-height: 85vh;
         }
 
-        .is-editing #archive-grid {
-            background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
-            background-size: 40px 40px;
-        }
-
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; z-index: 10;
@@ -58,9 +53,14 @@
         }
         
         .is-editing .relic-wrapper:not(.dragging) { animation: wiggle 0.3s infinite ease-in-out; }
+        
+        /* The key to stopping the glitch: Placeholder keeps the space occupied */
+        .placeholder { opacity: 0; pointer-events: none; }
+        
         .dragging { 
-            opacity: 0.8; transform: scale(1.1) !important; z-index: 5000 !important; 
+            opacity: 0.9; transform: scale(1.1) !important; z-index: 5000 !important; 
             animation: none !important; pointer-events: none; position: fixed !important;
+            transition: none !important;
         }
         @keyframes wiggle { 0% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } 100% { transform: rotate(-1.5deg); } }
 
@@ -129,7 +129,7 @@
         const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragId = null, dragEl = null, startX, startY, initialX, initialY;
+        let dragEl = null, placeholder = null, startX, startY, initialX, initialY;
 
         auth.onAuthStateChanged(user => { if (user) syncData(); else auth.signInAnonymously(); });
         function syncData() { rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; renderGrid(); }); }
@@ -168,46 +168,56 @@
                     if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
                     wrap.lastTap = now;
 
-                    // DIRECT DRAG START
-                    dragId = id; dragEl = wrap;
+                    // START DRAG
+                    dragEl = wrap;
                     const rect = wrap.getBoundingClientRect();
                     startX = e.clientX; startY = e.clientY;
                     initialX = rect.left; initialY = rect.top;
-                    
+
+                    // Create placeholder to prevent layout collapse
+                    placeholder = wrap.cloneNode(true);
+                    placeholder.classList.add('placeholder');
+                    wrap.before(placeholder);
+
                     wrap.classList.add('dragging');
                     wrap.style.left = initialX + 'px';
                     wrap.style.top = initialY + 'px';
+                    wrap.style.width = rect.width + 'px';
                     wrap.setPointerCapture(e.pointerId);
                 };
 
                 wrap.onpointermove = (e) => {
-                    if (!dragEl || dragId !== id) return;
+                    if (!dragEl || dragEl !== wrap) return;
                     wrap.style.left = (initialX + (e.clientX - startX)) + 'px';
                     wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
 
-                    // Find visual target for auto-reordering
+                    // Reorder placeholder based on touch position
                     const target = document.elementFromPoint(e.clientX, e.clientY);
-                    const over = target?.closest('.relic-wrapper');
-                    if (over && over !== wrap) {
+                    const over = target?.closest('.relic-wrapper:not(.dragging):not(.placeholder)');
+                    if (over && over !== placeholder) {
                         const children = Array.from(grid.children);
-                        if (children.indexOf(over) > children.indexOf(wrap)) over.after(wrap);
-                        else over.before(wrap);
+                        if (children.indexOf(over) > children.indexOf(placeholder)) over.after(placeholder);
+                        else over.before(placeholder);
                     }
                 };
 
                 wrap.onpointerup = (e) => {
-                    if (!dragEl || dragId !== id) return;
+                    if (!dragEl || dragEl !== wrap) return;
                     wrap.releasePointerCapture(e.pointerId);
                     
-                    // Final Sort Order Calculation
-                    const order = Array.from(grid.querySelectorAll('.relic-wrapper')).map(el => el.dataset.id);
+                    // Final move: Put wrap where placeholder is
+                    placeholder.after(wrap);
+                    placeholder.remove();
+
+                    // Database Save
+                    const order = Array.from(grid.querySelectorAll('.relic-wrapper:not(.placeholder)')).map(el => el.dataset.id);
                     const updates = {};
                     order.forEach((fid, i) => { if(fid) updates[`relics/${fid}/sortOrder`] = i; });
                     rtdb.ref().update(updates);
 
                     wrap.classList.remove('dragging');
-                    wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = '';
-                    dragId = null; dragEl = null;
+                    wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = ''; wrap.style.width = (allRelics[id].w || 80) + 'px';
+                    dragEl = null; placeholder = null;
                 };
 
                 grid.appendChild(wrap);
@@ -260,6 +270,7 @@
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
+        
         function openAdmin() {
             const type = prompt("relic or folder?", "relic");
             const name = prompt("Name?");
