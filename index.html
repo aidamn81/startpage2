@@ -53,8 +53,6 @@
         }
         
         .is-editing .relic-wrapper:not(.dragging) { animation: wiggle 0.3s infinite ease-in-out; }
-        
-        /* The key to stopping the glitch: Placeholder keeps the space occupied */
         .placeholder { opacity: 0; pointer-events: none; }
         
         .dragging { 
@@ -85,7 +83,7 @@
         }
         .is-editing .resize-handle { display: block; }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
@@ -101,6 +99,7 @@
         <button id="back-btn" class="toggle-btn" onclick="goBack()" style="display:none;">←</button>
         <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; text-align:center;">Gothic Archive</span>
         <button class="toggle-btn" onclick="openCalc()">%</button>
+        <a href="oracle.html" class="toggle-btn">Oracle</a>
         <button class="toggle-btn" onclick="openAdmin()">Summon</button>
         <button id="edit-toggle" class="toggle-btn" onclick="toggleEdit()">Edit</button>
     </div>
@@ -168,13 +167,11 @@
                     if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
                     wrap.lastTap = now;
 
-                    // START DRAG
                     dragEl = wrap;
                     const rect = wrap.getBoundingClientRect();
                     startX = e.clientX; startY = e.clientY;
                     initialX = rect.left; initialY = rect.top;
 
-                    // Create placeholder to prevent layout collapse
                     placeholder = wrap.cloneNode(true);
                     placeholder.classList.add('placeholder');
                     wrap.before(placeholder);
@@ -191,7 +188,6 @@
                     wrap.style.left = (initialX + (e.clientX - startX)) + 'px';
                     wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
 
-                    // Reorder placeholder based on touch position
                     const target = document.elementFromPoint(e.clientX, e.clientY);
                     const over = target?.closest('.relic-wrapper:not(.dragging):not(.placeholder)');
                     if (over && over !== placeholder) {
@@ -205,11 +201,9 @@
                     if (!dragEl || dragEl !== wrap) return;
                     wrap.releasePointerCapture(e.pointerId);
                     
-                    // Final move: Put wrap where placeholder is
                     placeholder.after(wrap);
                     placeholder.remove();
 
-                    // Database Save
                     const order = Array.from(grid.querySelectorAll('.relic-wrapper:not(.placeholder)')).map(el => el.dataset.id);
                     const updates = {};
                     order.forEach((fid, i) => { if(fid) updates[`relics/${fid}/sortOrder`] = i; });
@@ -270,7 +264,6 @@
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
-        
         function openAdmin() {
             const type = prompt("relic or folder?", "relic");
             const name = prompt("Name?");
