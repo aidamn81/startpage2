@@ -39,7 +39,6 @@
             padding-top: env(safe-area-inset-top, 10px);
         }
 
-        /* GRID IMPROVEMENTS: Centered container, left-aligned items for row stability */
         #archive-grid { 
             position: relative; width: 100%; max-width: 1200px; margin: 0 auto;
             flex-grow: 1; box-sizing: border-box; z-index: 5; padding: 25px;
@@ -69,7 +68,6 @@
             background-size: 100% 100%;
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        
         .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-align: center; }
 
         .resize-handle {
@@ -78,6 +76,14 @@
             border: 3px solid #000; pointer-events: auto;
         }
         .is-editing .resize-handle { display: block; }
+
+        /* The Empty Row Drop Zone */
+        #drop-zone-end {
+            flex-grow: 1; min-width: 100px; min-height: 100px;
+            display: none; border: 2px dashed rgba(140, 115, 64, 0.2);
+            border-radius: 15px; margin-left: 10px;
+        }
+        .is-editing #drop-zone-end { display: block; }
 
         .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; }
 
@@ -191,7 +197,6 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // Drag Logic for Inter-item insertion
                 wrap.ondragstart = (e) => {
                     if (e.target.classList.contains('resize-handle')) return e.preventDefault();
                     e.dataTransfer.setData('text/plain', id);
@@ -204,7 +209,6 @@
                     if (draggedId !== id) insertAt(draggedId, id);
                 };
 
-                // Double Tap & Resize Logic
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
@@ -230,22 +234,34 @@
                 };
                 grid.appendChild(wrap);
             });
+
+            // Add the Empty Row Drop Zone
+            const endZone = document.createElement('div');
+            endZone.id = 'drop-zone-end';
+            endZone.ondragover = (e) => e.preventDefault();
+            endZone.ondrop = (e) => {
+                e.preventDefault();
+                const draggedId = e.dataTransfer.getData('text/plain');
+                moveToEnd(draggedId);
+            };
+            grid.appendChild(endZone);
         }
 
         function insertAt(draggedId, targetId) {
-            const items = Object.entries(allRelics)
-                .filter(([id, r]) => r.parent === currentFolder)
-                .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0))
-                .map(([id]) => id);
-            
-            const oldIdx = items.indexOf(draggedId); 
-            const newIdx = items.indexOf(targetId);
-            
-            items.splice(oldIdx, 1); 
-            items.splice(newIdx, 0, draggedId);
-            
-            const updates = {}; 
-            items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
+            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
+            const oldIdx = items.indexOf(draggedId); const newIdx = items.indexOf(targetId);
+            if(oldIdx === -1) return; // Logic for moving between folders handled via menu
+            items.splice(oldIdx, 1); items.splice(newIdx, 0, draggedId);
+            const updates = {}; items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
+            rtdb.ref().update(updates);
+        }
+
+        function moveToEnd(draggedId) {
+            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
+            const oldIdx = items.indexOf(draggedId);
+            if(oldIdx !== -1) items.splice(oldIdx, 1);
+            items.push(draggedId);
+            const updates = {}; items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
             rtdb.ref().update(updates);
         }
 
@@ -270,7 +286,7 @@
             const list = document.getElementById('folder-move-list');
             list.innerHTML = `<div class="menu-item" style="background:#000; border-bottom:1px solid #222;" onclick="moveRelic('root')">🏛 INDEX</div>`;
             
-            // Scans ALL relics globally to find every folder created
+            // Full Global Scan for Folders
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
                     list.innerHTML += `<div class="menu-item" style="background:#000; border-bottom:1px solid #222;" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
@@ -279,7 +295,7 @@
             list.style.display = list.style.display === 'none' ? 'block' : 'none';
         }
 
-        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId }); closeMenu(); }
+        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId, sortOrder: Date.now() }); closeMenu(); }
         function showMenu(e) { 
             const m = document.getElementById('context-menu'); 
             m.style.display = 'flex'; 
