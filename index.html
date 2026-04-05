@@ -30,41 +30,44 @@
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
         }
 
-        #top-controls { 
-            width: 100%; padding: 15px; display: flex; gap: 12px;
-            align-items: center; justify-content: center; z-index: 3000; 
-            position: relative; padding-top: env(safe-area-inset-top, 15px);
+        /* Top Navigation - Right Aligned */
+        #top-nav {
+            position: absolute; top: 0; right: 0; padding: 15px;
+            display: flex; gap: 10px; z-index: 4000;
+            padding-top: env(safe-area-inset-top, 15px);
         }
 
-        .nav-btn {
+        .nav-link {
             background: transparent; border: 1px solid var(--gold); color: var(--gold);
-            padding: 8px 15px; font-family: 'Cinzel'; font-size: 0.7rem; border-radius: 4px;
-            cursor: pointer; text-decoration: none;
+            padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px;
+            cursor: pointer; text-decoration: none; text-transform: uppercase;
         }
 
-        .edit-btn { position: absolute; right: 20px; top: 20px; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 5px 12px; border-radius: 4px; font-family: 'Cinzel'; font-size: 0.65rem; z-index: 4000; }
+        #status-display {
+            position: absolute; top: 20px; left: 20px; font-family: 'Cinzel';
+            color: var(--gold); font-size: 0.8rem; z-index: 3000;
+        }
 
-        /* Formation Container */
         #archive-grid { 
-            position: absolute; inset: 0; top: 80px;
-            overflow: scroll; -webkit-overflow-scrolling: touch;
-            z-index: 5;
+            position: absolute; inset: 0; overflow: auto; z-index: 5;
+            padding: 50px; box-sizing: border-box;
         }
 
+        /* Relic Styles */
         .relic-wrapper { 
             position: absolute; display: flex; flex-direction: column; align-items: center; 
-            transition: transform 0.2s; cursor: pointer;
+            cursor: pointer; z-index: 10; touch-action: none;
         }
         
         .relic-frame, .folder-frame { 
-            width: 70px; height: 70px; border-radius: 18px; overflow: hidden; 
-            background: #111; border: 1.5px solid var(--crimson); 
-            box-shadow: 0 0 10px rgba(122,0,0,0.3); pointer-events: none;
+            border-radius: 15%; overflow: hidden; background: #111; 
+            border: 1.5px solid var(--crimson); position: relative;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.6); pointer-events: none;
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.6rem; color: #888; text-transform: uppercase; letter-spacing: 1px; text-align: center; }
+        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.65rem; color: #fff; text-align: center; }
 
-        /* Modal Overlay */
+        /* Modals */
         .modal-overlay {
             position: fixed; inset: 0; background: rgba(0,0,0,0.85);
             display: none; align-items: center; justify-content: center; z-index: 9999;
@@ -73,24 +76,34 @@
             background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px;
             width: 90%; max-width: 380px; padding: 25px;
         }
-        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-sizing: border-box; }
-        .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 15px; border-radius: 4px; font-family: 'Cinzel'; cursor: pointer; }
+        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-sizing: border-box; font-family: inherit; }
+        .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 15px; border-radius: 4px; font-family: 'Cinzel'; cursor: pointer; font-weight: bold; }
 
-        .dragging { opacity: 0.8; z-index: 5000 !important; transition: none !important; }
+        /* Grid Overlay (Edit Mode) */
+        #guide-grid {
+            position: fixed; inset: 0; pointer-events: none; opacity: 0;
+            background-image: radial-gradient(circle, #ffffff11 1px, transparent 1px);
+            background-size: 40px 40px; z-index: 1; transition: opacity 0.3s;
+        }
+        body.is-editing #guide-grid { opacity: 1; }
+
+        .dragging { opacity: 0.7; z-index: 5000 !important; transition: none !important; }
         #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 180px; }
-        .menu-item { padding: 12px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.8rem; }
+        .menu-item { padding: 12px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.75rem; }
     </style>
 </head>
 <body onclick="closeModals(); closeMenu();">
 
-    <button id="edit-toggle" class="edit-btn" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
+    <div id="guide-grid"></div>
+    <div id="status-display">GOTHIC ARCHIVE</div>
 
-    <div id="top-controls">
-        <button id="back-btn" class="nav-btn" onclick="goBack()" style="display:none;">← BACK</button>
-        <a href="oracle.html" class="nav-btn">ORACLE</a>
-        <button class="nav-btn" onclick="event.stopPropagation(); showCalc()">CALCULATOR</button>
-        <button class="nav-btn" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
-    </div>
+    <nav id="top-nav">
+        <button id="back-btn" class="nav-link" onclick="goBack()" style="display:none;">← BACK</button>
+        <a href="oracle.html" class="nav-link">ORACLE</a>
+        <button class="nav-link" onclick="event.stopPropagation(); showCalc()">%</button>
+        <button class="nav-link" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
+        <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
+    </nav>
 
     <main id="archive-grid"></main>
 
@@ -139,28 +152,26 @@
         function render() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
+            document.body.classList.toggle('is-editing', isEditMode);
             document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
 
             const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder);
-            
-            // Formation logic: Calculate positions based on screen center if X/Y missing
-            const centerX = window.innerWidth / 2;
-            const centerY = (window.innerHeight - 100) / 2;
+            const centerX = window.innerWidth / 2 - 40;
+            const centerY = window.innerHeight / 2 - 40;
 
             items.forEach(([id, r], index) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 
-                // Use saved coordinates or default to a spread-out formation
-                const posX = r.x !== undefined ? r.x : centerX + (Math.cos(index) * (index * 40));
-                const posY = r.y !== undefined ? r.y : centerY + (Math.sin(index) * (index * 40));
+                const px = r.x !== undefined ? r.x : centerX + (Math.cos(index) * (index * 45));
+                const py = r.y !== undefined ? r.y : centerY + (Math.sin(index) * (index * 45));
                 
-                wrap.style.left = posX + 'px';
-                wrap.style.top = posY + 'px';
-                wrap.style.width = (r.w || 70) + 'px';
+                wrap.style.left = px + 'px';
+                wrap.style.top = py + 'px';
+                wrap.style.width = (r.w || 80) + 'px';
 
                 wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||70}px; height:${r.h||70}px;">
+                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||80}px; height:${r.h||80}px;">
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
@@ -179,17 +190,23 @@
                     dragEl = wrap;
                     const rect = wrap.getBoundingClientRect();
                     startX = e.clientX; startY = e.clientY;
-                    initialX = rect.left; initialY = rect.top - 80; // Adjusted for scroll container
+                    initialX = rect.left + grid.scrollLeft;
+                    initialY = rect.top + grid.scrollTop;
                     wrap.classList.add('dragging');
                     wrap.setPointerCapture(e.pointerId);
                 };
 
                 wrap.onpointermove = (e) => {
                     if (!dragEl || dragEl !== wrap) return;
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-                    wrap.style.left = (initialX + dx) + 'px';
-                    wrap.style.top = (initialY + dy) + 'px';
+                    let nx = initialX + (e.clientX - startX);
+                    let ny = initialY + (e.clientY - startY);
+                    
+                    // Soft snap to 40px grid
+                    nx = Math.round(nx / 40) * 40;
+                    ny = Math.round(ny / 40) * 40;
+
+                    wrap.style.left = nx + 'px';
+                    wrap.style.top = ny + 'px';
                 };
 
                 wrap.onpointerup = (e) => {
@@ -203,7 +220,7 @@
             });
         }
 
-        // UI Handlers
+        // Logic Functions
         function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
         function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
@@ -220,7 +237,7 @@
             const file = document.getElementById('sum-file').files[0];
             if (!name) return;
             const save = (img) => {
-                rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", w: 70, h: 70, x: window.innerWidth/2, y: window.innerHeight/3 });
+                rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", w: 80, h: 80, x: window.innerWidth/2, y: window.innerHeight/2 });
                 closeModals();
             };
             if (file) { const reader = new FileReader(); reader.onload = (e) => save(e.target.result); reader.readAsDataURL(file); } else save("");
@@ -230,12 +247,12 @@
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
-        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({w:70, h:70}); closeMenu(); }
+        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({w:80, h:80}); closeMenu(); }
         function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
         
         function toggleEdit() { isEditMode = !isEditMode; render(); }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('back-btn').style.display = 'block'; render(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('back-btn').style.display = 'none'; render(); }
+        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
+        function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
     </script>
 </body>
 </html>
