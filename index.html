@@ -16,7 +16,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
     <style>
-        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; }
+        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --panel-bg: rgba(10, 10, 10, 0.95); }
         
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0;
@@ -32,91 +32,103 @@
         }
 
         #top-controls { 
-            width: 100%; padding: 10px 15px; display: flex; gap: 8px;
-            align-items: center; border-bottom: 1px solid #1a1a1a; background: #000; 
-            box-sizing: border-box; z-index: 3000; position: sticky; top: 0;
-            padding-top: env(safe-area-inset-top, 10px);
+            width: 100%; padding: 15px; display: flex; gap: 12px;
+            align-items: center; justify-content: center; z-index: 3000; 
+            padding-top: env(safe-area-inset-top, 15px);
         }
+
+        /* Nav Buttons from Screenshot */
+        .nav-btn {
+            background: transparent; border: 1px solid var(--gold); color: var(--gold);
+            padding: 8px 20px; font-family: 'Cinzel'; font-size: 0.7rem; border-radius: 4px;
+            cursor: pointer; text-decoration: none; transition: 0.3s;
+        }
+        .edit-btn { position: absolute; right: 20px; top: 20px; border: 1px solid var(--gold); background: transparent; color: var(--gold); padding: 5px 15px; border-radius: 4px; font-family: 'Cinzel'; font-size: 0.65rem; }
 
         #archive-grid { 
             position: relative; width: 100%; max-width: 1200px; margin: 0 auto;
-            flex-grow: 1; box-sizing: border-box; z-index: 5; padding: 25px;
-            display: flex; flex-wrap: wrap; gap: 30px;
-            justify-content: flex-start; align-content: flex-start;
-            min-height: 85vh;
+            flex-grow: 1; padding: 20px; display: flex; flex-wrap: wrap; gap: 25px;
+            justify-content: center; align-content: flex-start;
         }
 
-        .relic-wrapper { 
-            position: relative; display: flex; flex-direction: column; 
-            align-items: center; cursor: pointer; z-index: 10;
-            touch-action: none; transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1);
-        }
-        
-        .is-editing .relic-wrapper:not(.dragging) { animation: wiggle 0.3s infinite ease-in-out; }
-        .placeholder { opacity: 0; pointer-events: none; }
-        
-        .dragging { 
-            opacity: 0.9; transform: scale(1.1) !important; z-index: 5000 !important; 
-            animation: none !important; pointer-events: none; position: fixed !important;
-            transition: none !important;
-        }
-        @keyframes wiggle { 0% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } 100% { transform: rotate(-1.5deg); } }
-
+        /* Icons styling */
+        .relic-wrapper { position: relative; display: flex; flex-direction: column; align-items: center; width: 80px; }
         .relic-frame, .folder-frame { 
-            border-radius: 15%; overflow: hidden; 
-            display: flex; align-items: center; justify-content: center; 
-            background: #111; border: 1.5px solid #222; position: relative;
-            box-shadow: 0 6px 12px rgba(0,0,0,0.6); pointer-events: none;
-        }
-        .folder-frame::after {
-            content: ""; position: absolute; inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='2' y='2' width='60' height='60' rx='12' fill='none' stroke='%237a0000' stroke-width='4'/%3E%3C/svg%3E");
-            background-size: 100% 100%;
+            width: 70px; height: 70px; border-radius: 18px; overflow: hidden; 
+            background: #111; border: 1.5px solid var(--crimson); box-shadow: 0 0 10px rgba(122,0,0,0.3);
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-align: center; }
+        .relic-name { margin-top: 6px; font-family: 'Cinzel'; font-size: 0.6rem; color: #888; text-transform: uppercase; letter-spacing: 1px; text-align: center; }
 
-        .resize-handle {
-            position: absolute; bottom: -10px; right: -10px; width: 30px; height: 30px;
-            background: var(--gold); border-radius: 50%; z-index: 50; display: none;
-            border: 2px solid #000; pointer-events: auto;
+        /* Modal Overlay */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8);
+            display: none; align-items: center; justify-content: center; z-index: 9999;
         }
-        .is-editing .resize-handle { display: block; }
-
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
-
-        #context-menu {
-            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 240px; flex-direction: column;
+        .modal-content {
+            background: var(--obsidian); border: 1px solid var(--gold); border-radius: 8px;
+            width: 90%; max-width: 400px; padding: 20px; box-shadow: 0 0 30px rgba(0,0,0,1);
         }
-        .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
-        #folder-move-list { max-height: 200px; overflow-y: auto; background: #050505; display: none; border-top: 1px solid var(--gold); }
+        .modal-input {
+            width: 100%; background: #111; border: 1px solid #333; color: #fff;
+            padding: 12px; margin-bottom: 10px; border-radius: 6px; box-sizing: border-box;
+            font-family: 'Playfair Display';
+        }
+        .modal-select { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 10px; border-radius: 6px; }
+        .ritual-btn {
+            width: 100%; background: var(--crimson); color: #fff; border: none;
+            padding: 15px; border-radius: 6px; font-family: 'Cinzel'; 
+            cursor: pointer; text-transform: uppercase; font-weight: bold;
+        }
+
+        /* Drag & UI logic */
+        .dragging { opacity: 0.7; z-index: 5000 !important; position: fixed !important; pointer-events: none; }
+        .placeholder { opacity: 0; pointer-events: none; }
+        #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 5000; width: 200px; }
+        .menu-item { padding: 12px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
     </style>
 </head>
-<body onclick="closeMenu()">
+<body onclick="closeModals(); closeMenu();">
+
+    <button id="edit-toggle" class="edit-btn" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
 
     <div id="top-controls">
-        <button id="back-btn" class="toggle-btn" onclick="goBack()" style="display:none;">←</button>
-        <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; text-align:center;">Gothic Archive</span>
-        <button class="toggle-btn" onclick="openCalc()">%</button>
-        <a href="oracle.html" class="toggle-btn">Oracle</a>
-        <button class="toggle-btn" onclick="openAdmin()">Summon</button>
-        <button id="edit-toggle" class="toggle-btn" onclick="toggleEdit()">Edit</button>
+        <button id="back-btn" class="nav-btn" onclick="goBack()" style="display:none;">←</button>
+        <a href="oracle.html" class="nav-btn">ORACLE</a>
+        <button class="nav-btn" onclick="event.stopPropagation(); showCalc()">CALCULATOR</button>
+        <button class="nav-btn" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
     </div>
 
-    <input type="file" id="image-input" style="display:none;" accept="image/*">
-    <input type="file" id="summon-image-input" style="display:none;" accept="image/*">
-    
     <main id="archive-grid"></main>
+
+    <div id="calc-modal" class="modal-overlay" onclick="event.stopPropagation()">
+        <div class="modal-content">
+            <input type="number" id="calc-amount" class="modal-input" placeholder="Amount">
+            <input type="number" id="calc-percent" class="modal-input" value="20">
+            <button class="ritual-btn" onclick="runCalcRitual()">CALCULATE RITUAL</button>
+        </div>
+    </div>
+
+    <div id="summon-modal" class="modal-overlay" onclick="event.stopPropagation()">
+        <div class="modal-content">
+            <input type="text" id="sum-name" class="modal-input" placeholder="Name">
+            <input type="text" id="sum-url" class="modal-input" placeholder="URL">
+            <select id="sum-type" class="modal-select">
+                <option value="relic">Relic</option>
+                <option value="folder">Folder</option>
+            </select>
+            <input type="file" id="sum-file" class="modal-input">
+            <button class="ritual-btn" onclick="runSummonRitual()">COMMEMORATE</button>
+        </div>
+    </div>
 
     <div id="context-menu" onclick="event.stopPropagation()">
         <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
+        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Change Image</div>
         <div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div>
-        <div class="menu-item" onclick="toggleMoveList()">Move to Folder...</div>
-        <div id="folder-move-list"></div>
-        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson);">Banish</div>
+        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson)">Banish</div>
     </div>
+    <input type="file" id="img-swap" style="display:none" onchange="swapImage(this)">
 
     <script>
         const firebaseConfig = {
@@ -138,127 +150,104 @@
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
             grid.innerHTML = '';
-            document.body.classList.toggle('is-editing', isEditMode);
-            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
+            document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
+
+            const items = Object.entries(allRelics)
+                .filter(([id, r]) => r.parent === currentFolder)
+                .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0));
+
             items.forEach(([id, r]) => {
                 const wrap = document.createElement('div');
-                wrap.className = 'relic-wrapper'; wrap.dataset.id = id; wrap.style.width = (r.w || 80) + 'px';
-                wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||80}px; height:${r.h||80}px;">${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0].toUpperCase()}</span>`}</div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
+                wrap.className = 'relic-wrapper'; wrap.dataset.id = id;
+                wrap.style.width = (r.w || 80) + 'px';
+                wrap.innerHTML = `
+                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||70}px; height:${r.h||70}px;">
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel; font-size:20px;">${r.type[0].toUpperCase()}</span>`}
+                    </div>
+                    <span class="relic-name">${r.name}</span>
+                `;
+
                 wrap.onpointerdown = (e) => {
                     if (!isEditMode) {
                         if (r.type === 'folder') enterFolder(id, r.name);
                         else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
                         return;
                     }
-                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
-                    const now = Date.now(); if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
-                    wrap.lastTap = now; dragEl = wrap; const rect = wrap.getBoundingClientRect(); startX = e.clientX; startY = e.clientY; initialX = rect.left; initialY = rect.top;
+                    const now = Date.now();
+                    if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
+                    wrap.lastTap = now;
+
+                    dragEl = wrap; const rect = wrap.getBoundingClientRect(); startX = e.clientX; startY = e.clientY; initialX = rect.left; initialY = rect.top;
                     placeholder = wrap.cloneNode(true); placeholder.classList.add('placeholder'); wrap.before(placeholder);
-                    wrap.classList.add('dragging'); wrap.style.left = initialX + 'px'; wrap.style.top = initialY + 'px'; wrap.style.width = rect.width + 'px'; wrap.setPointerCapture(e.pointerId);
+                    wrap.classList.add('dragging'); wrap.style.left = initialX + 'px'; wrap.style.top = initialY + 'px'; wrap.setPointerCapture(e.pointerId);
                 };
+
                 wrap.onpointermove = (e) => {
-                    if (!dragEl || dragEl !== wrap) return; wrap.style.left = (initialX + (e.clientX - startX)) + 'px'; wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
-                    const target = document.elementFromPoint(e.clientX, e.clientY); const over = target?.closest('.relic-wrapper:not(.dragging):not(.placeholder)');
-                    if (over && over !== placeholder) { const children = Array.from(grid.children); if (children.indexOf(over) > children.indexOf(placeholder)) over.after(placeholder); else over.before(placeholder); }
+                    if (!dragEl || dragEl !== wrap) return;
+                    wrap.style.left = (initialX + (e.clientX - startX)) + 'px';
+                    wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
+                    const target = document.elementFromPoint(e.clientX, e.clientY);
+                    const over = target?.closest('.relic-wrapper:not(.dragging):not(.placeholder)');
+                    if (over && over !== placeholder) {
+                        const children = Array.from(grid.children);
+                        if (children.indexOf(over) > children.indexOf(placeholder)) over.after(placeholder);
+                        else over.before(placeholder);
+                    }
                 };
+
                 wrap.onpointerup = (e) => {
-                    if (!dragEl || dragEl !== wrap) return; wrap.releasePointerCapture(e.pointerId); placeholder.after(wrap); placeholder.remove();
+                    if (!dragEl || dragEl !== wrap) return;
+                    wrap.releasePointerCapture(e.pointerId);
+                    placeholder.after(wrap); placeholder.remove();
                     const order = Array.from(grid.querySelectorAll('.relic-wrapper:not(.placeholder)')).map(el => el.dataset.id);
                     const updates = {}; order.forEach((fid, i) => { if(fid) updates[`relics/${fid}/sortOrder`] = i; });
-                    rtdb.ref().update(updates); wrap.classList.remove('dragging'); wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = ''; wrap.style.width = (allRelics[id].w || 80) + 'px'; dragEl = null; placeholder = null;
+                    rtdb.ref().update(updates);
+                    wrap.classList.remove('dragging'); wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = '';
+                    dragEl = null;
                 };
                 grid.appendChild(wrap);
             });
         }
 
-        function handleResize(e, el, id) {
-            const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX;
-            const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; };
-            const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}`).update({ w: parseInt(frame.style.width), h: parseInt(frame.style.height) }); };
-            window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU);
+        // Modal Handlers
+        function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
+        function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
+        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
+
+        function runCalcRitual() {
+            const a = parseFloat(document.getElementById('calc-amount').value);
+            const p = parseFloat(document.getElementById('calc-percent').value);
+            if (!isNaN(a)) alert(`Tithe Result: ${(a * (p/100)).toFixed(2)}`);
+            closeModals();
         }
 
-        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'flex'; m.style.left = Math.min(e.clientX, window.innerWidth - 250) + 'px'; m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px'; document.getElementById('folder-move-list').style.display = 'none'; }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
-        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); closeMenu(); }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
-        function menuChangeImage() { document.getElementById('image-input').click(); }
-        document.getElementById('image-input').onchange = (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            const reader = new FileReader(); reader.onload = (ev) => { rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: ev.target.result }); closeMenu(); };
-            reader.readAsDataURL(file);
-        };
+        function runSummonRitual() {
+            const name = document.getElementById('sum-name').value;
+            const url = document.getElementById('sum-url').value;
+            const type = document.getElementById('sum-type').value;
+            const file = document.getElementById('sum-file').files[0];
 
-        function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
-
-        // --- FIXED SUMMON FLOW ---
-        function openAdmin() {
-            const type = prompt("relic or folder?", "relic");
-            if (!type) return;
-            const name = prompt("Name of the Summoned:");
             if (!name) return;
-            const url = type === 'relic' ? prompt("URL (optional):", "") : "";
-            const targetFolder = prompt("Target Folder ID (current folder is default):", currentFolder);
-
-            const summonInput = document.getElementById('summon-image-input');
-            summonInput.onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (ev) => { finalizeSummon(name, url, type, targetFolder, ev.target.result); };
-                    reader.readAsDataURL(file);
-                } else {
-                    finalizeSummon(name, url, type, targetFolder, "");
-                }
+            const finish = (imgData) => {
+                rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: imgData || "", w: 70, h: 70, sortOrder: Date.now() });
+                closeModals();
             };
 
-            if (confirm("Would you like to upload a custom seal (image)?")) {
-                summonInput.click();
-            } else {
-                finalizeSummon(name, url, type, targetFolder, "");
-            }
+            if (file) {
+                const reader = new FileReader(); reader.onload = (e) => finish(e.target.result); reader.readAsDataURL(file);
+            } else finish("");
         }
 
-        function finalizeSummon(name, url, type, parent, imgUrl) {
-            rtdb.ref('relics').push({
-                name: name,
-                url: url || "",
-                type: type,
-                parent: parent || "root",
-                imgUrl: imgUrl || "",
-                w: 80, h: 80,
-                sortOrder: Date.now()
-            });
-        }
-
-        // --- FIXED TITHE CALCULATOR ---
-        function openCalc() {
-            const amountStr = prompt("Enter Amount:");
-            if (amountStr === null) return;
-            const amount = parseFloat(amountStr);
-            
-            const percentStr = prompt("Enter Percentage:", "20");
-            if (percentStr === null) return;
-            const percent = parseFloat(percentStr);
-
-            if (!isNaN(amount) && !isNaN(percent)) {
-                const result = (amount * (percent / 100)).toFixed(2);
-                alert(`Tithe Result (${percent}%): ${result}`);
-            } else {
-                alert("Invalid numbers provided.");
-            }
-        }
-
-        function toggleMoveList() {
-            const list = document.getElementById('folder-move-list');
-            list.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`;
-            Object.entries(allRelics).forEach(([id, r]) => { if (r.type === 'folder' && id !== activeMenuId) list.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; });
-            list.style.display = list.style.display === 'none' ? 'block' : 'none';
-        }
-        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId, sortOrder: Date.now() }); closeMenu(); }
+        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = e.clientX + 'px'; m.style.top = e.clientY + 'px'; }
+        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
+        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
+        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({w:70, h:70}); closeMenu(); }
+        function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
+        
+        function toggleEdit() { isEditMode = !isEditMode; renderGrid(); }
+        function enterFolder(id, name) { currentFolder = id; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
+        function goBack() { currentFolder = 'root'; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
     </script>
 </body>
 </html>
