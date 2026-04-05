@@ -18,12 +18,20 @@
     <style>
         :root { 
             --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; 
-            --base-size: 85px;
+            --base-size: 90px;
         }
         
+        /* iPad Optimization */
+        @media only screen and (min-width: 768px) {
+            :root { --base-size: 110px; }
+            .relic-name { font-size: 0.75rem !important; }
+            .nav-link { font-size: 0.8rem !important; padding: 10px 18px !important; }
+        }
+
+        /* iPhone Optimization */
         @media only screen and (max-width: 600px) {
             :root { --base-size: 75px; }
-            .nav-link { padding: 5px 8px !important; font-size: 0.55rem !important; }
+            .nav-link { padding: 5px 8px; font-size: 0.55rem; }
         }
 
         html, body { 
@@ -51,13 +59,15 @@
 
         .nav-link {
             background: transparent; border: 1px solid var(--gold); color: var(--gold);
-            padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px;
+            font-family: 'Cinzel'; border-radius: 4px;
             cursor: pointer; text-decoration: none; text-transform: uppercase;
         }
 
         #archive-grid { 
             position: absolute; inset: 0; overflow: auto; z-index: 5;
             padding: 40px; box-sizing: border-box;
+            /* Support for scrolling past boundaries */
+            min-height: 100%; min-width: 100%;
         }
 
         .relic-wrapper { 
@@ -89,7 +99,7 @@
         }
         .modal-content {
             background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px;
-            width: 85%; max-width: 350px; padding: 25px; position: relative;
+            width: 85%; max-width: 380px; padding: 25px; position: relative;
         }
         .close-ritual {
             position: absolute; top: 10px; right: 10px; color: var(--gold);
@@ -175,19 +185,19 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 
-                // Position logic
-                let px = r.x !== undefined ? r.x : (index % 3) * 110 + 40;
-                let py = r.y !== undefined ? r.y : Math.floor(index / 3) * 130 + 60;
+                // UNIVERSAL SCALING: Convert stored percentage or relative positions to current pixels
+                let px = r.x !== undefined ? r.x : (index % 4) * 110 + 40;
+                let py = r.y !== undefined ? r.y : Math.floor(index / 4) * 140 + 80;
                 
-                // iPhone edge guard
-                if (px + 80 > grid.clientWidth) px = 20;
+                // Screen Guard: Prevents items from being stuck outside safe area on small screens
+                if (px + 60 > grid.clientWidth) px = 20;
 
                 wrap.style.left = px + 'px';
                 wrap.style.top = py + 'px';
                 if(r.w) wrap.style.width = r.w + 'px';
 
                 wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||''}; height:${r.w||''};">
+                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w?r.w+'px':''}; height:${r.w?r.w+'px':''};">
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
@@ -199,6 +209,7 @@
                     
                     hasMoved = false;
                     const now = Date.now();
+                    // Multi-tap check for context menu
                     if (isEditMode && now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
                     wrap.lastTap = now;
 
@@ -218,12 +229,13 @@
                     let nx = initialX + (e.clientX - startX);
                     let ny = initialY + (e.clientY - startY);
                     
-                    // Snap to grid
+                    // Grid Snapping
                     nx = Math.round(nx / 20) * 20;
                     ny = Math.round(ny / 20) * 20;
 
-                    // Boundaries
-                    nx = Math.max(10, Math.min(nx, grid.clientWidth - wrap.offsetWidth - 10));
+                    // Boundaries (Responsive)
+                    nx = Math.max(10, nx); // Allow infinite scroll to the right/bottom
+                    ny = Math.max(10, ny);
                     
                     wrap.style.left = nx + 'px';
                     wrap.style.top = ny + 'px';
@@ -268,6 +280,7 @@
             m.style.display = 'block';
             m.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px';
             m.style.top = Math.min(e.clientY, window.innerHeight - 250) + 'px';
+            document.getElementById('move-sub-menu').style.display = 'none';
         }
 
         function toggleMoveMenu() {
@@ -289,6 +302,7 @@
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({w: null}); closeMenu(); }
         function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
         function runCalcRitual() { const a = parseFloat(document.getElementById('calc-amount').value); const p = parseFloat(document.getElementById('calc-percent').value); if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`); closeModals(); }
+        
         function runSummonRitual() {
             const name = document.getElementById('sum-name').value;
             const url = document.getElementById('sum-url').value;
@@ -298,9 +312,13 @@
             const save = (img) => { rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", x: 40, y: 80 }); closeModals(); };
             if (file) { const r = new FileReader(); r.onload = (e) => save(e.target.result); r.readAsDataURL(file); } else save("");
         }
+
         function toggleEdit() { isEditMode = !isEditMode; render(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
+        
+        // Final optimization for screen rotations
+        window.addEventListener('resize', render);
     </script>
 </body>
 </html>
