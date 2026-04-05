@@ -39,11 +39,12 @@
             padding-top: env(safe-area-inset-top, 10px);
         }
 
+        /* GRID IMPROVEMENTS: Centered container, left-aligned items for row stability */
         #archive-grid { 
-            position: relative; width: 100%; flex-grow: 1;
-            box-sizing: border-box; z-index: 5; padding: 25px;
-            display: flex; flex-wrap: wrap; gap: 25px;
-            justify-content: center; align-content: flex-start;
+            position: relative; width: 100%; max-width: 1200px; margin: 0 auto;
+            flex-grow: 1; box-sizing: border-box; z-index: 5; padding: 25px;
+            display: flex; flex-wrap: wrap; gap: 30px;
+            justify-content: flex-start; align-content: flex-start;
         }
 
         .relic-wrapper { 
@@ -82,11 +83,15 @@
 
         #context-menu {
             position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 220px; flex-direction: column;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            border-radius: 8px; z-index: 5000; width: 240px; flex-direction: column;
+            box-shadow: 0 10px 40px rgba(0,0,0,1);
         }
         .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
-        #folder-move-list { max-height: 150px; overflow-y: auto; background: #050505; display: none; }
+        
+        #folder-move-list { 
+            max-height: 200px; overflow-y: auto; background: #050505; display: none;
+            border-top: 1px solid var(--gold); border-bottom: 1px solid var(--gold);
+        }
 
         #admin-modal, #calc-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
@@ -186,6 +191,7 @@
                     <div class="resize-handle"></div>
                 `;
 
+                // Drag Logic for Inter-item insertion
                 wrap.ondragstart = (e) => {
                     if (e.target.classList.contains('resize-handle')) return e.preventDefault();
                     e.dataTransfer.setData('text/plain', id);
@@ -198,6 +204,7 @@
                     if (draggedId !== id) insertAt(draggedId, id);
                 };
 
+                // Double Tap & Resize Logic
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
@@ -226,10 +233,19 @@
         }
 
         function insertAt(draggedId, targetId) {
-            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
-            const oldIdx = items.indexOf(draggedId); const newIdx = items.indexOf(targetId);
-            items.splice(oldIdx, 1); items.splice(newIdx, 0, draggedId);
-            const updates = {}; items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
+            const items = Object.entries(allRelics)
+                .filter(([id, r]) => r.parent === currentFolder)
+                .sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0))
+                .map(([id]) => id);
+            
+            const oldIdx = items.indexOf(draggedId); 
+            const newIdx = items.indexOf(targetId);
+            
+            items.splice(oldIdx, 1); 
+            items.splice(newIdx, 0, draggedId);
+            
+            const updates = {}; 
+            items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
             rtdb.ref().update(updates);
         }
 
@@ -250,33 +266,33 @@
             window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onEnd);
         }
 
-        // Menu Logic
-        function showMenu(e) { 
-            const m = document.getElementById('context-menu'); 
-            m.style.display = 'flex'; 
-            m.style.left = Math.min(e.clientX, window.innerWidth - 230) + 'px'; 
-            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
-            document.getElementById('folder-move-list').style.display = 'none';
-        }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        
         function toggleMoveList() {
             const list = document.getElementById('folder-move-list');
-            list.innerHTML = `<div class="menu-item" style="background:#111; font-size:0.7rem;" onclick="moveRelic('root')">🏛 INDEX</div>`;
+            list.innerHTML = `<div class="menu-item" style="background:#000; border-bottom:1px solid #222;" onclick="moveRelic('root')">🏛 INDEX</div>`;
+            
+            // Scans ALL relics globally to find every folder created
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
-                    list.innerHTML += `<div class="menu-item" style="background:#111; font-size:0.7rem;" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
+                    list.innerHTML += `<div class="menu-item" style="background:#000; border-bottom:1px solid #222;" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
                 }
             });
             list.style.display = list.style.display === 'none' ? 'block' : 'none';
         }
 
         function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId }); closeMenu(); }
+        function showMenu(e) { 
+            const m = document.getElementById('context-menu'); 
+            m.style.display = 'flex'; 
+            m.style.left = Math.min(e.clientX, window.innerWidth - 250) + 'px'; 
+            m.style.top = Math.min(e.clientY, window.innerHeight - 350) + 'px';
+            document.getElementById('folder-move-list').style.display = 'none';
+        }
+        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); closeMenu(); }
         function menuDelete() { if(confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
-        
         function menuChangeImage() { document.getElementById('image-input').click(); }
+        
         document.getElementById('image-input').onchange = (e) => {
             const file = e.target.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -284,11 +300,9 @@
             reader.readAsDataURL(file);
         };
 
-        // Navigation
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
-        
         function openAdmin() { document.getElementById('admin-modal').style.display = 'flex'; }
         function closeAdmin() { document.getElementById('admin-modal').style.display = 'none'; }
         function createSomething() {
