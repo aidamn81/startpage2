@@ -23,7 +23,7 @@
         
         @media only screen and (max-width: 600px) {
             :root { --default-size: 85px; }
-            #archive-grid { padding: 15px !important; gap: 15px !important; }
+            #archive-grid { padding: 15px !important; gap: 10px !important; }
             .nav-link { padding: 5px 8px !important; font-size: 0.55rem !important; }
         }
 
@@ -57,18 +57,20 @@
             cursor: pointer; text-decoration: none; text-transform: uppercase;
         }
 
+        /* FLEX GRID: Items flow and wrap, but can be reordered anywhere */
         #archive-grid { 
             display: flex; flex-wrap: wrap; 
-            justify-content: center; align-content: flex-start;
-            gap: 25px; padding: 40px; 
+            justify-content: flex-start; align-content: flex-start;
+            gap: 20px; padding: 40px; 
             flex-grow: 1; overflow-y: auto; 
+            box-sizing: border-box;
             -webkit-overflow-scrolling: touch;
         }
 
         .relic-wrapper { 
             display: flex; flex-direction: column; align-items: center; 
             cursor: pointer; position: relative; width: var(--default-size);
-            touch-action: none;
+            touch-action: none; transition: transform 0.2s ease, opacity 0.2s;
         }
         
         .relic-frame, .folder-frame { 
@@ -78,16 +80,18 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.6); pointer-events: none;
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.6rem; color: #fff; text-align: center; }
+        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.6rem; color: #fff; text-align: center; pointer-events: none; }
 
-        /* Resize Handle */
         .resize-handle {
-            position: absolute; bottom: 0; right: 0; width: 24px; height: 24px;
+            position: absolute; bottom: 0; right: 0; width: 22px; height: 22px;
             background: var(--gold); border-radius: 50%; z-index: 50; display: none;
             border: 2px solid #000; cursor: nwse-resize;
         }
         body.is-editing .resize-handle { display: block; }
-        .dragging { opacity: 0.4; transform: scale(0.9); }
+        
+        /* Dragging Visuals */
+        .dragging { opacity: 0.3; transform: scale(0.85); }
+        .drag-over { border: 2px dashed var(--gold); border-radius: 10px; }
 
         /* Modals */
         .modal-overlay {
@@ -195,38 +199,53 @@
                     <div class="resize-handle"></div>
                 `;
 
+                // Single Tap Actions
+                wrap.onclick = (e) => {
+                    if (isEditMode) return;
+                    if (r.type === 'folder') enterFolder(id, r.name);
+                    else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
+                };
+
+                // Double Tap & Drag Logic
                 wrap.onpointerdown = (e) => {
-                    if (e.target.classList.contains('resize-handle')) {
-                        handleResize(e, wrap, id);
-                        return;
-                    }
-                    if (!isEditMode) {
-                        if (r.type === 'folder') enterFolder(id, r.name);
-                        else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
-                        return;
-                    }
+                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
+                    if (!isEditMode) return;
+
                     const now = Date.now();
-                    if (now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
+                    if (now - (wrap.lastTap || 0) < 300) { e.preventDefault(); activeMenuId = id; showMenu(e); return; }
                     wrap.lastTap = now;
                 };
 
-                wrap.ondragstart = (e) => { dragEl = wrap; wrap.classList.add('dragging'); };
-                wrap.ondragend = () => { dragEl.classList.remove('dragging'); saveOrder(); };
+                // Drag Events for flow-reordering
+                wrap.ondragstart = (e) => { 
+                    dragEl = wrap; 
+                    setTimeout(() => wrap.classList.add('dragging'), 0); 
+                };
+                wrap.ondragend = () => { 
+                    wrap.classList.remove('dragging'); 
+                    saveOrder(); 
+                };
                 wrap.ondragover = (e) => {
                     e.preventDefault();
-                    const elements = [...grid.querySelectorAll('.relic-wrapper:not(.dragging)')];
-                    const afterElement = elements.reduce((closest, child) => {
-                        const box = child.getBoundingClientRect();
-                        const offset = e.clientX - box.left - box.width / 2;
-                        if (offset < 0 && offset > closest.offset) return { offset: offset, element: child };
-                        else return closest;
-                    }, { offset: Number.NEGATIVE_INFINITY }).element;
-                    if (afterElement == null) grid.appendChild(dragEl);
-                    else grid.insertBefore(dragEl, afterElement);
+                    const target = e.target.closest('.relic-wrapper');
+                    if (target && target !== dragEl) {
+                        const rect = target.getBoundingClientRect();
+                        const midpoint = rect.left + rect.width / 2;
+                        // Determine if we drop before or after to prevent "on top" overlap
+                        if (e.clientX < midpoint) grid.insertBefore(dragEl, target);
+                        else grid.insertBefore(dragEl, target.nextSibling);
+                    }
                 };
 
                 grid.appendChild(wrap);
             });
+
+            // Handle dropping at the very end of the container boundaries
+            grid.ondragover = (e) => e.preventDefault();
+            grid.ondrop = (e) => {
+                if (e.target === grid) grid.appendChild(dragEl);
+                saveOrder();
+            };
         }
 
         function handleResize(e, el, id) {
@@ -257,8 +276,8 @@
         function showMenu(e) {
             const m = document.getElementById('context-menu');
             m.style.display = 'block';
-            m.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px';
-            m.style.top = Math.min(e.clientY, window.innerHeight - 250) + 'px';
+            m.style.left = Math.min(e.clientX || e.touches[0].clientX, window.innerWidth - 210) + 'px';
+            m.style.top = Math.min(e.clientY || e.touches[0].clientY, window.innerHeight - 250) + 'px';
         }
 
         function toggleMoveMenu() {
