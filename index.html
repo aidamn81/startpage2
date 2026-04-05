@@ -39,11 +39,10 @@
             padding-top: env(safe-area-inset-top, 10px);
         }
 
-        /* CENTER ALIGNMENT */
         #archive-grid { 
             position: relative; width: 100%; flex-grow: 1;
             box-sizing: border-box; z-index: 5; padding: 25px;
-            display: flex; flex-wrap: wrap; gap: 20px;
+            display: flex; flex-wrap: wrap; gap: 25px;
             justify-content: center; align-content: flex-start;
         }
 
@@ -53,7 +52,6 @@
             transition: transform 0.2s ease; touch-action: none;
         }
         
-        /* Dragging & Wiggle */
         .is-editing .relic-wrapper:not(.dragging) { animation: wiggle 0.3s infinite ease-in-out; }
         .dragging { opacity: 0.3; transform: scale(0.8); animation: none !important; }
         @keyframes wiggle { 0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); } }
@@ -71,10 +69,7 @@
         }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
         
-        .relic-name { 
-            margin-top: 8px; font-family: 'Cinzel'; 
-            font-size: 0.75rem; color: #fff; text-align: center;
-        }
+        .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-align: center; }
 
         .resize-handle {
             position: absolute; bottom: -12px; right: -12px; width: 36px; height: 36px;
@@ -83,31 +78,31 @@
         }
         .is-editing .resize-handle { display: block; }
 
-        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; }
+        .toggle-btn { background: #000; border: 1px solid var(--gold); color: var(--gold); padding: 7px 12px; font-family: 'Cinzel'; font-size: 0.75rem; border-radius: 6px; cursor: pointer; }
 
-        /* Modals */
+        #context-menu {
+            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
+            border-radius: 8px; z-index: 5000; width: 220px; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
+        #folder-move-list { max-height: 150px; overflow-y: auto; background: #050505; display: none; }
+
         #admin-modal, #calc-modal {
             position: fixed; inset: 0; background: rgba(0,0,0,0.9);
             display: none; justify-content: center; align-items: center; z-index: 6000;
         }
         .modal-content { background: #0a0a0a; border: 2px solid var(--gold); width: 90%; max-width: 400px; padding: 25px; border-radius: 12px; font-family: 'Cinzel'; }
         .modal-content input, .modal-content select { width: 100%; padding: 12px; margin-bottom: 10px; background: #111; border: 1px solid #333; color: var(--gold); border-radius: 5px; box-sizing: border-box; }
-
-        #context-menu {
-            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold);
-            border-radius: 8px; z-index: 5000; width: 200px; flex-direction: column;
-        }
-        .menu-item { padding: 14px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.85rem; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; }
-        .menu-item:last-child { color: var(--crimson); border-bottom: none; }
     </style>
 </head>
 <body onclick="closeMenu()">
 
     <div id="top-controls">
         <button id="back-btn" class="toggle-btn" style="display:none;" onclick="goBack()">←</button>
-        <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Gothic Archive</span>
+        <span id="status-text" style="font-family:'Cinzel'; color:var(--gold); flex-grow: 1; text-align:center;">Gothic Archive</span>
         <button class="toggle-btn" onclick="openCalc()">%</button>
-        <a href="oracle.html" class="toggle-btn">Oracle</a>
+        <a href="oracle.html" class="toggle-btn" style="text-decoration:none;">Oracle</a>
         <button class="toggle-btn" onclick="openAdmin()">Summon</button>
         <button id="edit-toggle" class="toggle-btn" onclick="toggleEdit()">Edit</button>
     </div>
@@ -117,7 +112,7 @@
             <h2 style="text-align:center; color:var(--gold); margin-top:0;">Tithe</h2>
             <input type="number" id="calc-base" placeholder="Amount" oninput="runCalc()">
             <input type="number" id="calc-percent" value="20" oninput="runCalc()">
-            <div id="calc-result" style="text-align:center; font-size:1.5rem; color:var(--gold); margin-top:10px; border-top:1px solid #333; padding-top:10px;">Result: 0</div>
+            <div id="calc-result" style="text-align:center; font-size:1.5rem; color:var(--gold); margin-top:10px;">Result: 0</div>
         </div>
     </div>
 
@@ -126,16 +121,21 @@
             <h2>Manifest</h2>
             <select id="creation-type"><option value="relic">Relic</option><option value="folder">Folder</option></select>
             <input type="text" id="new-name" placeholder="Name">
-            <input type="text" id="new-url" placeholder="URL (for Relics)">
+            <input type="text" id="new-url" placeholder="URL">
             <button class="toggle-btn" style="width:100%; background:var(--gold); color:#000;" onclick="createSomething()">Manifest</button>
         </div>
     </div>
 
+    <input type="file" id="image-input" style="display:none;" accept="image/*">
     <main id="archive-grid"></main>
 
-    <div id="context-menu">
+    <div id="context-menu" onclick="event.stopPropagation()">
         <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div class="menu-item" onclick="menuDelete()">Banish</div>
+        <div class="menu-item" onclick="menuChangeImage()">Change Image</div>
+        <div class="menu-item" onclick="menuSnapOriginal()">Snap to Original</div>
+        <div class="menu-item" onclick="toggleMoveList()">Move to Folder...</div>
+        <div id="folder-move-list"></div>
+        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson); border-bottom:none;">Banish</div>
     </div>
 
     <script>
@@ -151,13 +151,9 @@
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
 
-        // FIXED LOADING FOR WEB APP MODE
         auth.onAuthStateChanged(user => {
-            if (user) {
-                syncData();
-            } else {
-                auth.signInAnonymously().catch(e => console.error("Auth Failure", e));
-            }
+            if (user) syncData();
+            else auth.signInAnonymously();
         });
 
         function syncData() {
@@ -190,13 +186,11 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // --- Drag & Drop ---
                 wrap.ondragstart = (e) => {
                     if (e.target.classList.contains('resize-handle')) return e.preventDefault();
                     e.dataTransfer.setData('text/plain', id);
                     wrap.classList.add('dragging');
                 };
-                wrap.ondragend = () => wrap.classList.remove('dragging');
                 wrap.ondragover = (e) => e.preventDefault();
                 wrap.ondrop = (e) => {
                     e.preventDefault();
@@ -204,7 +198,6 @@
                     if (draggedId !== id) insertAt(draggedId, id);
                 };
 
-                // --- Interaction Mechanics ---
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (isEditMode) {
@@ -228,7 +221,6 @@
                         else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
                     }
                 };
-
                 grid.appendChild(wrap);
             });
         }
@@ -245,9 +237,9 @@
             e.stopPropagation();
             const frame = el.querySelector('.relic-frame, .folder-frame');
             const startW = frame.offsetWidth;
-            const startX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+            const startX = e.clientX || e.touches[0].clientX;
             const onMove = (ev) => {
-                const cx = ev.clientX || (ev.touches ? ev.touches[0].clientX : 0);
+                const cx = ev.clientX || ev.touches[0].clientX;
                 const nw = Math.max(40, startW + (cx - startX));
                 frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px';
             };
@@ -258,7 +250,41 @@
             window.addEventListener('pointermove', onMove); window.addEventListener('pointerup', onEnd);
         }
 
-        // --- Core Functions ---
+        // Menu Logic
+        function showMenu(e) { 
+            const m = document.getElementById('context-menu'); 
+            m.style.display = 'flex'; 
+            m.style.left = Math.min(e.clientX, window.innerWidth - 230) + 'px'; 
+            m.style.top = Math.min(e.clientY, window.innerHeight - 300) + 'px';
+            document.getElementById('folder-move-list').style.display = 'none';
+        }
+        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
+        
+        function toggleMoveList() {
+            const list = document.getElementById('folder-move-list');
+            list.innerHTML = `<div class="menu-item" style="background:#111; font-size:0.7rem;" onclick="moveRelic('root')">🏛 INDEX</div>`;
+            Object.entries(allRelics).forEach(([id, r]) => {
+                if (r.type === 'folder' && id !== activeMenuId) {
+                    list.innerHTML += `<div class="menu-item" style="background:#111; font-size:0.7rem;" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`;
+                }
+            });
+            list.style.display = list.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId }); closeMenu(); }
+        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
+        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}`).update({ w: 80, h: 80 }); closeMenu(); }
+        function menuDelete() { if(confirm("Banish this relic?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
+        
+        function menuChangeImage() { document.getElementById('image-input').click(); }
+        document.getElementById('image-input').onchange = (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (event) => { rtdb.ref(`relics/${activeMenuId}`).update({ imgUrl: event.target.result }); closeMenu(); };
+            reader.readAsDataURL(file);
+        };
+
+        // Navigation
         function toggleEdit() { isEditMode = !isEditMode; document.getElementById('edit-toggle').innerText = isEditMode ? "Lock" : "Edit"; renderGrid(); }
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-text').innerText = name; document.getElementById('back-btn').style.display = 'block'; renderGrid(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-text').innerText = "Gothic Archive"; document.getElementById('back-btn').style.display = 'none'; renderGrid(); }
@@ -269,18 +295,9 @@
             const type = document.getElementById('creation-type').value;
             const name = document.getElementById('new-name').value || "Unnamed";
             const url = document.getElementById('new-url').value || "";
-            const newId = rtdb.ref('relics').push().key;
-            rtdb.ref(`relics/${newId}`).set({ name, url, type, parent: currentFolder, w: 80, h: 80, sortOrder: Object.keys(allRelics).length });
+            rtdb.ref('relics').push({ name, url, type, parent: currentFolder, w: 80, h: 80, sortOrder: Date.now() });
             closeAdmin();
         }
-
-        function showMenu(e) { 
-            const m = document.getElementById('context-menu'); 
-            m.style.display = 'flex'; 
-            m.style.left = Math.min(e.clientX, window.innerWidth - 210) + 'px'; 
-            m.style.top = Math.min(e.clientY, window.innerHeight - 150) + 'px'; 
-        }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
         function openCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
         function closeCalc() { document.getElementById('calc-modal').style.display = 'none'; }
         function runCalc() {
@@ -288,8 +305,6 @@
             const p = document.getElementById('calc-percent').value;
             document.getElementById('calc-result').innerText = "Result: " + (b * (p/100)).toFixed(2);
         }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
     </script>
 </body>
 </html>
