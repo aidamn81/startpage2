@@ -21,15 +21,15 @@
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0;
             background-color: var(--obsidian); color: var(--text);
-            font-family: 'Playfair Display', serif; overflow: hidden;
+            font-family: 'Playfair Display', serif; overflow-x: hidden;
             -webkit-user-select: none; user-select: none;
-            touch-action: none; /* Crucial: stops browser scroll/zoom during drag */
+            touch-action: none; 
         }
 
         body {
             background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), 
                               url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
-            display: flex; flex-direction: column; height: 100vh;
+            display: flex; flex-direction: column; min-height: 100vh;
         }
 
         #top-controls { 
@@ -44,18 +44,27 @@
             flex-grow: 1; box-sizing: border-box; z-index: 5; padding: 25px;
             display: flex; flex-wrap: wrap; gap: 30px;
             justify-content: flex-start; align-content: flex-start;
-            overflow-y: auto;
+            min-height: 85vh;
+        }
+
+        /* Subtle Grid Guide from User Instructions */
+        .is-editing #archive-grid {
+            background-image: radial-gradient(circle, #1a1a1a 1px, transparent 1px);
+            background-size: 40px 40px;
         }
 
         .relic-wrapper { 
             position: relative; display: flex; flex-direction: column; 
             align-items: center; cursor: pointer; z-index: 10;
-            touch-action: none;
+            touch-action: none; transition: transform 0.2s;
         }
         
         .is-editing .relic-wrapper { animation: wiggle 0.3s infinite ease-in-out; }
-        .dragging { opacity: 0.5; transform: scale(1.1) !important; z-index: 1000 !important; animation: none !important; position: fixed !important; pointer-events: none; }
-        @keyframes wiggle { 0% { transform: rotate(-1deg); } 50% { transform: rotate(1deg); } 100% { transform: rotate(-1deg); } }
+        .dragging { 
+            opacity: 0.6; transform: scale(1.1) !important; z-index: 5000 !important; 
+            animation: none !important; pointer-events: none; position: fixed !important;
+        }
+        @keyframes wiggle { 0% { transform: rotate(-1.5deg); } 50% { transform: rotate(1.5deg); } 100% { transform: rotate(-1.5deg); } }
 
         .relic-frame, .folder-frame { 
             border-radius: 15%; overflow: hidden; 
@@ -72,9 +81,9 @@
         .relic-name { margin-top: 8px; font-family: 'Cinzel'; font-size: 0.75rem; color: #fff; text-align: center; }
 
         .resize-handle {
-            position: absolute; bottom: -12px; right: -12px; width: 36px; height: 36px;
+            position: absolute; bottom: -10px; right: -10px; width: 30px; height: 30px;
             background: var(--gold); border-radius: 50%; z-index: 50; display: none;
-            border: 3px solid #000; pointer-events: auto;
+            border: 2px solid #000; pointer-events: auto;
         }
         .is-editing .resize-handle { display: block; }
 
@@ -127,7 +136,7 @@
         <div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div>
         <div class="menu-item" onclick="toggleMoveList()">Move to Folder...</div>
         <div id="folder-move-list"></div>
-        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson);">Banish</div>
+        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson); border-bottom:none;">Banish</div>
     </div>
 
     <script>
@@ -139,11 +148,13 @@
         };
         firebase.initializeApp(firebaseConfig);
         const rtdb = firebase.database();
+        const auth = firebase.auth();
 
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragEl = null, startX, startY, initialX, initialY;
+        let dragId = null, dragEl = null, startX, startY, initialX, initialY;
 
-        rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; renderGrid(); });
+        auth.onAuthStateChanged(user => { if (user) syncData(); else auth.signInAnonymously(); });
+        function syncData() { rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; renderGrid(); }); }
 
         function renderGrid() {
             const grid = document.getElementById('archive-grid');
@@ -157,16 +168,17 @@
             items.forEach(([id, r]) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
+                wrap.dataset.id = id;
                 wrap.style.width = (r.w || 80) + 'px';
+                
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${r.w||80}px; height:${r.h||80}px;">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span>${r.type[0].toUpperCase()}</span>`}
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0].toUpperCase()}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
                 `;
 
-                // POINTER EVENTS (Eliminates Search Bar Issue)
                 let lastTap = 0;
                 wrap.onpointerdown = (e) => {
                     if (!isEditMode) {
@@ -176,85 +188,76 @@
                     }
 
                     if (e.target.classList.contains('resize-handle')) {
-                        handleResize(e, wrap, id);
-                        return;
+                        handleResize(e, wrap, id); return;
                     }
 
                     const now = Date.now();
-                    if (now - lastTap < 300) {
-                        activeMenuId = id; showMenu(e); return;
-                    }
+                    if (now - lastTap < 300) { activeMenuId = id; showMenu(e); return; }
                     lastTap = now;
 
-                    // Start Drag
-                    dragEl = wrap;
+                    // DRAG START
+                    dragId = id; dragEl = wrap;
                     const rect = wrap.getBoundingClientRect();
                     startX = e.clientX; startY = e.clientY;
                     initialX = rect.left; initialY = rect.top;
-                    
                     wrap.setPointerCapture(e.pointerId);
                     wrap.classList.add('dragging');
-                    wrap.style.left = initialX + 'px';
-                    wrap.style.top = initialY + 'px';
+                    wrap.style.left = initialX + 'px'; wrap.style.top = initialY + 'px';
                 };
 
                 wrap.onpointermove = (e) => {
-                    if (!dragEl || dragEl !== wrap) return;
-                    const dx = e.clientX - startX;
-                    const dy = e.clientY - startY;
-                    wrap.style.left = (initialX + dx) + 'px';
-                    wrap.style.top = (initialY + dy) + 'px';
+                    if (!dragEl || dragId !== id) return;
+                    wrap.style.left = (initialX + (e.clientX - startX)) + 'px';
+                    wrap.style.top = (initialY + (e.clientY - startY)) + 'px';
                 };
 
                 wrap.onpointerup = (e) => {
-                    if (!dragEl) return;
+                    if (!dragEl || dragId !== id) return;
                     wrap.releasePointerCapture(e.pointerId);
                     wrap.classList.remove('dragging');
                     wrap.style.position = ''; wrap.style.left = ''; wrap.style.top = '';
-                    
-                    // Check for drop target
+
+                    // FIND DROP TARGET
                     const target = document.elementFromPoint(e.clientX, e.clientY);
-                    const targetWrap = target?.closest('.relic-wrapper');
+                    const overWrap = target?.closest('.relic-wrapper');
                     
-                    if (targetWrap && targetWrap !== wrap) {
-                        const targetId = Object.keys(allRelics).find(key => {
-                            const items = Array.from(document.querySelectorAll('.relic-wrapper'));
-                            return items[items.indexOf(targetWrap)] === targetWrap; // Simplified for brevity
-                        });
-                        // Since ID finding from DOM is tricky, we trigger a re-sort based on screen position
-                        handleGlobalSort();
+                    if (overWrap && overWrap.dataset.id !== dragId) {
+                        insertAt(dragId, overWrap.dataset.id);
                     } else {
-                        handleGlobalSort(); // Re-sort even if dropped in empty space
+                        // If dropped in empty row/space
+                        moveToEnd(dragId);
                     }
-                    dragEl = null;
+                    dragEl = null; dragId = null;
                 };
 
                 grid.appendChild(wrap);
             });
         }
 
-        function handleGlobalSort() {
-            const wrappers = Array.from(document.querySelectorAll('.relic-wrapper'));
-            // Sort by top then left to get visual order
-            wrappers.sort((a, b) => {
-                const ra = a.getBoundingClientRect();
-                const rb = b.getBoundingClientRect();
-                return (ra.top + ra.height/2) - (rb.top + rb.height/2) || ra.left - rb.left;
-            });
-            
-            const updates = {};
-            wrappers.forEach((el, i) => {
-                const name = el.querySelector('.relic-name').innerText;
-                const id = Object.keys(allRelics).find(k => allRelics[k].name === name && allRelics[k].parent === currentFolder);
-                if (id) updates[`relics/${id}/sortOrder`] = i;
-            });
+        function insertAt(draggedId, targetId) {
+            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
+            const oldIdx = items.indexOf(draggedId); const newIdx = items.indexOf(targetId);
+            if (oldIdx === -1) return;
+            items.splice(oldIdx, 1); items.splice(newIdx, 0, draggedId);
+            updateSort(items);
+        }
+
+        function moveToEnd(draggedId) {
+            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder).sort((a, b) => (a[1].sortOrder || 0) - (b[1].sortOrder || 0)).map(([id]) => id);
+            const oldIdx = items.indexOf(draggedId);
+            if (oldIdx !== -1) items.splice(oldIdx, 1);
+            items.push(draggedId);
+            updateSort(items);
+        }
+
+        function updateSort(items) {
+            const updates = {}; items.forEach((id, i) => { updates[`relics/${id}/sortOrder`] = i; });
             rtdb.ref().update(updates);
         }
 
         function handleResize(e, el, id) {
             const frame = el.querySelector('.relic-frame, .folder-frame');
-            const startW = frame.offsetWidth;
-            const sX = e.clientX;
+            const startW = frame.offsetWidth; const sX = e.clientX;
             const onM = (ev) => {
                 const nw = Math.max(40, startW + (ev.clientX - sX));
                 frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px';
@@ -277,7 +280,7 @@
             list.style.display = list.style.display === 'none' ? 'block' : 'none';
         }
 
-        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId }); closeMenu(); }
+        function moveRelic(destId) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: destId, sortOrder: Date.now() }); closeMenu(); }
         function showMenu(e) { 
             const m = document.getElementById('context-menu'); m.style.display = 'flex'; 
             m.style.left = Math.min(e.clientX, window.innerWidth - 250) + 'px'; 
