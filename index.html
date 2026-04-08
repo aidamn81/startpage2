@@ -8,7 +8,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gothic Archive">
-    
     <link rel="apple-touch-icon" href="PASTE_YOUR_BASE64_STRING_HERE">
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
@@ -77,27 +76,17 @@
         const isMobile = () => window.innerWidth <= 600;
         const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
 
-        // 1. Initial Load Strategy
-        document.addEventListener('DOMContentLoaded', () => {
-            const cached = localStorage.getItem('gothic_archive_cache');
-            if (cached) {
-                allRelics = JSON.parse(cached);
-                render();
+        // Start Firebase once script is active
+        firebase.auth().onAuthStateChanged(user => { 
+            if (user) {
+                rtdb.ref('relics').on('value', snap => { 
+                    allRelics = snap.val() || {}; 
+                    render(); 
+                });
+            } else {
+                firebase.auth().signInAnonymously();
             }
-            // 2. Start Firebase sync after DOM is ready
-            firebase.auth().onAuthStateChanged(user => { 
-                if (user) sync(); 
-                else firebase.auth().signInAnonymously(); 
-            });
         });
-
-        function sync() { 
-            rtdb.ref('relics').on('value', snap => { 
-                allRelics = snap.val() || {}; 
-                localStorage.setItem('gothic_archive_cache', JSON.stringify(allRelics));
-                render(); 
-            }); 
-        }
 
         function render() {
             const grid = document.getElementById('archive-grid');
@@ -113,6 +102,7 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
+                
                 let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20);
                 let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
                 let pWidth = layout.w || r.w || null;
@@ -152,7 +142,7 @@
             });
         }
 
-        // --- Helper Functions ---
+        // --- Standard Helper Functions ---
         function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
         function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px'; m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px'; }
         function toggleMoveMenu() { const sub = document.getElementById('move-sub-menu'); sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`; Object.entries(allRelics).forEach(([id, r]) => { if(r.type === 'folder' && id !== activeMenuId) sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; }); sub.style.display = sub.style.display === 'none' ? 'block' : 'none'; }
