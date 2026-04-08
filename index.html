@@ -8,6 +8,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Gothic Archive">
+    
     <link rel="apple-touch-icon" href="PASTE_YOUR_BASE64_STRING_HERE">
     
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
@@ -26,7 +27,7 @@
         #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
         .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; }
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; }
-        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); transition: opacity 0.3s ease; }
+        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; aspect-ratio: 1/1; }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
         .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; }
@@ -76,24 +77,23 @@
         const isMobile = () => window.innerWidth <= 600;
         const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
 
-        // --- INSTANT LOAD LOGIC ---
-        // 1. Try to load from Local Cache immediately
-        const cachedData = localStorage.getItem('gothic_archive_cache');
-        if (cachedData) {
-            allRelics = JSON.parse(cachedData);
-            console.log("Archive hydrated from local cache.");
-            render();
-        }
-
-        firebase.auth().onAuthStateChanged(user => { 
-            if (user) sync(); 
-            else firebase.auth().signInAnonymously(); 
+        // 1. Initial Load Strategy
+        document.addEventListener('DOMContentLoaded', () => {
+            const cached = localStorage.getItem('gothic_archive_cache');
+            if (cached) {
+                allRelics = JSON.parse(cached);
+                render();
+            }
+            // 2. Start Firebase sync after DOM is ready
+            firebase.auth().onAuthStateChanged(user => { 
+                if (user) sync(); 
+                else firebase.auth().signInAnonymously(); 
+            });
         });
 
         function sync() { 
             rtdb.ref('relics').on('value', snap => { 
                 allRelics = snap.val() || {}; 
-                // 2. Save to cache for next time
                 localStorage.setItem('gothic_archive_cache', JSON.stringify(allRelics));
                 render(); 
             }); 
@@ -101,6 +101,7 @@
 
         function render() {
             const grid = document.getElementById('archive-grid');
+            if (!grid) return; 
             grid.innerHTML = '';
             const platform = getPlatformKey();
             document.body.classList.toggle('is-editing', isEditMode);
@@ -128,7 +129,6 @@
                     <div class="resize-handle"></div>
                 `;
 
-                // Pointer Events (unchanged logic)
                 wrap.onpointerdown = (e) => {
                     if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
                     hasMoved = false;
@@ -137,11 +137,11 @@
                     wrap.lastTap = now;
                     if (isEditMode) { dragEl = wrap; startX = e.clientX; startY = e.clientY; initialX = wrap.offsetLeft; initialY = wrap.offsetTop; wrap.classList.add('dragging'); wrap.setPointerCapture(e.pointerId); }
                 };
-                wrap.onpointermove = (e) => { if (!dragEl || dragEl !== wrap) return; hasMoved = true; let nx = Math.round((initialX + (e.clientX - startX)) / 10) * 10; let ny = Math.round((initialY + (e.clientY - startY)) / 10) * 10; wrap.style.left = nx + 'px'; wrap.style.top = ny + 'px'; };
+                wrap.onpointermove = (e) => { if (!dragEl) return; hasMoved = true; let nx = Math.round((initialX + (e.clientX - startX))/10)*10; let ny = Math.round((initialY + (e.clientY - startY))/10)*10; wrap.style.left = nx + 'px'; wrap.style.top = ny + 'px'; };
                 wrap.onpointerup = (e) => {
-                    if (dragEl === wrap) {
+                    if (dragEl) {
                         dragEl.classList.remove('dragging');
-                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ vx: (parseInt(wrap.style.left) / window.innerWidth) * 100, vy: (parseInt(wrap.style.top) / window.innerHeight) * 100 });
+                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ vx: (parseInt(wrap.style.left)/window.innerWidth)*100, vy: (parseInt(wrap.style.top)/window.innerHeight)*100 });
                         dragEl = null;
                     } else if (!isEditMode && !hasMoved) {
                         if (r.type === 'folder') enterFolder(id, r.name);
@@ -152,7 +152,7 @@
             });
         }
 
-        // --- All other Helper Functions (Menu, Resize, Move, etc.) kept intact ---
+        // --- Helper Functions ---
         function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
         function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px'; m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px'; }
         function toggleMoveMenu() { const sub = document.getElementById('move-sub-menu'); sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`; Object.entries(allRelics).forEach(([id, r]) => { if(r.type === 'folder' && id !== activeMenuId) sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; }); sub.style.display = sub.style.display === 'none' ? 'block' : 'none'; }
