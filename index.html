@@ -1,8 +1,3 @@
-The issue where the relics do not open links when tapped is caused by a tiny pointer collision in the layout mechanics.
-Because wrap.setPointerCapture(e.pointerId) is triggered the moment you touch a relic in edit mode, it occasionally leaves a ghost pointer lock on the element when you toggle edit mode off. This fools the browser into thinking you are starting a minor drag movement (hasMoved = true) instead of a clean, decisive tap, preventing the window.open code from running.
-Here is the surgical fix. I have updated the pointer release handlers to completely flush the tracking states and ensure clean click detection.
-### The Complete, Fixed HTML
-```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
