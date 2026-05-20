@@ -51,42 +51,42 @@
         #context-menu::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
         .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
-        /* GOTHIC TO-DO PANEL STYLE */
+        /* GOTHIC TO-DO PANEL STYLE - HIGH PRIORITY DRAG LAYER */
         #todo-container {
             position: absolute; bottom: 30px; left: 20px; width: 260px;
-            background: rgba(10, 10, 10, 0.95); border: 1px solid var(--crimson);
-            border-radius: 6px; z-index: 4500; display: flex; flex-direction: column;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.8); touch-action: none;
+            background: rgba(10, 10, 10, 0.98); border: 1px solid var(--crimson);
+            border-radius: 6px; z-index: 9000; display: flex; flex-direction: column;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.9); touch-action: none; pointer-events: auto;
         }
         #todo-header {
-            padding: 10px 14px; background: #111; border-bottom: 1px solid #222;
+            padding: 12px 14px; background: #111; border-bottom: 1px solid #222;
             display: flex; justify-content: space-between; align-items: center;
-            cursor: move; font-family: 'Cinzel'; font-size: 0.65rem; letter-spacing: 1px; color: var(--gold);
+            cursor: move; font-family: 'Cinzel'; font-size: 0.65rem; letter-spacing: 1px; color: var(--gold); -webkit-user-select: none; user-select: none;
         }
-        .todo-toggle-btn { background: transparent; border: none; color: var(--gold); font-family: 'Cinzel'; cursor: pointer; font-size: 0.65rem; }
-        #todo-body { display: flex; flex-direction: column; max-height: 240px; }
-        #todo-list { overflow-y: auto; padding: 0; margin: 0; list-style: none; max-height: 180px; scrollbar-width: none; }
+        .todo-toggle-btn { background: transparent; border: none; color: var(--gold); font-family: 'Cinzel'; cursor: pointer; font-size: 0.65rem; padding: 2px 6px; }
+        #todo-body { display: flex; flex-direction: column; max-height: 280px; }
+        #todo-list { overflow-y: auto; padding: 0; margin: 0; list-style: none; max-height: 200px; scrollbar-width: none; pointer-events: auto; }
         #todo-list::-webkit-scrollbar { display: none; }
         .todo-item {
             padding: 10px 14px; border-bottom: 1px solid #161616; display: flex;
-            align-items: center; justify-content: space-between; gap: 8px; font-size: 0.75rem;
+            align-items: center; justify-content: space-between; gap: 8px; font-size: 0.75rem; background: #0a0a0a;
         }
-        .todo-label-group { display: flex; align-items: center; gap: 8px; width: 100%; overflow: hidden; }
-        .todo-checkbox { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border: 1px solid var(--gold); border-radius: 2px; background: transparent; cursor: pointer; position: relative; flex-shrink: 0; }
+        .todo-label-group { display: flex; align-items: center; gap: 8px; width: 100%; overflow: hidden; pointer-events: auto; }
+        .todo-checkbox { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border: 1px solid var(--gold); border-radius: 2px; background: transparent; cursor: pointer; position: relative; flex-shrink: 0; pointer-events: auto; }
         .todo-checkbox:checked { background: var(--crimson); border-color: var(--crimson); }
         .todo-checkbox:checked::after { content: '✓'; position: absolute; top: -2px; left: 2px; color: #fff; font-size: 9px; }
-        .todo-text { color: #fff; transition: opacity 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; }
+        .todo-text { color: #fff; transition: opacity 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; user-select: text; -webkit-user-select: text; }
         .todo-item.completed .todo-text { text-decoration: line-through; opacity: 0.4; }
         
-        .todo-controls { display: none; gap: 4px; flex-shrink: 0; }
+        .todo-controls { display: none; gap: 4px; flex-shrink: 0; pointer-events: auto; }
         body.is-editing .todo-controls { display: flex; }
-        .todo-btn { background: transparent; border: 1px solid #333; color: var(--text); padding: 2px 5px; font-size: 0.55rem; border-radius: 3px; cursor: pointer; font-family: 'Cinzel'; }
+        .todo-btn { background: #111; border: 1px solid #333; color: var(--text); padding: 4px 6px; font-size: 0.55rem; border-radius: 3px; cursor: pointer; font-family: 'Cinzel'; pointer-events: auto; }
         .todo-btn.del { border-color: var(--crimson); color: var(--crimson); }
         
-        #todo-form { display: flex; border-top: 1px solid #222; padding: 6px; background: #0d0d0d; }
-        #todo-input { flex: 1; background: #141414; border: 1px solid #252525; color: #fff; font-size: 0.7rem; padding: 6px; border-radius: 3px; font-family: 'Playfair Display'; }
+        #todo-form { display: flex; border-top: 1px solid #222; padding: 8px; background: #0d0d0d; pointer-events: auto; }
+        #todo-input { flex: 1; background: #141414; border: 1px solid #252525; color: #fff; font-size: 0.75rem; padding: 6px; border-radius: 3px; font-family: 'Playfair Display'; pointer-events: auto; -webkit-user-select: text; user-select: text; }
         #todo-input:focus { outline: none; border-color: var(--gold); }
-        .todo-add-btn { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 0 10px; margin-left: 5px; font-family: 'Cinzel'; font-size: 0.6rem; border-radius: 3px; cursor: pointer; }
+        .todo-add-btn { background: #111; border: 1px solid var(--gold); color: var(--gold); padding: 0 12px; margin-left: 5px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 3px; cursor: pointer; pointer-events: auto; }
     </style>
 </head>
 <body onclick="closeModals(); closeMenu();">
@@ -105,7 +105,7 @@
     <div id="todo-container" onclick="event.stopPropagation()">
         <div id="todo-header">
             <span>📜 SCROLL OF TASKS</span>
-            <button class="todo-toggle-btn" onclick="toggleTodoCollapse()">[ - ]</button>
+            <button class="todo-toggle-btn" onclick="toggleTodoCollapse(event)">[ - ]</button>
         </div>
         <div id="todo-body">
             <ul id="todo-list"></ul>
@@ -262,19 +262,21 @@
             });
         }
 
-        /* DRAGGABLE TASK FRAME LOGIC */
+        /* REPAIRED DRAGGABLE TASK MECHANISMS */
         const todoHeader = document.getElementById('todo-header');
         const todoContainer = document.getElementById('todo-container');
 
         todoHeader.onpointerdown = (e) => {
-            if (e.target.classList.contains('todo-toggle-btn')) return;
+            if (e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
             todoDragActive = true;
             todoStartX = e.clientX;
             todoStartY = e.clientY;
             todoInitX = todoContainer.offsetLeft;
             todoInitY = todoContainer.offsetTop;
             todoContainer.setPointerCapture(e.pointerId);
+            e.preventDefault();
         };
+        
         todoHeader.onpointermove = (e) => {
             if (!todoDragActive) return;
             let nx = todoInitX + (e.clientX - todoStartX);
@@ -289,6 +291,7 @@
             todoContainer.style.top = ny + 'px';
             todoContainer.style.bottom = 'auto';
         };
+        
         todoHeader.onpointerup = (e) => {
             if (!todoDragActive) return;
             todoContainer.releasePointerCapture(e.pointerId);
@@ -299,7 +302,8 @@
             });
         };
 
-        function toggleTodoCollapse() {
+        function toggleTodoCollapse(e) {
+            if(e) e.stopPropagation();
             isTodoCollapsed = !isTodoCollapsed;
             document.getElementById('todo-body').style.display = isTodoCollapsed ? 'none' : 'flex';
             document.querySelector('.todo-toggle-btn').innerText = isTodoCollapsed ? '[ + ]' : '[ - ]';
@@ -319,10 +323,10 @@
                         <span class="todo-text">${todo.text}</span>
                     </div>
                     <div class="todo-controls">
-                        <button class="todo-btn" onclick="editTodoItem(${index})">✎</button>
-                        <button class="todo-btn" onclick="moveTodoOrder(${index}, -1)">▲</button>
-                        <button class="todo-btn" onclick="moveTodoOrder(${index}, 1)">▼</button>
-                        <button class="todo-btn del" onclick="deleteTodoItem(${index})">✕</button>
+                        <button class="todo-btn" type="button" onclick="editTodoItem(${index})">✎</button>
+                        <button class="todo-btn" type="button" onclick="moveTodoOrder(${index}, -1)">▲</button>
+                        <button class="todo-btn" type="button" onclick="moveTodoOrder(${index}, 1)">▼</button>
+                        <button class="todo-btn del" type="button" onclick="deleteTodoItem(${index})">✕</button>
                     </div>
                 `;
                 list.appendChild(li);
@@ -330,13 +334,20 @@
         }
 
         function addTodoItem(e) {
-            e.preventDefault();
+            if(e) { e.preventDefault(); e.stopPropagation(); }
             const input = document.getElementById('todo-input');
+            if (!input) return false;
+            
             const text = input.value.trim();
-            if (!text) return;
-            todoItems.push({ text, completed: false });
+            if (!text) return false;
+            
+            todoItems.push({ text: text, completed: false });
             input.value = '';
-            rtdb.ref('todos').set(todoItems);
+            
+            rtdb.ref('todos').set(todoItems).then(() => {
+                renderTodos();
+            });
+            return false;
         }
 
         function toggleTodoComplete(index) {
