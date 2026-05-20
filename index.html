@@ -34,7 +34,8 @@
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; aspect-ratio: 1/1; }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
         .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; }
-        .resize-handle { position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; }
+        
+        .resize-handle { position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; cursor: se-resize; }
         body.is-editing .resize-handle { display: block; }
         .dragging { opacity: 0.6; z-index: 5000 !important; }
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
@@ -51,11 +52,11 @@
         #context-menu::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
         .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
-        /* GOTHIC TO-DO PANEL STYLE - HIGH PRIORITY DRAG LAYER */
+        /* UNIFIED SCROLL OF TASKS MECHANICS */
         #todo-container {
             position: absolute; bottom: 30px; left: 20px; width: 260px;
             background: rgba(10, 10, 10, 0.98); border: 1px solid var(--crimson);
-            border-radius: 6px; z-index: 9000; display: flex; flex-direction: column;
+            border-radius: 6px; z-index: 4500; display: flex; flex-direction: column;
             box-shadow: 0 12px 30px rgba(0,0,0,0.9); touch-action: none; pointer-events: auto;
         }
         #todo-header {
@@ -64,8 +65,8 @@
             cursor: move; font-family: 'Cinzel'; font-size: 0.65rem; letter-spacing: 1px; color: var(--gold); -webkit-user-select: none; user-select: none;
         }
         .todo-toggle-btn { background: transparent; border: none; color: var(--gold); font-family: 'Cinzel'; cursor: pointer; font-size: 0.65rem; padding: 2px 6px; }
-        #todo-body { display: flex; flex-direction: column; max-height: 280px; }
-        #todo-list { overflow-y: auto; padding: 0; margin: 0; list-style: none; max-height: 200px; scrollbar-width: none; pointer-events: auto; }
+        #todo-body { display: flex; flex-direction: column; height: 100%; min-height: 100px; }
+        #todo-list { overflow-y: auto; padding: 0; margin: 0; list-style: none; flex: 1; scrollbar-width: none; pointer-events: auto; }
         #todo-list::-webkit-scrollbar { display: none; }
         .todo-item {
             padding: 10px 14px; border-bottom: 1px solid #161616; display: flex;
@@ -114,6 +115,7 @@
                 <button type="submit" class="todo-add-btn">+</button>
             </form>
         </div>
+        <div class="resize-handle" id="todo-resize-handle"></div>
     </div>
 
     <div id="calc-modal" class="modal-overlay" onclick="event.stopPropagation()"><div class="modal-content"><div class="close-ritual" onclick="closeModals()">BANISH</div><input type="number" id="calc-amount" class="modal-input" placeholder="Amount"><input type="number" id="calc-percent" class="modal-input" value="20"><button class="ritual-btn" onclick="runCalcRitual()">CALCULATE RITUAL</button></div></div>
@@ -156,15 +158,18 @@
                     render(); 
                 });
                 rtdb.ref('todos').on('value', snap => {
-                    todoItems = snap.val() || [];
+                    const data = snap.val();
+                    todoItems = Array.isArray(data) ? data : (data ? Object.values(data) : []);
                     renderTodos();
                 });
-                rtdb.ref(`todo_position/${getPlatformKey()}`).on('value', snap => {
-                    const pos = snap.val();
+                rtdb.ref(`todo_layout/${getPlatformKey()}`).on('value', snap => {
+                    const layout = snap.val();
                     const container = document.getElementById('todo-container');
-                    if (pos && container && !todoDragActive) {
-                        container.style.left = pos.x + 'px';
-                        container.style.top = pos.y + 'px';
+                    if (layout && container && !todoDragActive) {
+                        if (layout.vx !== undefined) container.style.left = (layout.vx * window.innerWidth / 100) + 'px';
+                        if (layout.vy !== undefined) container.style.top = (layout.vy * window.innerHeight / 100) + 'px';
+                        if (layout.w !== undefined) container.style.width = layout.w + 'px';
+                        if (layout.h !== undefined) container.style.height = layout.h + 'px';
                         container.style.bottom = 'auto';
                     }
                 });
@@ -262,12 +267,13 @@
             });
         }
 
-        /* REPAIRED DRAGGABLE TASK MECHANISMS */
+        /* UNIFIED TOUCH DRAG AND RESIZE LOGIC FOR TASK MODULE */
         const todoHeader = document.getElementById('todo-header');
         const todoContainer = document.getElementById('todo-container');
+        const todoResizeHandle = document.getElementById('todo-resize-handle');
 
         todoHeader.onpointerdown = (e) => {
-            if (e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
+            if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
             todoDragActive = true;
             todoStartX = e.clientX;
             todoStartY = e.clientY;
@@ -279,8 +285,8 @@
         
         todoHeader.onpointermove = (e) => {
             if (!todoDragActive) return;
-            let nx = todoInitX + (e.clientX - todoStartX);
-            let ny = todoInitY + (e.clientY - todoStartY);
+            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
             
             if (nx < 0) nx = 0;
             if (nx + todoContainer.offsetWidth > window.innerWidth) nx = window.innerWidth - todoContainer.offsetWidth;
@@ -296,10 +302,38 @@
             if (!todoDragActive) return;
             todoContainer.releasePointerCapture(e.pointerId);
             todoDragActive = false;
-            rtdb.ref(`todo_position/${getPlatformKey()}`).set({
-                x: todoContainer.offsetLeft,
-                y: todoContainer.offsetTop
+            rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
+                vx: (todoContainer.offsetLeft / window.innerWidth) * 100,
+                vy: (todoContainer.offsetTop / window.innerHeight) * 100
             });
+        };
+
+        todoResizeHandle.onpointerdown = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const startW = todoContainer.offsetWidth;
+            const startH = todoContainer.offsetHeight;
+            const sX = e.clientX;
+            const sY = e.clientY;
+
+            const onPointerMove = (ev) => {
+                const nw = Math.max(180, startW + (ev.clientX - sX));
+                const nh = Math.max(140, startH + (ev.clientY - sY));
+                todoContainer.style.width = nw + 'px';
+                todoContainer.style.height = nh + 'px';
+            };
+
+            const onPointerUp = () => {
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+                rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
+                    w: todoContainer.offsetWidth,
+                    h: todoContainer.offsetHeight
+                });
+            };
+
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
         };
 
         function toggleTodoCollapse(e) {
