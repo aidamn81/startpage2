@@ -54,7 +54,9 @@
 
         /* UNIFIED SCROLL OF TASKS MECHANICS */
         #todo-container {
-            position: absolute; bottom: 30px; left: 20px; width: 260px;
+            position: absolute; 
+            /* Layout anchors removed from here to allow complete JavaScript control on load */
+            width: 260px;
             background: rgba(10, 10, 10, 0.98); border: 1px solid var(--crimson);
             border-radius: 6px; z-index: 4500; display: flex; flex-direction: column;
             box-shadow: 0 12px 30px rgba(0,0,0,0.9); touch-action: none; pointer-events: auto;
@@ -165,11 +167,17 @@
                 rtdb.ref(`todo_layout/${getPlatformKey()}`).on('value', snap => {
                     const layout = snap.val();
                     const container = document.getElementById('todo-container');
-                    if (layout && container && !todoDragActive) {
-                        if (layout.vx !== undefined) container.style.left = (layout.vx * window.innerWidth / 100) + 'px';
-                        if (layout.vy !== undefined) container.style.top = (layout.vy * window.innerHeight / 100) + 'px';
-                        if (layout.w !== undefined) container.style.width = layout.w + 'px';
-                        if (layout.h !== undefined) container.style.height = layout.h + 'px';
+                    if (container && !todoDragActive) {
+                        if (layout) {
+                            if (layout.vx !== undefined) container.style.left = (layout.vx * window.innerWidth / 100) + 'px';
+                            if (layout.vy !== undefined) container.style.top = (layout.vy * window.innerHeight / 100) + 'px';
+                            if (layout.w !== undefined) container.style.width = layout.w + 'px';
+                            if (layout.h !== undefined) container.style.height = layout.h + 'px';
+                        } else {
+                            // If no layout fallback position exists yet, apply absolute initial position clean of CSS interference
+                            container.style.left = '20px';
+                            container.style.top = (window.innerHeight - 350) + 'px';
+                        }
                         container.style.bottom = 'auto';
                     }
                 });
