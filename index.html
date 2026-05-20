@@ -11,10 +11,10 @@
     <meta name="mobile-web-app-capable" content="yes">
 
     <link rel="apple-touch-icon" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="apple-touch-icon-precomposed" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
+    
     <link rel="icon" type="image/png" sizes="192x192" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
     
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Gothic%20Archive%22,%22short_name%22:%22Archive%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23050505%22,%22icons%22:[{%22src%22:%22https://r.jina.ai/i/656121408801402998a44b9ef40f80bc%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}]} border-box;">
+    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Gothic%20Archive%22,%22short_name%22:%22Archive%22,%22icons%22:[{%22src%22:%22https://r.jina.ai/i/656121408801402998a44b9ef40f80bc%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}],%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23050505%22}">
 
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
     
@@ -128,26 +128,60 @@
                     if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
                     hasMoved = false;
                     const now = Date.now();
-                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
+                    
+                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { 
+                        activeMenuId = id; 
+                        showMenu(e); 
+                        return; 
+                    }
                     wrap.lastTap = now;
-                    if (isEditMode) { dragEl = wrap; startX = e.clientX; startY = e.clientY; initialX = wrap.offsetLeft; initialY = wrap.offsetTop; wrap.classList.add('dragging'); wrap.setPointerCapture(e.pointerId); }
+                    
+                    if (isEditMode) { 
+                        dragEl = wrap; 
+                        startX = e.clientX; 
+                        startY = e.clientY; 
+                        initialX = wrap.offsetLeft; 
+                        initialY = wrap.offsetTop; 
+                        wrap.classList.add('dragging'); 
+                        wrap.setPointerCapture(e.pointerId); 
+                    }
                 };
-                wrap.onpointermove = (e) => { if (!dragEl) return; hasMoved = true; let nx = Math.round((initialX + (e.clientX - startX))/10)*10; let ny = Math.round((initialY + (e.clientY - startY))/10)*10; wrap.style.left = nx + 'px'; wrap.style.top = ny + 'px'; };
+
+                wrap.onpointermove = (e) => { 
+                    if (!dragEl) return; 
+                    // Add a tiny movement threshold so shaky fingers don't register as intentional dragging
+                    if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) {
+                        hasMoved = true; 
+                    }
+                    let nx = Math.round((initialX + (e.clientX - startX))/10)*10; 
+                    let ny = Math.round((initialY + (e.clientY - startY))/10)*10; 
+                    wrap.style.left = nx + 'px'; 
+                    wrap.style.top = ny + 'px'; 
+                };
+
                 wrap.onpointerup = (e) => {
                     if (dragEl) {
+                        wrap.releasePointerCapture(e.pointerId);
                         dragEl.classList.remove('dragging');
-                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ vx: (parseInt(wrap.style.left)/window.innerWidth)*100, vy: (parseInt(wrap.style.top)/window.innerHeight)*100 });
+                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ 
+                            vx: (parseInt(wrap.style.left)/window.innerWidth)*100, 
+                            vy: (parseInt(wrap.style.top)/window.innerHeight)*100 
+                        });
                         dragEl = null;
-                    } else if (!isEditMode && !hasMoved) {
-                        if (r.type === 'folder') enterFolder(id, r.name);
-                        else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
+                    } else if (!hasMoved) {
+                        // Execution blocks for clear taps outside edit mode
+                        if (r.type === 'folder') {
+                            enterFolder(id, r.name);
+                        } else if (r.url) {
+                            window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
+                        }
                     }
+                    hasMoved = false; // Reset explicitly
                 };
                 grid.appendChild(wrap);
             });
         }
 
-        // Standard Functions
         function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
         function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px'; m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px'; }
         function toggleMoveMenu() { const sub = document.getElementById('move-sub-menu'); sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`; Object.entries(allRelics).forEach(([id, r]) => { if(r.type === 'folder' && id !== activeMenuId) sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; }); sub.style.display = sub.style.display === 'none' ? 'block' : 'none'; }
