@@ -24,36 +24,20 @@
         :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 80px; }
         @media only screen and (min-width: 768px) { :root { --base-size: 100px; } }
         @media only screen and (max-width: 600px) { :root { --base-size: 70px; } }
-        
-        html, body { 
-            width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
-            color: var(--text); font-family: 'Playfair Display', serif; overflow: hidden; 
-            -webkit-user-select: none; user-select: none; touch-action: none; 
-        }
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); color: var(--text); font-family: 'Playfair Display', serif; overflow: hidden; -webkit-user-select: none; user-select: none; touch-action: none; }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); }
-        
-        /* SUBTLE GUIDE GRID IN EDIT MODE */
-        body.is-editing::before {
-            content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-            background-size: 40px 40px;
-            background-image: linear-gradient(to right, rgba(140, 115, 64, 0.05) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(140, 115, 64, 0.05) 1px, transparent 1px);
-        }
-
         #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; }
         #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
         .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; }
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; }
-        
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; aspect-ratio: 1/1; }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
         .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; }
         
-        .resize-handle { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; cursor: se-resize; touch-action: none; }
+        .resize-handle { position: absolute; bottom: -2px; right: -2px; width: 24px; height: 24px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; cursor: se-resize; touch-action: none !important; }
         body.is-editing .resize-handle { display: block; }
         .dragging { opacity: 0.6; z-index: 5000 !important; }
-        
         .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
         .modal-content { background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px; width: 85%; max-width: 350px; padding: 25px; position: relative; }
         .close-ritual { position: absolute; top: 10px; right: 10px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.7rem; cursor: pointer; border: 1px solid var(--gold); padding: 4px 8px; border-radius: 4px; }
@@ -68,21 +52,19 @@
         #context-menu::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
         .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
-        /* SCROLL OF TASKS - STRICT POSITION OVERRIDES */
+        /* UNIFIED SCROLL OF TASKS MECHANICS */
         #todo-container {
             position: absolute; 
             width: 260px;
             background: rgba(10, 10, 10, 0.98); border: 1px solid var(--crimson);
             border-radius: 6px; z-index: 4500; display: flex; flex-direction: column;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.9); 
-            touch-action: none; pointer-events: auto;
-            -webkit-overflow-scrolling: touch;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.9); touch-action: none !important; pointer-events: auto;
         }
         #todo-header {
             padding: 12px 14px; background: #111; border-bottom: 1px solid #222;
             display: flex; justify-content: space-between; align-items: center;
             cursor: move; font-family: 'Cinzel'; font-size: 0.65rem; letter-spacing: 1px; color: var(--gold); 
-            -webkit-user-select: none; user-select: none; touch-action: none;
+            -webkit-user-select: none; user-select: none; touch-action: none !important;
         }
         .todo-toggle-btn { background: transparent; border: none; color: var(--gold); font-family: 'Cinzel'; cursor: pointer; font-size: 0.65rem; padding: 2px 6px; pointer-events: auto; }
         #todo-body { display: flex; flex-direction: column; height: 100%; min-height: 100px; }
@@ -171,17 +153,18 @@
         const isMobile = () => window.innerWidth <= 600;
         const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
 
+        // Unified layout application helper to prevent flash-to-corner on refresh loading
         function applyTodoLayout(layout) {
             const container = document.getElementById('todo-container');
             if (!container) return;
             if (layout) {
-                if (layout.vx !== undefined) container.style.left = Math.round((parseFloat(layout.vx) * window.innerWidth / 100)) + 'px';
-                if (layout.vy !== undefined) container.style.top = Math.round((parseFloat(layout.vy) * window.innerHeight / 100)) + 'px';
-                if (layout.w !== undefined) container.style.width = parseInt(layout.w) + 'px';
-                if (layout.h !== undefined) container.style.height = parseInt(layout.h) + 'px';
+                if (layout.vx !== undefined) container.style.left = (layout.vx * window.innerWidth / 100) + 'px';
+                if (layout.vy !== undefined) container.style.top = (layout.vy * window.innerHeight / 100) + 'px';
+                if (layout.w !== undefined) container.style.width = layout.w + 'px';
+                if (layout.h !== undefined) container.style.height = layout.h + 'px';
             } else {
                 container.style.left = '20px';
-                container.style.top = (window.innerHeight - 320) + 'px';
+                container.style.top = (window.innerHeight - 350) + 'px';
             }
             container.style.bottom = 'auto';
         }
@@ -198,119 +181,15 @@
                     renderTodos();
                 });
                 rtdb.ref(`todo_layout/${getPlatformKey()}`).on('value', snap => {
+                    const layout = snap.val();
                     if (!todoDragActive) {
-                        applyTodoLayout(snap.val());
+                        applyTodoLayout(layout);
                     }
                 });
             } else {
                 firebase.auth().signInAnonymously();
             }
         });
-
-        // NATIVE GESTURE LOCK OVERRIDE FOR IOS SAFARI / WEB APPS
-        const todoHeader = document.getElementById('todo-header');
-        const todoContainer = document.getElementById('todo-container');
-
-        todoHeader.addEventListener('touchstart', (e) => {
-            if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
-            todoDragActive = true;
-            const touch = e.touches[0];
-            todoStartX = touch.clientX;
-            todoStartY = touch.clientY;
-            todoInitX = todoContainer.offsetLeft;
-            todoInitY = todoContainer.offsetTop;
-        }, { passive: true });
-
-        window.addEventListener('touchmove', (e) => {
-            if (!todoDragActive) return;
-            // Force browser layout lock loops directly
-            if (e.cancelable) e.preventDefault();
-            
-            const touch = e.touches[0];
-            let nx = Math.round((todoInitX + (touch.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (touch.clientY - todoStartY)) / 10) * 10;
-            
-            if (nx < 0) nx = 0;
-            if (nx + todoContainer.offsetWidth > window.innerWidth) nx = window.innerWidth - todoContainer.offsetWidth;
-            if (ny < 0) ny = 0;
-            if (ny + todoContainer.offsetHeight > window.innerHeight) ny = window.innerHeight - todoContainer.offsetHeight;
-
-            todoContainer.style.left = nx + 'px';
-            todoContainer.style.top = ny + 'px';
-        }, { passive: false });
-
-        window.addEventListener('touchend', () => {
-            if (!todoDragActive) return;
-            todoDragActive = false;
-            rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
-                vx: (todoContainer.offsetLeft / window.innerWidth) * 100,
-                vy: (todoContainer.offsetTop / window.innerHeight) * 100
-            });
-        });
-
-        // Fallback Pointer Engine configuration for desktop testing profiles
-        todoHeader.onpointerdown = (e) => {
-            if (e.pointerType === 'touch') return; // Handled cleanly by touch hooks
-            if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
-            todoDragActive = true;
-            todoStartX = e.clientX;
-            todoStartY = e.clientY;
-            todoInitX = todoContainer.offsetLeft;
-            todoInitY = todoContainer.offsetTop;
-            todoContainer.setPointerCapture(e.pointerId);
-        };
-        todoHeader.onpointermove = (e) => {
-            if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
-            todoContainer.style.left = nx + 'px';
-            todoContainer.style.top = ny + 'px';
-        };
-        todoHeader.onpointerup = (e) => {
-            if (e.pointerType === 'touch' || !todoDragActive) return;
-            todoContainer.releasePointerCapture(e.pointerId);
-            todoDragActive = false;
-            rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
-                vx: (todoContainer.offsetLeft / window.innerWidth) * 100,
-                vy: (todoContainer.offsetTop / window.innerHeight) * 100
-            });
-        };
-
-        // RESIZE ENGINE MATRIX TRACKING
-        const todoResizeHandle = document.getElementById('todo-resize-handle');
-        todoResizeHandle.onpointerdown = (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const startW = todoContainer.offsetWidth;
-            const startH = todoContainer.offsetHeight;
-            const sX = e.clientX || (e.touches && e.touches[0].clientX);
-            const sY = e.clientY || (e.touches && e.touches[0].clientY);
-
-            const onPointerMove = (ev) => {
-                const curX = ev.clientX || (ev.touches && ev.touches[0].clientX);
-                const curY = ev.clientY || (ev.touches && ev.touches[0].clientY);
-                const nw = Math.max(180, startW + (curX - sX));
-                const nh = Math.max(140, startH + (curY - sY));
-                todoContainer.style.width = nw + 'px';
-                todoContainer.style.height = nh + 'px';
-            };
-
-            const onPointerUp = () => {
-                window.removeEventListener('pointermove', onPointerMove);
-                window.removeEventListener('pointerup', onPointerUp);
-                window.removeEventListener('touchmove', onPointerMove);
-                window.removeEventListener('touchend', onPointerUp);
-                rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
-                    w: todoContainer.offsetWidth,
-                    h: todoContainer.offsetHeight
-                });
-            };
-
-            window.addEventListener('pointermove', onPointerMove);
-            window.addEventListener('pointerup', onPointerUp);
-            window.addEventListener('touchmove', onPointerMove, { passive: true });
-            window.addEventListener('touchend', onPointerUp);
-        };
 
         function render() {
             const grid = document.getElementById('archive-grid');
@@ -333,9 +212,8 @@
                 let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
                 let pWidth = layout.w || r.w || null;
 
-                // Soft snap placement alignment updates
-                wrap.style.left = Math.round(px / 10) * 10 + 'px';
-                wrap.style.top = Math.round(py / 10) * 10 + 'px';
+                wrap.style.left = px + 'px';
+                wrap.style.top = py + 'px';
                 if(pWidth) wrap.style.width = pWidth + 'px';
 
                 wrap.innerHTML = `
@@ -402,12 +280,82 @@
             });
         }
 
+        /* UNIFIED TOUCH DRAG AND RESIZE LOGIC FOR TASK MODULE */
+        const todoHeader = document.getElementById('todo-header');
+        const todoContainer = document.getElementById('todo-container');
+        const todoResizeHandle = document.getElementById('todo-resize-handle');
+
+        todoHeader.onpointerdown = (e) => {
+            if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
+            todoDragActive = true;
+            todoStartX = e.clientX;
+            todoStartY = e.clientY;
+            todoInitX = todoContainer.offsetLeft;
+            todoInitY = todoContainer.offsetTop;
+            todoContainer.setPointerCapture(e.pointerId);
+            e.preventDefault();
+            e.stopPropagation();
+        };
+        
+        todoHeader.onpointermove = (e) => {
+            if (!todoDragActive) return;
+            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
+            
+            if (nx < 0) nx = 0;
+            if (nx + todoContainer.offsetWidth > window.innerWidth) nx = window.innerWidth - todoContainer.offsetWidth;
+            if (ny < 0) ny = 0;
+            if (ny + todoContainer.offsetHeight > window.innerHeight) ny = window.innerHeight - todoContainer.offsetHeight;
+
+            todoContainer.style.left = nx + 'px';
+            todoContainer.style.top = ny + 'px';
+        };
+        
+        todoHeader.onpointerup = (e) => {
+            if (!todoDragActive) return;
+            todoContainer.releasePointerCapture(e.pointerId);
+            todoDragActive = false;
+            rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
+                vx: (todoContainer.offsetLeft / window.innerWidth) * 100,
+                vy: (todoContainer.offsetTop / window.innerHeight) * 100
+            });
+        };
+
+        todoResizeHandle.onpointerdown = (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            const startW = todoContainer.offsetWidth;
+            const startH = todoContainer.offsetHeight;
+            const sX = e.clientX;
+            const sY = e.clientY;
+
+            const onPointerMove = (ev) => {
+                const nw = Math.max(180, startW + (ev.clientX - sX));
+                const nh = Math.max(140, startH + (ev.clientY - sY));
+                todoContainer.style.width = nw + 'px';
+                todoContainer.style.height = nh + 'px';
+            };
+
+            const onPointerUp = () => {
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerup', onPointerUp);
+                rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
+                    w: todoContainer.offsetWidth,
+                    h: todoContainer.offsetHeight
+                });
+            };
+
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+        };
+
         function toggleTodoCollapse(e) {
             if(e) e.stopPropagation();
             isTodoCollapsed = !isTodoCollapsed;
             document.getElementById('todo-body').style.display = isTodoCollapsed ? 'none' : 'flex';
             document.querySelector('.todo-toggle-btn').innerText = isTodoCollapsed ? '[ + ]' : '[ - ]';
             
+            // Re-read configuration metrics to ensure height matches state changes cleanly
             rtdb.ref(`todo_layout/${getPlatformKey()}`).once('value', snap => {
                 applyTodoLayout(snap.val());
             });
@@ -529,6 +477,7 @@
         function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
         function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
         
+        // Window adjustments call the explicit alignment pipeline to update runtime aspect matrix ratios safely
         window.onresize = () => {
             render();
             rtdb.ref(`todo_layout/${getPlatformKey()}`).once('value', snap => {
