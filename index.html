@@ -32,7 +32,7 @@
         }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); }
         
-        /* GUIDE GRID IN EDIT MODE */
+        /* SUBTLE GUIDE GRID IN EDIT MODE */
         body.is-editing::before {
             content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
             background-size: 40px 40px;
@@ -68,7 +68,7 @@
         #context-menu::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
         .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
-        /* SCROLL OF TASKS SYSTEM */
+        /* SCROLL OF TASKS - STRICT POSITION OVERRIDES */
         #todo-container {
             position: absolute; 
             width: 260px;
@@ -207,7 +207,7 @@
             }
         });
 
-        // TASK CONTAINER TOUCH GESTURE MANAGEMENT
+        // NATIVE GESTURE LOCK OVERRIDE FOR IOS SAFARI / WEB APPS
         const todoHeader = document.getElementById('todo-header');
         const todoContainer = document.getElementById('todo-container');
 
@@ -223,6 +223,7 @@
 
         window.addEventListener('touchmove', (e) => {
             if (!todoDragActive) return;
+            // Force browser layout lock loops directly
             if (e.cancelable) e.preventDefault();
             
             const touch = e.touches[0];
@@ -247,9 +248,9 @@
             });
         });
 
-        // Pointer fallback mechanics
+        // Fallback Pointer Engine configuration for desktop testing profiles
         todoHeader.onpointerdown = (e) => {
-            if (e.pointerType === 'touch') return;
+            if (e.pointerType === 'touch') return; // Handled cleanly by touch hooks
             if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
             todoDragActive = true;
             todoStartX = e.clientX;
@@ -275,7 +276,7 @@
             });
         };
 
-        // CONTROLLER RESIZE BOUNDS
+        // RESIZE ENGINE MATRIX TRACKING
         const todoResizeHandle = document.getElementById('todo-resize-handle');
         todoResizeHandle.onpointerdown = (e) => {
             e.stopPropagation();
@@ -332,19 +333,19 @@
                 let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
                 let pWidth = layout.w || r.w || null;
 
+                // Soft snap placement alignment updates
                 wrap.style.left = Math.round(px / 10) * 10 + 'px';
                 wrap.style.top = Math.round(py / 10) * 10 + 'px';
                 if(pWidth) wrap.style.width = pWidth + 'px';
 
                 wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''}">
+                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
                         ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
                     </div>
                     <span class="relic-name">${r.name}</span>
                     <div class="resize-handle"></div>
                 `;
 
-                // SAFE DRAG AND DROP: LOCAL-ONLY POSITIONING WITH DELAYED FIREBASE COMMIT
                 wrap.onpointerdown = (e) => {
                     if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
                     hasMoved = false;
@@ -373,7 +374,6 @@
                     if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) {
                         hasMoved = true; 
                     }
-                    // Visual position processing runs exclusively inside memory workspace layout context
                     let nx = Math.round((initialX + (e.clientX - startX))/10)*10; 
                     let ny = Math.round((initialY + (e.clientY - startY))/10)*10; 
                     wrap.style.left = nx + 'px'; 
@@ -384,8 +384,6 @@
                     if (dragEl) {
                         wrap.releasePointerCapture(e.pointerId);
                         dragEl.classList.remove('dragging');
-                        
-                        // ONE SINGLE SAVE OPERATION ON TARGET RELEASE - preserves heavy thumb strings
                         rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ 
                             vx: (parseInt(wrap.style.left)/window.innerWidth)*100, 
                             vy: (parseInt(wrap.style.top)/window.innerHeight)*100 
@@ -524,20 +522,7 @@
         function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}/layouts/${getPlatformKey()}`).update({w: null}); closeMenu(); }
-        
-        // REPAIR PIPELINE FOR HEAVY BASE64 THUMBNAIL STORAGE
-        function swapImage(input) { 
-            if(input.files[0]) { 
-                const r = new FileReader(); 
-                r.onload = (e) => {
-                    // Update only the individual field entry instead of overwriting structural hierarchies
-                    rtdb.ref(`relics/${activeMenuId}/imgUrl`).set(e.target.result);
-                }; 
-                r.readAsDataURL(input.files[0]); 
-            } 
-            closeMenu(); 
-        }
-
+        function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
         function runCalcRitual() { const a = parseFloat(document.getElementById('calc-amount').value); const p = parseFloat(document.getElementById('calc-percent').value); if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`); closeModals(); }
         function runSummonRitual() { const name = document.getElementById('sum-name').value; const url = document.getElementById('sum-url').value; const type = document.getElementById('sum-type').value; const file = document.getElementById('sum-file').files[0]; if (!name) return; const save = (img) => { rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", layouts: { mobile: {vx: 10, vy: 15}, tablet: {vx: 10, vy: 15} } }); closeModals(); }; if (file) { const r = new FileReader(); r.onload = (e) => save(e.target.result); r.readAsDataURL(file); } else save(""); }
         function toggleEdit() { isEditMode = !isEditMode; render(); }
