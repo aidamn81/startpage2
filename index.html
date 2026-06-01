@@ -2,170 +2,618 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>The Gothic Archive</title>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gothic Archive">
-    <meta name="mobile-web-app-capable" content="yes">
-
-    <link rel="apple-touch-icon" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="apple-touch-icon-precomposed" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="icon" type="image/png" sizes="192x192" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Gothic%20Archive%22,%22short_name%22:%22Archive%22,%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23050505%22,%22icons%22:[{%22src%22:%22https://r.jina.ai/i/656121408801402998a44b9ef40f80bc%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}]} border-box;">
-
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
+    <title>The Gothic Archive (Formation &amp; Snap-to-Grid)</title>
     <style>
-        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 80px; }
-        @media only screen and (min-width: 768px) { :root { --base-size: 100px; } }
-        @media only screen and (max-width: 600px) { :root { --base-size: 70px; } }
-        html, body { width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); color: var(--text); font-family: 'Playfair Display', serif; overflow: hidden; -webkit-user-select: none; user-select: none; touch-action: none; }
-        body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); }
-        #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; }
-        #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
-        .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; }
-        #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; }
-        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
-        .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; aspect-ratio: 1/1; }
-        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; }
-        .resize-handle { position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; }
-        body.is-editing .resize-handle { display: block; }
-        .dragging { opacity: 0.6; z-index: 5000 !important; }
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
-        .modal-content { background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px; width: 85%; max-width: 350px; padding: 25px; position: relative; }
-        .close-ritual { position: absolute; top: 10px; right: 10px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.7rem; cursor: pointer; border: 1px solid var(--gold); padding: 4px 8px; border-radius: 4px; }
-        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
-        .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 14px; border-radius: 4px; font-family: 'Cinzel'; cursor: pointer; font-weight: bold; }
-        #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 180px; }
-        .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
-    </style>
-</head>
-<body onclick="closeModals(); closeMenu();">
-
-    <div id="status-display">GOTHIC ARCHIVE</div>
-    <nav id="top-nav">
-        <button id="back-btn" class="nav-link" onclick="goBack()" style="display:none;">← BACK</button>
-        <a href="oracle.html" class="nav-link">ORACLE</a>
-        <button class="nav-link" onclick="event.stopPropagation(); showCalc()">%</button>
-        <button class="nav-link" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
-        <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
-    </nav>
-
-    <main id="archive-grid"></main>
-
-    <div id="calc-modal" class="modal-overlay" onclick="event.stopPropagation()"><div class="modal-content"><div class="close-ritual" onclick="closeModals()">BANISH</div><input type="number" id="calc-amount" class="modal-input" placeholder="Amount"><input type="number" id="calc-percent" class="modal-input" value="20"><button class="ritual-btn" onclick="runCalcRitual()">CALCULATE RITUAL</button></div></div>
-    <div id="summon-modal" class="modal-overlay" onclick="event.stopPropagation()"><div class="modal-content"><div class="close-ritual" onclick="closeModals()">BANISH</div><input type="text" id="sum-name" class="modal-input" placeholder="Name"><input type="text" id="sum-url" class="modal-input" placeholder="URL"><select id="sum-type" class="modal-input"><option value="relic">Relic</option><option value="folder">Folder</option></select><input type="file" id="sum-file" class="modal-input"><button class="ritual-btn" onclick="runSummonRitual()">COMMEMORATE</button></div></div>
-    <div id="context-menu" onclick="event.stopPropagation()"><div class="menu-item" onclick="menuRename()">Rename</div><div class="menu-item" onclick="document.getElementById('img-swap').click()">Upload Image</div><div class="menu-item" onclick="toggleMoveMenu()">Move to Folder...</div><div id="move-sub-menu" style="display:none; background:#050505;"></div><div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div><div class="menu-item" onclick="menuDelete()" style="color:var(--crimson)">Banish</div></div>
-    <input type="file" id="img-swap" style="display:none" onchange="swapImage(this)">
-
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyAuNbY1Xv_ZF3kJah20qqPBz-IiiMAR9gE",
-            authDomain: "aidenstartpage.firebaseapp.com",
-            databaseURL: "https://aidenstartpage-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "aidenstartpage"
-        };
-        firebase.initializeApp(firebaseConfig);
-        const rtdb = firebase.database();
-
-        let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragEl = null, startX, startY, initialX, initialY, hasMoved = false;
-
-        const isMobile = () => window.innerWidth <= 600;
-        const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
-
-        firebase.auth().onAuthStateChanged(user => { 
-            if (user) {
-                rtdb.ref('relics').on('value', snap => { 
-                    allRelics = snap.val() || {}; 
-                    render(); 
-                });
-            } else {
-                firebase.auth().signInAnonymously();
-            }
-        });
-
-        function render() {
-            const grid = document.getElementById('archive-grid');
-            if (!grid) return; 
-            grid.innerHTML = '';
-            const platform = getPlatformKey();
-            document.body.classList.toggle('is-editing', isEditMode);
-            document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
-
-            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder);
-
-            items.forEach(([id, r], index) => {
-                const wrap = document.createElement('div');
-                wrap.className = 'relic-wrapper';
-                const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
-                
-                let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20);
-                let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
-                let pWidth = layout.w || r.w || null;
-
-                wrap.style.left = px + 'px';
-                wrap.style.top = py + 'px';
-                if(pWidth) wrap.style.width = pWidth + 'px';
-
-                wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
-                    </div>
-                    <span class="relic-name">${r.name}</span>
-                    <div class="resize-handle"></div>
-                `;
-
-                wrap.onpointerdown = (e) => {
-                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
-                    hasMoved = false;
-                    const now = Date.now();
-                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { activeMenuId = id; showMenu(e); return; }
-                    wrap.lastTap = now;
-                    if (isEditMode) { dragEl = wrap; startX = e.clientX; startY = e.clientY; initialX = wrap.offsetLeft; initialY = wrap.offsetTop; wrap.classList.add('dragging'); wrap.setPointerCapture(e.pointerId); }
-                };
-                wrap.onpointermove = (e) => { if (!dragEl) return; hasMoved = true; let nx = Math.round((initialX + (e.clientX - startX))/10)*10; let ny = Math.round((initialY + (e.clientY - startY))/10)*10; wrap.style.left = nx + 'px'; wrap.style.top = ny + 'px'; };
-                wrap.onpointerup = (e) => {
-                    if (dragEl) {
-                        dragEl.classList.remove('dragging');
-                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ vx: (parseInt(wrap.style.left)/window.innerWidth)*100, vy: (parseInt(wrap.style.top)/window.innerHeight)*100 });
-                        dragEl = null;
-                    } else if (!isEditMode && !hasMoved) {
-                        if (r.type === 'folder') enterFolder(id, r.name);
-                        else if (r.url) window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
-                    }
-                };
-                grid.appendChild(wrap);
-            });
+        /* --- DESIGN SYSTEM & SYSTEM PALETTE --- */
+        :root {
+            --bg-canvas: #09090d;
+            --bg-card: #111116;
+            --border-muted: #222230;
+            --border-focus: #444460;
+            --text-main: #d1d1de;
+            --text-muted: #666680;
+            --accent: #5c4d9a;
+            --accent-glow: rgba(92, 77, 154, 0.3);
+            --grid-color: rgba(92, 77, 154, 0.04);
+            --grid-color-active: rgba(92, 77, 154, 0.12);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --grid-size: 40px;
         }
 
-        // Standard Functions
-        function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
-        function showMenu(e) { const m = document.getElementById('context-menu'); m.style.display = 'block'; m.style.left = Math.min(e.clientX, window.innerWidth - 190) + 'px'; m.style.top = Math.min(e.clientY, window.innerHeight - 200) + 'px'; }
-        function toggleMoveMenu() { const sub = document.getElementById('move-sub-menu'); sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`; Object.entries(allRelics).forEach(([id, r]) => { if(r.type === 'folder' && id !== activeMenuId) sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; }); sub.style.display = sub.style.display === 'none' ? 'block' : 'none'; }
-        function moveRelic(dest) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: dest }); closeMenu(); }
-        function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
-        function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
-        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
-        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}/layouts/${getPlatformKey()}`).update({w: null}); closeMenu(); }
-        function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
-        function runCalcRitual() { const a = parseFloat(document.getElementById('calc-amount').value); const p = parseFloat(document.getElementById('calc-percent').value); if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`); closeModals(); }
-        function runSummonRitual() { const name = document.getElementById('sum-name').value; const url = document.getElementById('sum-url').value; const type = document.getElementById('sum-type').value; const file = document.getElementById('sum-file').files[0]; if (!name) return; const save = (img) => { rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", layouts: { mobile: {vx: 10, vy: 15}, tablet: {vx: 10, vy: 15} } }); closeModals(); }; if (file) { const r = new FileReader(); r.onload = (e) => save(e.target.result); r.readAsDataURL(file); } else save(""); }
-        function toggleEdit() { isEditMode = !isEditMode; render(); }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
-        window.onresize = render;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* --- CONTROL INTERFACE BAR --- */
+        .control-bar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(17, 17, 22, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-muted);
+            padding: 10px 20px;
+            border-radius: 30px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            z-index: 10000;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            white-space: nowrap;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid var(--border-muted);
+            color: var(--text-main);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: rgba(255,255,255,0.03);
+            border-color: var(--text-muted);
+        }
+
+        .btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        .btn-travel {
+            border-color: #3d3466;
+            background: rgba(92, 77, 154, 0.1);
+            color: #bfaeff;
+        }
+        
+        .btn-travel:hover {
+            background: rgba(92, 77, 154, 0.25);
+            border-color: #5c4d9a;
+        }
+
+        /* --- INFINITE CANVAS & STRUCTURAL GRID --- */
+        .canvas-viewport {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+            cursor: grab;
+        }
+
+        .canvas-viewport:active {
+            cursor: grabbing;
+        }
+
+        .canvas-container {
+            position: absolute;
+            width: 100000px;
+            height: 100000px;
+            top: 0;
+            left: 0;
+            background-image: 
+                linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            transition: background-image 0.2s ease;
+        }
+
+        body.edit-mode-active .canvas-container {
+            background-image: 
+                linear-gradient(to right, var(--grid-color-active) 1px, transparent 1px),
+                linear-gradient(to bottom, var(--grid-color-active) 1px, transparent 1px);
+        }
+
+        /* --- RELIC & FOLDER DOM NODES --- */
+        .relic {
+            position: absolute;
+            background: var(--bg-card);
+            border: 1px solid var(--border-muted);
+            border-radius: 8px;
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            cursor: move;
+            user-select: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        body.edit-mode-active .relic {
+            border-color: var(--border-focus);
+        }
+
+        .relic-frame {
+            width: 100%;
+            height: calc(100% - 24px);
+            position: relative;
+            overflow: hidden;
+            border-radius: 4px;
+            background: #000;
+        }
+
+        .relic-frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+        }
+
+        .relic-meta {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-main);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            height: 18px;
+            line-height: 18px;
+        }
+
+        /* --- CONTEXTUAL MANAGEMENT CONSOLE MENU --- */
+        .context-menu {
+            position: fixed;
+            background: #161622;
+            border: 1px solid var(--border-focus);
+            border-radius: 8px;
+            padding: 6px 0;
+            min-width: 180px;
+            z-index: 20000;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .context-menu-item:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* --- MODAL CONFIRMATION DIALOGUES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.7);
+            z-index: 30000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            background: #121218;
+            border: 1px solid var(--border-focus);
+            border-radius: 12px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            transform: scale(0.9);
+            transition: transform 0.2s ease;
+        }
+
+        .modal-overlay.open .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .modal-body {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* --- DRAG GHOST VISUALIZER --- */
+        .resize-handle {
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 16px;
+            height: 16px;
+            cursor: se-resize;
+            background: linear-gradient(135deg, transparent 50%, var(--text-muted) 50%);
+            display: none;
+            z-index: 100;
+        }
+
+        body.edit-mode-active .resize-handle {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="control-bar">
+        <button class="btn" id="toggleEditBtn">Edit Mode</button>
+        <button class="btn" id="recenterBtn">Recenter Formation</button>
+        <button class="btn" id="saveLayoutBtn">Save State</button>
+        <button class="btn" id="loadLayoutBtn">Load State</button>
+        <a href="travel.html" class="btn btn-travel" id="travelLinkBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 6px; transform: translateY(0.5px);"><rect x="4" y="3" width="16" height="14" rx="2"></rect><path d="M4 11h16"></path><path d="M12 3v8"></path><path d="M8 17l-2 4"></path><path d="M16 17l2 4"></path></svg>
+            Travel
+        </a>
+    </div>
+
+    <div class="canvas-viewport" id="viewport">
+        <div class="canvas-container" id="canvas">
+            </div>
+    </div>
+
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" data-action="rename">Rename Item</div>
+        <div class="context-menu-item" data-action="change-img">Change Asset Target</div>
+        <div class="context-menu-item" data-action="snap-origin">Snap to Original Shape</div>
+        <div class="context-menu-item" data-action="move-folder">Move to Folder Container</div>
+        <div class="context-menu-item" data-action="delete" style="color: var(--accent-alert);">Delete Entity</div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-box">
+            <div class="modal-title" id="modalTitle">Confirm Action</div>
+            <div class="modal-body" id="modalBody">Are you sure you want to proceed?</div>
+            <div class="modal-actions">
+                <button class="btn" id="modalCancelBtn">Cancel</button>
+                <button class="btn" id="modalConfirmBtn" style="background: var(--accent); border-color: var(--accent);">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            // --- ARCHIVE STATE MATRIX ---
+            const state = {
+                editMode: false,
+                panX: -45000,
+                panY: -45000,
+                isPanning: false,
+                startX: 0,
+                startY: 0,
+                activeRelic: null,
+                isDragging: false,
+                isResizing: false,
+                relicOffsetX: 0,
+                relicOffsetY: 0,
+                startW: 0,
+                startH: 0,
+                contextTarget: null,
+                gridSize: 40,
+                relics: [
+                    { id: "1", type: "relic", name: "Gothic Archway Spire", src: "https://picsum.photos/id/1011/300/400", x: 50200, y: 50200, w: 180, h: 240, origW: 180, origH: 240 },
+                    { id: "2", type: "relic", name: "Forgotten Altar Reliquary", src: "https://picsum.photos/id/1043/300/300", x: 50440, y: 50200, w: 220, h: 220, origW: 220, origH: 220 },
+                    { id: "3", type: "folder", name: "Catacomb Text Manuscripts", src: "https://picsum.photos/id/1050/300/400", x: 50200, y: 50520, w: 200, h: 200, origW: 200, origH: 200 }
+                ]
+            };
+
+            // --- DOM SELECTORS ---
+            const viewport = document.getElementById('viewport');
+            const canvas = document.getElementById('canvas');
+            const toggleEditBtn = document.getElementById('toggleEditBtn');
+            const recenterBtn = document.getElementById('recenterBtn');
+            const saveLayoutBtn = document.getElementById('saveLayoutBtn');
+            const loadLayoutBtn = document.getElementById('loadLayoutBtn');
+            const contextMenu = document.getElementById('contextMenu');
+            const modalOverlay = document.getElementById('modalOverlay');
+            const modalTitle = document.getElementById('modalTitle');
+            const modalBody = document.getElementById('modalBody');
+            const modalConfirmBtn = document.getElementById('modalConfirmBtn');
+            const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+            let currentModalAction = null;
+
+            // --- INITIALIZATION ---
+            function init() {
+                applyPanTransform();
+                renderArchiveElements();
+                attachViewportPanEngine();
+                attachGlobalContextListeners();
+                attachControlBarActions();
+            }
+
+            function applyPanTransform() {
+                canvas.style.transform = `translate(${state.panX}px, ${state.panY}px)`;
+            }
+
+            // --- RENDER MATRIX ENGINE ---
+            function renderArchiveElements() {
+                // Preserving existing elements during dynamic array updates
+                const elements = canvas.querySelectorAll('.relic');
+                elements.forEach(el => el.remove());
+
+                state.relics.forEach(data => {
+                    const el = document.createElement('div');
+                    el.className = 'relic';
+                    el.id = `relic-${data.id}`;
+                    el.style.left = `${data.x}px`;
+                    el.style.top = `${data.y}px`;
+                    el.style.width = `${data.w}px`;
+                    el.style.height = `${data.h}px`;
+
+                    el.innerHTML = `
+                        <div class="relic-frame">
+                            <img src="${data.src}" alt="${data.name}">
+                        </div>
+                        <div class="relic-meta">${data.name}</div>
+                        <div class="resize-handle"></div>
+                    `;
+
+                    attachElementInteractions(el, data);
+                    canvas.appendChild(el);
+                });
+            }
+
+            // --- INTERACTION HOOKS (DRAG, RESIZE, LONG PRESS) ---
+            function attachElementInteractions(el, data) {
+                let pressTimer = null;
+
+                const startPress = (e) => {
+                    if (e.button && e.button !== 0) return;
+                    pressTimer = setTimeout(() => {
+                        triggerContextInterface(e, data);
+                    }, 600);
+                };
+
+                const clearPress = () => {
+                    if (pressTimer) clearTimeout(pressTimer);
+                };
+
+                el.addEventListener('mousedown', startPress);
+                el.addEventListener('touchstart', (e) => startPress(e.touches[0]));
+                el.addEventListener('mousemove', clearPress);
+                el.addEventListener('touchmove', clearPress);
+                window.addEventListener('mouseup', clearPress);
+
+                // Primary Mouse Interaction Mapping Splitter
+                el.addEventListener('mousedown', (e) => {
+                    if (!state.editMode || e.button !== 0) return;
+                    e.stopPropagation();
+                    
+                    const handle = el.querySelector('.resize-handle');
+                    const rect = handle.getBoundingClientRect();
+                    
+                    if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
+                        state.isResizing = true;
+                        state.activeRelic = data;
+                        state.startW = data.w;
+                        state.startH = data.h;
+                        state.startX = e.clientX;
+                        state.startY = e.clientY;
+                    } else {
+                        state.isDragging = true;
+                        state.activeRelic = data;
+                        state.relicOffsetX = e.clientX - el.offsetLeft;
+                        state.relicOffsetY = e.clientY - el.offsetTop;
+                    }
+                });
+            }
+
+            // --- VIEWPORT VIEWPORT DRAG-PAN SYSTEM ---
+            function attachViewportPanEngine() {
+                viewport.addEventListener('mousedown', (e) => {
+                    if (e.target !== viewport && e.target !== canvas) return;
+                    state.isPanning = true;
+                    state.startX = e.clientX - state.panX;
+                    state.startY = e.clientY - state.panY;
+                });
+
+                window.addEventListener('mousemove', (e) => {
+                    if (state.isPanning) {
+                        state.panX = e.clientX - state.startX;
+                        state.panY = e.clientY - state.startY;
+                        applyPanTransform();
+                    } else if (state.isDragging && state.activeRelic) {
+                        const targetX = e.clientX - state.relicOffsetX;
+                        const targetY = e.clientY - state.relicOffsetY;
+                        
+                        // Soft Snap-to-Grid Boundary Logic Calculation
+                        state.activeRelic.x = Math.round(targetX / state.gridSize) * state.gridSize;
+                        state.activeRelic.y = Math.round(targetY / state.gridSize) * state.gridSize;
+
+                        const dom = document.getElementById(`relic-${state.activeRelic.id}`);
+                        if (dom) {
+                            dom.style.left = `${state.activeRelic.x}px`;
+                            dom.style.top = `${state.activeRelic.y}px`;
+                        }
+                    } else if (state.isResizing && state.activeRelic) {
+                        const deltaX = e.clientX - state.startX;
+                        const deltaY = e.clientY - state.startY;
+                        
+                        state.activeRelic.w = Math.max(80, Math.round((state.startW + deltaX) / 20) * 20);
+                        state.activeRelic.h = Math.max(80, Math.round((state.startH + deltaY) / 20) * 20);
+
+                        const dom = document.getElementById(`relic-${state.activeRelic.id}`);
+                        if (dom) {
+                            dom.style.width = `${state.activeRelic.w}px`;
+                            dom.style.height = `${state.activeRelic.h}px`;
+                        }
+                    }
+                });
+
+                window.addEventListener('mouseup', () => {
+                    state.isPanning = false;
+                    state.isDragging = false;
+                    state.isResizing = false;
+                    state.activeRelic = null;
+                });
+            }
+
+            // --- TOOLBAR SYSTEMS TRIGGER INTERFACES ---
+            function attachControlBarActions() {
+                toggleEditBtn.addEventListener('click', () => {
+                    state.editMode = !state.editMode;
+                    toggleEditBtn.classList.toggle('active', state.editMode);
+                    document.body.classList.toggle('edit-mode-active', state.editMode);
+                });
+
+                recenterBtn.addEventListener('click', () => {
+                    // Formation style central calculations bounding all elements inside visibility
+                    if (state.relics.length === 0) return;
+                    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                    state.relics.forEach(r => {
+                        if (r.x < minX) minX = r.x;
+                        if (r.y < minY) minY = r.y;
+                        if (r.x + r.w > maxX) maxX = r.x + r.w;
+                        if (r.y + r.h > maxY) maxY = r.y + r.h;
+                    });
+
+                    const centerX = minX + (maxX - minX) / 2;
+                    const centerY = minY + (maxY - minY) / 2;
+
+                    state.panX = -(centerX - window.innerWidth / 2);
+                    state.panY = -(centerY - window.innerHeight / 2);
+                    applyPanTransform();
+                });
+
+                saveLayoutBtn.addEventListener('click', () => {
+                    localStorage.setItem('gothic_archive_layout', JSON.stringify(state.relics));
+                    alert('State localized safely inside local platform engine memory storage.');
+                });
+
+                loadLayoutBtn.addEventListener('click', () => {
+                    const loaded = localStorage.getItem('gothic_archive_layout');
+                    if (loaded) {
+                        state.relics = JSON.stringify(loaded);
+                        renderArchiveElements();
+                    }
+                });
+            }
+
+            // --- CONTEXT CONSOLE MANAGEMENT MENU LOGIC ---
+            function attachGlobalContextListeners() {
+                window.addEventListener('contextmenu', (e) => {
+                    const targetNode = e.target.closest('.relic');
+                    if (targetNode) {
+                        e.preventDefault();
+                        const id = targetNode.id.replace('relic-', '');
+                        const data = state.relics.find(r => r.id === id);
+                        triggerContextInterface(e, data);
+                    } else {
+                        contextMenu.style.display = 'none';
+                    }
+                });
+
+                window.addEventListener('click', () => {
+                    contextMenu.style.display = 'none';
+                });
+
+                contextMenu.addEventListener('click', (e) => {
+                    const action = e.target.getAttribute('data-action');
+                    if (!action || !state.contextTarget) return;
+
+                    handleMenuAction(action, state.contextTarget);
+                });
+
+                modalCancelBtn.addEventListener('click', () => modalOverlay.classList.remove('open'));
+                modalConfirmBtn.addEventListener('click', executeConfirmedAction);
+            }
+
+            function triggerContextInterface(e, data) {
+                state.contextTarget = data;
+                contextMenu.style.left = `${e.clientX}px`;
+                contextMenu.style.top = `${e.clientY}px`;
+                contextMenu.style.display = 'block';
+            }
+
+            function handleMenuAction(action, target) {
+                currentModalAction = { action, target };
+
+                if (action === 'delete') {
+                    openConfirmationDialogue("Delete Entity Assets", `Are you certain you wish to purge "${target.name}"? This operation cannot be undone.`);
+                } else if (action === 'snap-origin') {
+                    target.w = target.origW;
+                    target.h = target.origH;
+                    renderArchiveElements();
+                } else if (action === 'rename') {
+                    const newName = prompt("Assign new designation parameter string:", target.name);
+                    if (newName) {
+                        target.name = newName;
+                        renderArchiveElements();
+                    }
+                } else if (action === 'change-img') {
+                    const newSrc = prompt("Insert resource asset source absolute URL:", target.src);
+                    if (newSrc) {
+                        target.src = newSrc;
+                        renderArchiveElements();
+                    }
+                } else if (action === 'move-folder') {
+                    alert("Relocation container sequence initiated.");
+                }
+            }
+
+            function openConfirmationDialogue(title, description) {
+                modalTitle.textContent = title;
+                modalBody.textContent = description;
+                modalOverlay.classList.add('open');
+            }
+
+            function executeConfirmedAction() {
+                if (!currentModalAction) return;
+                const { action, target } = currentModalAction;
+
+                if (action === 'delete') {
+                    state.relics = state.relics.filter(r => r.id !== target.id);
+                    renderArchiveElements();
+                }
+
+                modalOverlay.classList.remove('open');
+                currentModalAction = null;
+            }
+
+            // Ignite System Engines
+            init();
+        })();
     </script>
 </body>
 </html>
