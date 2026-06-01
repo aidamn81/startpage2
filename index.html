@@ -46,9 +46,9 @@
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
-        .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; aspect-ratio: 1/1; }
-        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; }
+        .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; display: flex; align-items: center; justify-content: center; aspect-ratio: 1/1; }
+        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
         .resize-handle { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; cursor: se-resize; touch-action: none; }
         body.is-editing .resize-handle { display: block; }
@@ -189,6 +189,7 @@
 
         firebase.auth().onAuthStateChanged(user => { 
             if (user) {
+                // Expanded extraction engine captures both root list and grouped layouts
                 rtdb.ref('relics').on('value', snap => { 
                     allRelics = snap.val() || {}; 
                     render(); 
@@ -208,7 +209,6 @@
             }
         });
 
-        // NATIVE GESTURE LOCK OVERRIDE FOR IOS SAFARI / WEB APPS
         const todoHeader = document.getElementById('todo-header');
         const todoContainer = document.getElementById('todo-container');
 
@@ -248,7 +248,6 @@
             });
         });
 
-        // Fallback Pointer Engine configuration for desktop testing profiles
         todoHeader.onpointerdown = (e) => {
             if (e.pointerType === 'touch') return; 
             if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
@@ -276,7 +275,6 @@
             });
         };
 
-        // RESIZE ENGINE MATRIX TRACKING
         const todoResizeHandle = document.getElementById('todo-resize-handle');
         todoResizeHandle.onpointerdown = (e) => {
             e.stopPropagation();
@@ -322,7 +320,7 @@
 
             renderTodos();
 
-            // Guard check to make sure parent mapping runs cleanly even if undefined
+            // REINFORCED EXTRACTION CORE: Pull entries safely even if parent key isn't written yet
             const items = Object.entries(allRelics).filter(([id, r]) => {
                 const parentFolder = r.parent || 'root';
                 return parentFolder === currentFolder;
@@ -333,21 +331,24 @@
                 wrap.className = 'relic-wrapper';
                 const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
                 
-                // FALLBACK PLACEMENT MATRIX: Try nested platform coordinates -> root coordinates -> grid index default
+                // Position matching handles variations of coordinate naming patterns
                 let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20);
                 let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
                 let pWidth = layout.w || r.w || null;
 
-                // Soft snap placement alignment updates
                 wrap.style.left = Math.round(px / 10) * 10 + 'px';
                 wrap.style.top = Math.round(py / 10) * 10 + 'px';
                 if(pWidth) wrap.style.width = pWidth + 'px';
 
+                // Look for alternative signature setups for source files
+                const actualImg = r.imgUrl || r.img || r.thumbnail || "";
+                const fallbackLabel = r.type ? r.type[0].toUpperCase() : (r.url ? 'L' : 'R');
+
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type ? r.type[0].toUpperCase() : 'R'}</span>`}
+                        ${actualImg ? `<img src="${actualImg}">` : `<span style="color:var(--gold); font-family:'Cinzel'; font-size:1.5rem; font-weight:bold;">${fallbackLabel}</span>`}
                     </div>
-                    <span class="relic-name">${r.name || 'Unnamed Relic'}</span>
+                    <span class="relic-name">${r.name || 'Unnamed'}</span>
                     <div class="resize-handle"></div>
                 `;
 
@@ -397,8 +398,11 @@
                     } else if (!hasMoved) {
                         if (r.type === 'folder') {
                             enterFolder(id, r.name);
-                        } else if (r.url) {
-                            window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
+                        } else {
+                            const destinationUrl = r.url || r.link || "";
+                            if (destinationUrl) {
+                                window.open(destinationUrl.startsWith('http') ? destinationUrl : 'https://' + destinationUrl, '_blank');
+                            }
                         }
                     }
                     hasMoved = false; 
