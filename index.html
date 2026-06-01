@@ -2,548 +2,222 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>The Gothic Archive</title>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gothic Archive">
-    <meta name="mobile-web-app-capable" content="yes">
-
-    <link rel="apple-touch-icon" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="icon" type="image/png" sizes="192x192" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Gothic%20Archive%22,%22short_name%22:%22Archive%22,%22icons%22:[{%22src%22:%22https://r.jina.ai/i/656121408801402998a44b9ef40f80bc%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}],%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23050505%22}">
-
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Companion Dashboard</title>
     <style>
-        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 80px; }
-        @media only screen and (min-width: 768px) { :root { --base-size: 100px; } }
-        @media only screen and (max-width: 600px) { :root { --base-size: 70px; } }
-        
-        html, body { 
-            width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
-            color: var(--text); font-family: 'Playfair Display', serif; overflow: hidden; 
-            -webkit-user-select: none; user-select: none; touch-action: none; 
-        }
-        body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); }
-        
-        /* SUBTLE GUIDE GRID IN EDIT MODE */
-        body.is-editing::before {
-            content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-            background-size: 40px 40px;
-            background-image: linear-gradient(to right, rgba(140, 115, 64, 0.05) 1px, transparent 1px),
-                              linear-gradient(to bottom, rgba(140, 115, 64, 0.05) 1px, transparent 1px);
+        :root {
+            --bg-color: #0f0f12;
+            --card-bg: #16161e;
+            --accent-color: #7aa2f7;
+            --text-color: #c0caf5;
+            --text-muted: #565f89;
+            --border-color: #24283b;
         }
 
-        #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; }
-        #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
-        .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; }
-        #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; }
-        
-        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
-        .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; display: flex; align-items: center; justify-content: center; aspect-ratio: 1/1; }
-        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        .resize-handle { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; cursor: se-resize; touch-action: none; }
-        body.is-editing .resize-handle { display: block; }
-        .dragging { opacity: 0.6; z-index: 5000 !important; }
-        
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
-        .modal-content { background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px; width: 85%; max-width: 350px; padding: 25px; position: relative; }
-        .close-ritual { position: absolute; top: 10px; right: 10px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.7rem; cursor: pointer; border: 1px solid var(--gold); padding: 4px 8px; border-radius: 4px; }
-        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 12px; margin-bottom: 12px; border-radius: 4px; box-sizing: border-box; font-size: 16px; }
-        .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 14px; border-radius: 4px; font-family: 'Cinzel'; cursor: pointer; font-weight: bold; }
-        
-        #context-menu { 
-            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 180px; max-height: 220px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--gold) #0a0a0a; -webkit-overflow-scrolling: touch;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
-        #context-menu::-webkit-scrollbar { width: 4px; }
-        #context-menu::-webkit-scrollbar-track { background: #0a0a0a; }
-        #context-menu::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
-        .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
-        /* SCROLL OF TASKS - STRICT POSITION OVERRIDES */
-        #todo-container {
-            position: absolute; 
-            width: 260px;
-            background: rgba(10, 10, 10, 0.98); border: 1px solid var(--crimson);
-            border-radius: 6px; z-index: 4500; display: flex; flex-direction: column;
-            box-shadow: 0 12px 30px rgba(0,0,0,0.9); 
-            touch-action: none; pointer-events: auto;
-            -webkit-overflow-scrolling: touch;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            min-height: 100vh;
         }
-        #todo-header {
-            padding: 12px 14px; background: #111; border-bottom: 1px solid #222;
-            display: flex; justify-content: space-between; align-items: center;
-            cursor: move; font-family: 'Cinzel'; font-size: 0.65rem; letter-spacing: 1px; color: var(--gold); 
-            -webkit-user-select: none; user-select: none; touch-action: none;
+
+        header {
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
         }
-        .todo-toggle-btn { background: transparent; border: none; color: var(--gold); font-family: 'Cinzel'; cursor: pointer; font-size: 0.65rem; padding: 2px 6px; pointer-events: auto; }
-        #todo-body { display: flex; flex-direction: column; height: 100%; min-height: 100px; }
-        #todo-list { overflow-y: auto; padding: 0; margin: 0; list-style: none; flex: 1; scrollbar-width: none; pointer-events: auto; }
-        #todo-list::-webkit-scrollbar { display: none; }
-        .todo-item {
-            padding: 10px 14px; border-bottom: 1px solid #161616; display: flex;
-            align-items: center; justify-content: space-between; gap: 8px; font-size: 0.75rem; background: #0a0a0a;
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--accent-color);
         }
-        .todo-label-group { display: flex; align-items: center; gap: 8px; width: 100%; overflow: hidden; pointer-events: auto; }
-        .todo-checkbox { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; border: 1px solid var(--gold); border-radius: 2px; background: transparent; cursor: pointer; position: relative; flex-shrink: 0; pointer-events: auto; }
-        .todo-checkbox:checked { background: var(--crimson); border-color: var(--crimson); }
-        .todo-checkbox:checked::after { content: '✓'; position: absolute; top: -2px; left: 2px; color: #fff; font-size: 9px; }
-        .todo-text { color: #fff; transition: opacity 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: auto; user-select: text; -webkit-user-select: text; }
-        .todo-item.completed .todo-text { text-decoration: line-through; opacity: 0.4; }
+
+        .status-bar {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .section-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .section-card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: var(--text-color);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item-link {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-color);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        .item-link:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .icon {
+            margin-right: 12px;
+            font-size: 1.2rem;
+        }
+
+        .loading, .error-msg, .empty-msg {
+            color: var(--text-muted);
+            font-style: italic;
+            font-size: 0.9rem;
+            padding: 10px 0;
+        }
         
-        .todo-controls { display: none; gap: 4px; flex-shrink: 0; pointer-events: auto; }
-        body.is-editing .todo-controls { display: flex; }
-        .todo-btn { background: #111; border: 1px solid #333; color: var(--text); padding: 4px 6px; font-size: 0.55rem; border-radius: 3px; cursor: pointer; font-family: 'Cinzel'; pointer-events: auto; }
-        .todo-btn.del { border-color: var(--crimson); color: var(--crimson); }
-        
-        #todo-form { display: flex; border-top: 1px solid #222; padding: 8px; background: #0d0d0d; pointer-events: auto; }
-        #todo-input { flex: 1; background: #141414; border: 1px solid #252525; color: #fff; font-size: 0.75rem; padding: 6px; border-radius: 3px; font-family: 'Playfair Display'; pointer-events: auto; -webkit-user-select: text; user-select: text; }
-        #todo-input:focus { outline: none; border-color: var(--gold); }
-        .todo-add-btn { background: #111; border: 1px solid var(--gold); color: var(--gold); padding: 0 12px; margin-left: 5px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 3px; cursor: pointer; pointer-events: auto; }
+        .error-msg {
+            color: #f7768e;
+        }
     </style>
+
+    <!-- Firebase App and Realtime Database SDKs (Compat Version for simple script injection) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
-<body onclick="closeModals(); closeMenu();">
+<body>
 
-    <div id="status-display">GOTHIC ARCHIVE</div>
-    <nav id="top-nav">
-        <button id="back-btn" class="nav-link" onclick="goBack()" style="display:none;">← BACK</button>
-        <a href="oracle.html" class="nav-link">ORACLE</a>
-        <a href="travel.html" class="nav-link">TRAVEL</a>
-        <button class="nav-link" onclick="event.stopPropagation(); showCalc()">%</button>
-        <button class="nav-link" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
-        <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
-    </nav>
+    <header>
+        <h1>Companion Platform</h1>
+        <div id="status" class="status-bar">Connecting to database...</div>
+    </header>
 
-    <main id="archive-grid"></main>
+    <main class="grid-container">
+        <!-- Folders Section -->
+        <section class="section-card">
+            <h2><span class="icon">📁</span> Folders</h2>
+            <div id="folders-list" class="list-container">
+                <div class="loading">Loading folders...</div>
+            </div>
+        </section>
 
-    <div id="todo-container" onclick="event.stopPropagation()">
-        <div id="todo-header">
-            <span>📜 SCROLL OF TASKS</span>
-            <button class="todo-toggle-btn" onclick="toggleTodoCollapse(event)">[ - ]</button>
-        </div>
-        <div id="todo-body">
-            <ul id="todo-list"></ul>
-            <form id="todo-form" onsubmit="addTodoItem(event)">
-                <input type="text" id="todo-input" placeholder="Inscribe Task..." autocomplete="off">
-                <button type="submit" class="todo-add-btn">+</button>
-            </form>
-        </div>
-        <div class="resize-handle" id="todo-resize-handle"></div>
-    </div>
-
-    <div id="calc-modal" class="modal-overlay" onclick="event.stopPropagation()"><div class="modal-content"><div class="close-ritual" onclick="closeModals()">BANISH</div><input type="number" id="calc-amount" class="modal-input" placeholder="Amount"><input type="number" id="calc-percent" class="modal-input" value="20"><button class="ritual-btn" onclick="runCalcRitual()">CALCULATE RITUAL</button></div></div>
-    <div id="summon-modal" class="modal-overlay" onclick="event.stopPropagation()"><div class="modal-content"><div class="close-ritual" onclick="closeModals()">BANISH</div><input type="text" id="sum-name" class="modal-input" placeholder="Name"><input type="text" id="sum-url" class="modal-input" placeholder="URL"><select id="sum-type" class="modal-input"><option value="relic">Relic</option><option value="folder">Folder</option></select><input type="file" id="sum-file" class="modal-input"><button class="ritual-btn" onclick="runSummonRitual()">COMMEMORATE</button></div></div>
-    
-    <div id="context-menu" onclick="event.stopPropagation()">
-        <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Upload Image</div>
-        <div class="menu-item" onclick="toggleMoveMenu()">Move to Folder...</div>
-        <div id="move-sub-menu" style="display:none; background:#050505;"></div>
-        <div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div>
-        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson)">Banish</div>
-    </div>
-    <input type="file" id="img-swap" style="display:none" onchange="swapImage(this)">
+        <!-- Links Section -->
+        <section class="section-card">
+            <h2><span class="icon">🔗</span> Links</h2>
+            <div id="links-list" class="list-container">
+                <div class="loading">Loading links...</div>
+            </div>
+        </section>
+    </main>
 
     <script>
+        // Your Firebase configuration using the provided URL
         const firebaseConfig = {
-            apiKey: "AIzaSyAuNbY1Xv_ZF3kJah20qqPBz-IiiMAR9gE",
-            authDomain: "aidenstartpage.firebaseapp.com",
-            databaseURL: "https://aidenstartpage-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "aidenstartpage"
+            databaseURL: "https://startpage2-default-rtdb.europe-west1.firebasedatabase.app"
         };
-        firebase.initializeApp(firebaseConfig);
-        const rtdb = firebase.database();
 
-        let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragEl = null, startX, startY, initialX, initialY, hasMoved = false;
-        
-        let todoItems = [];
-        let isTodoCollapsed = false;
-        let todoDragActive = false, todoStartX, todoStartY, todoInitX, todoInitY;
-
-        const isMobile = () => window.innerWidth <= 600;
-        const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
-
-        function applyTodoLayout(layout) {
-            const container = document.getElementById('todo-container');
-            if (!container) return;
-            if (layout) {
-                if (layout.vx !== undefined) container.style.left = Math.round((parseFloat(layout.vx) * window.innerWidth / 100)) + 'px';
-                if (layout.vy !== undefined) container.style.top = Math.round((parseFloat(layout.vy) * window.innerHeight / 100)) + 'px';
-                if (layout.w !== undefined) container.style.width = parseInt(layout.w) + 'px';
-                if (layout.h !== undefined) container.style.height = parseInt(layout.h) + 'px';
-            } else {
-                container.style.left = '20px';
-                container.style.top = (window.innerHeight - 320) + 'px';
-            }
-            container.style.bottom = 'auto';
-        }
-
-        firebase.auth().onAuthStateChanged(user => { 
-            if (user) {
-                // Expanded extraction engine captures both root list and grouped layouts
-                rtdb.ref('relics').on('value', snap => { 
-                    allRelics = snap.val() || {}; 
-                    render(); 
-                });
-                rtdb.ref('todos').on('value', snap => {
-                    const data = snap.val();
-                    todoItems = Array.isArray(data) ? data : (data ? Object.values(data) : []);
-                    renderTodos();
-                });
-                rtdb.ref(`todo_layout/${getPlatformKey()}`).on('value', snap => {
-                    if (!todoDragActive) {
-                        applyTodoLayout(snap.val());
-                    }
-                });
-            } else {
-                firebase.auth().signInAnonymously();
-            }
-        });
-
-        const todoHeader = document.getElementById('todo-header');
-        const todoContainer = document.getElementById('todo-container');
-
-        todoHeader.addEventListener('touchstart', (e) => {
-            if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
-            todoDragActive = true;
-            const touch = e.touches[0];
-            todoStartX = touch.clientX;
-            todoStartY = touch.clientY;
-            todoInitX = todoContainer.offsetLeft;
-            todoInitY = todoContainer.offsetTop;
-        }, { passive: true });
-
-        window.addEventListener('touchmove', (e) => {
-            if (!todoDragActive) return;
-            if (e.cancelable) e.preventDefault();
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const database = firebase.database();
+            const statusEl = document.getElementById('status');
             
-            const touch = e.touches[0];
-            let nx = Math.round((todoInitX + (touch.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (touch.clientY - todoStartY)) / 10) * 10;
-            
-            if (nx < 0) nx = 0;
-            if (nx + todoContainer.offsetWidth > window.innerWidth) nx = window.innerWidth - todoContainer.offsetWidth;
-            if (ny < 0) ny = 0;
-            if (ny + todoContainer.offsetHeight > window.innerHeight) ny = window.innerHeight - todoContainer.offsetHeight;
+            statusEl.innerText = "Connected to database. Fetching data...";
 
-            todoContainer.style.left = nx + 'px';
-            todoContainer.style.top = ny + 'px';
-        }, { passive: false });
-
-        window.addEventListener('touchend', () => {
-            if (!todoDragActive) return;
-            todoDragActive = false;
-            rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
-                vx: (todoContainer.offsetLeft / window.innerWidth) * 100,
-                vy: (todoContainer.offsetTop / window.innerHeight) * 100
-            });
-        });
-
-        todoHeader.onpointerdown = (e) => {
-            if (e.pointerType === 'touch') return; 
-            if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
-            todoDragActive = true;
-            todoStartX = e.clientX;
-            todoStartY = e.clientY;
-            todoInitX = todoContainer.offsetLeft;
-            todoInitY = todoContainer.offsetTop;
-            todoContainer.setPointerCapture(e.pointerId);
-        };
-        todoHeader.onpointermove = (e) => {
-            if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
-            todoContainer.style.left = nx + 'px';
-            todoContainer.style.top = ny + 'px';
-        };
-        todoHeader.onpointerup = (e) => {
-            if (e.pointerType === 'touch' || !todoDragActive) return;
-            todoContainer.releasePointerCapture(e.pointerId);
-            todoDragActive = false;
-            rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
-                vx: (todoContainer.offsetLeft / window.innerWidth) * 100,
-                vy: (todoContainer.offsetTop / window.innerHeight) * 100
-            });
-        };
-
-        const todoResizeHandle = document.getElementById('todo-resize-handle');
-        todoResizeHandle.onpointerdown = (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            const startW = todoContainer.offsetWidth;
-            const startH = todoContainer.offsetHeight;
-            const sX = e.clientX || (e.touches && e.touches[0].clientX);
-            const sY = e.clientY || (e.touches && e.touches[0].clientY);
-
-            const onPointerMove = (ev) => {
-                const curX = ev.clientX || (ev.touches && ev.touches[0].clientX);
-                const curY = ev.clientY || (ev.touches && ev.touches[0].clientY);
-                const nw = Math.max(180, startW + (curX - sX));
-                const nh = Math.max(140, startH + (curY - sY));
-                todoContainer.style.width = nw + 'px';
-                todoContainer.style.height = nh + 'px';
-            };
-
-            const onPointerUp = () => {
-                window.removeEventListener('pointermove', onPointerMove);
-                window.removeEventListener('pointerup', onPointerUp);
-                window.removeEventListener('touchmove', onPointerMove);
-                window.removeEventListener('touchend', onPointerUp);
-                rtdb.ref(`todo_layout/${getPlatformKey()}`).update({
-                    w: todoContainer.offsetWidth,
-                    h: todoContainer.offsetHeight
-                });
-            };
-
-            window.addEventListener('pointermove', onPointerMove);
-            window.addEventListener('pointerup', onPointerUp);
-            window.addEventListener('touchmove', onPointerMove, { passive: true });
-            window.addEventListener('touchend', onPointerUp);
-        };
-
-        function render() {
-            const grid = document.getElementById('archive-grid');
-            if (!grid) return; 
-            grid.innerHTML = '';
-            const platform = getPlatformKey();
-            document.body.classList.toggle('is-editing', isEditMode);
-            document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
-
-            renderTodos();
-
-            // REINFORCED EXTRACTION CORE: Pull entries safely even if parent key isn't written yet
-            const items = Object.entries(allRelics).filter(([id, r]) => {
-                const parentFolder = r.parent || 'root';
-                return parentFolder === currentFolder;
-            });
-
-            items.forEach(([id, r], index) => {
-                const wrap = document.createElement('div');
-                wrap.className = 'relic-wrapper';
-                const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
+            // 1. Fetch and render Folders
+            database.ref('folders').on('value', (snapshot) => {
+                const foldersList = document.getElementById('folders-list');
+                foldersList.innerHTML = ''; // Clear loading/old data
                 
-                // Position matching handles variations of coordinate naming patterns
-                let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20);
-                let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
-                let pWidth = layout.w || r.w || null;
-
-                wrap.style.left = Math.round(px / 10) * 10 + 'px';
-                wrap.style.top = Math.round(py / 10) * 10 + 'px';
-                if(pWidth) wrap.style.width = pWidth + 'px';
-
-                // Look for alternative signature setups for source files
-                const actualImg = r.imgUrl || r.img || r.thumbnail || "";
-                const fallbackLabel = r.type ? r.type[0].toUpperCase() : (r.url ? 'L' : 'R');
-
-                wrap.innerHTML = `
-                    <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
-                        ${actualImg ? `<img src="${actualImg}">` : `<span style="color:var(--gold); font-family:'Cinzel'; font-size:1.5rem; font-weight:bold;">${fallbackLabel}</span>`}
-                    </div>
-                    <span class="relic-name">${r.name || 'Unnamed'}</span>
-                    <div class="resize-handle"></div>
-                `;
-
-                wrap.onpointerdown = (e) => {
-                    if (e.target.classList.contains('resize-handle')) { handleResize(e, wrap, id); return; }
-                    hasMoved = false;
-                    const now = Date.now();
-                    
-                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { 
-                        activeMenuId = id; 
-                        showMenu(e); 
-                        return; 
-                    }
-                    wrap.lastTap = now;
-                    
-                    if (isEditMode) { 
-                        dragEl = wrap; 
-                        startX = e.clientX; 
-                        startY = e.clientY; 
-                        initialX = wrap.offsetLeft; 
-                        initialY = wrap.offsetTop; 
-                        wrap.classList.add('dragging'); 
-                        wrap.setPointerCapture(e.pointerId); 
-                    }
-                };
-
-                wrap.onpointermove = (e) => { 
-                    if (!dragEl) return; 
-                    if (Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3) {
-                        hasMoved = true; 
-                    }
-                    let nx = Math.round((initialX + (e.clientX - startX))/10)*10; 
-                    let ny = Math.round((initialY + (e.clientY - startY))/10)*10; 
-                    wrap.style.left = nx + 'px'; 
-                    wrap.style.top = ny + 'px'; 
-                };
-
-                wrap.onpointerup = (e) => {
-                    if (dragEl) {
-                        wrap.releasePointerCapture(e.pointerId);
-                        dragEl.classList.remove('dragging');
-                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ 
-                            vx: (parseInt(wrap.style.left)/window.innerWidth)*100, 
-                            vy: (parseInt(wrap.style.top)/window.innerHeight)*100 
-                        });
-                        dragEl = null;
-                    } else if (!hasMoved) {
-                        if (r.type === 'folder') {
-                            enterFolder(id, r.name);
-                        } else {
-                            const destinationUrl = r.url || r.link || "";
-                            if (destinationUrl) {
-                                window.open(destinationUrl.startsWith('http') ? destinationUrl : 'https://' + destinationUrl, '_blank');
-                            }
-                        }
-                    }
-                    hasMoved = false; 
-                };
-                grid.appendChild(wrap);
-            });
-        }
-
-        function toggleTodoCollapse(e) {
-            if(e) e.stopPropagation();
-            isTodoCollapsed = !isTodoCollapsed;
-            document.getElementById('todo-body').style.display = isTodoCollapsed ? 'none' : 'flex';
-            document.querySelector('.todo-toggle-btn').innerText = isTodoCollapsed ? '[ + ]' : '[ - ]';
-            
-            rtdb.ref(`todo_layout/${getPlatformKey()}`).once('value', snap => {
-                applyTodoLayout(snap.val());
-            });
-        }
-
-        function renderTodos() {
-            const list = document.getElementById('todo-list');
-            if (!list) return;
-            list.innerHTML = '';
-
-            todoItems.forEach((todo, index) => {
-                const li = document.createElement('li');
-                li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
-                li.innerHTML = `
-                    <div class="todo-label-group">
-                        <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''} onchange="toggleTodoComplete(${index})">
-                        <span class="todo-text">${todo.text}</span>
-                    </div>
-                    <div class="todo-controls">
-                        <button class="todo-btn" type="button" onclick="editTodoItem(${index})">✎</button>
-                        <button class="todo-btn" type="button" onclick="moveTodoOrder(${index}, -1)">▲</button>
-                        <button class="todo-btn" type="button" onclick="moveTodoOrder(${index}, 1)">▼</button>
-                        <button class="todo-btn del" type="button" onclick="deleteTodoItem(${index})">✕</button>
-                    </div>
-                `;
-                list.appendChild(li);
-            });
-        }
-
-        function addTodoItem(e) {
-            if(e) { e.preventDefault(); e.stopPropagation(); }
-            const input = document.getElementById('todo-input');
-            if (!input) return false;
-            
-            const text = input.value.trim();
-            if (!text) return false;
-            
-            todoItems.push({ text: text, completed: false });
-            input.value = '';
-            
-            rtdb.ref('todos').set(todoItems).then(() => {
-                renderTodos();
-            });
-            return false;
-        }
-
-        function toggleTodoComplete(index) {
-            todoItems[index].completed = !todoItems[index].completed;
-            rtdb.ref('todos').set(todoItems);
-        }
-
-        function editTodoItem(index) {
-            const newText = prompt("Modify item definition:", todoItems[index].text);
-            if (newText !== null && newText.trim() !== "") {
-                todoItems[index].text = newText.trim();
-                rtdb.ref('todos').set(todoItems);
-            }
-        }
-
-        function deleteTodoItem(index) {
-            if (confirm("Purge task from history?")) {
-                todoItems.splice(index, 1);
-                rtdb.ref('todos').set(todoItems);
-            }
-        }
-
-        function moveTodoOrder(index, direction) {
-            const targetIndex = index + direction;
-            if (targetIndex >= 0 && targetIndex < todoItems.length) {
-                const temp = todoItems[index];
-                todoItems[index] = todoItems[targetIndex];
-                todoItems[targetIndex] = temp;
-                rtdb.ref('todos').set(todoItems);
-            }
-        }
-
-        function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
-        
-        function showMenu(e) { 
-            const m = document.getElementById('context-menu'); 
-            m.style.display = 'block'; 
-            document.getElementById('move-sub-menu').style.display = 'none';
-
-            let targetX = e.clientX;
-            let targetY = e.clientY;
-
-            if (targetX + 190 > window.innerWidth) targetX = window.innerWidth - 190;
-            if (targetY + 220 > window.innerHeight) targetY = window.innerHeight - 220;
-            if (targetY < 0) targetY = 10;
-
-            m.style.left = targetX + 'px'; 
-            m.style.top = targetY + 'px'; 
-            m.scrollTop = 0;
-        }
-
-        function toggleMoveMenu() { 
-            const sub = document.getElementById('move-sub-menu'); 
-            sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`; 
-            Object.entries(allRelics).forEach(([id, r]) => { 
-                if(r.type === 'folder' && id !== activeMenuId) {
-                    sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; 
+                const data = snapshot.val();
+                if (!data) {
+                    foldersList.innerHTML = '<div class="empty-msg">No folders found.</div>';
+                    return;
                 }
-            }); 
-            sub.style.display = sub.style.display === 'none' ? 'block' : 'none'; 
-        }
 
-        function moveRelic(dest) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: dest }); closeMenu(); }
-        function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
-        function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
-        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
-        function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}/layouts/${getPlatformKey()}`).update({w: null}); closeMenu(); }
-        function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
-        function runCalcRitual() { const a = parseFloat(document.getElementById('calc-amount').value); const p = parseFloat(document.getElementById('calc-percent').value); if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`); closeModals(); }
-        function runSummonRitual() { const name = document.getElementById('sum-name').value; const url = document.getElementById('sum-url').value; const type = document.getElementById('sum-type').value; const file = document.getElementById('sum-file').files[0]; if (!name) return; const save = (img) => { rtdb.ref('relics').push({ name, url, type, parent: currentFolder, imgUrl: img || "", layouts: { mobile: {vx: 10, vy: 15}, tablet: {vx: 10, vy: 15} } }); closeModals(); }; if (file) { const r = new FileReader(); r.onload = (e) => save(e.target.result); r.readAsDataURL(file); } else save(""); }
-        function toggleEdit() { isEditMode = !isEditMode; render(); }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
-        
-        window.onresize = () => {
-            render();
-            rtdb.ref(`todo_layout/${getPlatformKey()}`).once('value', snap => {
-                applyTodoLayout(snap.val());
+                // Loop through folders and render them
+                Object.keys(data).forEach(key => {
+                    const folder = data[key];
+                    const name = folder.name || key;
+                    
+                    const folderItem = document.createElement('a');
+                    folderItem.href = folder.url || '#';
+                    folderItem.className = 'item-link';
+                    folderItem.innerHTML = `<span class="icon">📁</span> <span>${name}</span>`;
+                    
+                    foldersList.appendChild(folderItem);
+                });
+                
+                statusEl.innerText = "Dashboard data updated.";
+            }, (error) => {
+                console.error(error);
+                document.getElementById('folders-list').innerHTML = `<div class="error-msg">Error loading folders: ${error.message}</div>`;
             });
-        };
+
+            // 2. Fetch and render Links
+            database.ref('links').on('value', (snapshot) => {
+                const linksList = document.getElementById('links-list');
+                linksList.innerHTML = ''; // Clear loading/old data
+                
+                const data = snapshot.val();
+                if (!data) {
+                    linksList.innerHTML = '<div class="empty-msg">No links found.</div>';
+                    return;
+                }
+
+                // Loop through links and render them
+                Object.keys(data).forEach(key => {
+                    const link = data[key];
+                    const title = link.title || link.name || key;
+                    const url = link.url || '#';
+                    
+                    const linkItem = document.createElement('a');
+                    linkItem.href = url;
+                    linkItem.target = '_blank'; // Open links in a new tab
+                    linkItem.className = 'item-link';
+                    linkItem.innerHTML = `<span class="icon">🔗</span> <span>${title}</span>`;
+                    
+                    linksList.appendChild(linkItem);
+                });
+            }, (error) => {
+                console.error(error);
+                document.getElementById('links-list').innerHTML = `<div class="error-msg">Error loading links: ${error.message}</div>`;
+            });
+
+        } catch (e) {
+            console.error("Firebase Initialization Error:", e);
+            document.getElementById('status').innerText = "Configuration error. Check your database setup.";
+            document.getElementById('status').style.color = "#f7768e";
+        }
     </script>
 </body>
 </html>
