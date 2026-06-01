@@ -42,7 +42,7 @@
 
         #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; }
         #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
-        .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; }
+        .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; }
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
@@ -116,6 +116,7 @@
     <nav id="top-nav">
         <button id="back-btn" class="nav-link" onclick="goBack()" style="display:none;">← BACK</button>
         <a href="oracle.html" class="nav-link">ORACLE</a>
+        <a href="travel.html" class="nav-link">TRAVEL</a>
         <button class="nav-link" onclick="event.stopPropagation(); showCalc()">%</button>
         <button class="nav-link" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
         <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
@@ -223,7 +224,6 @@
 
         window.addEventListener('touchmove', (e) => {
             if (!todoDragActive) return;
-            // Force browser layout lock loops directly
             if (e.cancelable) e.preventDefault();
             
             const touch = e.touches[0];
@@ -250,7 +250,7 @@
 
         // Fallback Pointer Engine configuration for desktop testing profiles
         todoHeader.onpointerdown = (e) => {
-            if (e.pointerType === 'touch') return; // Handled cleanly by touch hooks
+            if (e.pointerType === 'touch') return; 
             if (!isEditMode || e.target.classList.contains('todo-toggle-btn') || e.target.tagName === 'BUTTON') return;
             todoDragActive = true;
             todoStartX = e.clientX;
@@ -261,8 +261,8 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
+            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
         };
@@ -322,13 +322,18 @@
 
             renderTodos();
 
-            const items = Object.entries(allRelics).filter(([id, r]) => r.parent === currentFolder);
+            // Guard check to make sure parent mapping runs cleanly even if undefined
+            const items = Object.entries(allRelics).filter(([id, r]) => {
+                const parentFolder = r.parent || 'root';
+                return parentFolder === currentFolder;
+            });
 
             items.forEach(([id, r], index) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
                 
+                // FALLBACK PLACEMENT MATRIX: Try nested platform coordinates -> root coordinates -> grid index default
                 let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (r.vx !== undefined ? (r.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20);
                 let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : (r.vy !== undefined ? (r.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80);
                 let pWidth = layout.w || r.w || null;
@@ -340,9 +345,9 @@
 
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
-                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type[0]}</span>`}
+                        ${r.imgUrl ? `<img src="${r.imgUrl}">` : `<span style="color:var(--gold); font-family:Cinzel;">${r.type ? r.type[0].toUpperCase() : 'R'}</span>`}
                     </div>
-                    <span class="relic-name">${r.name}</span>
+                    <span class="relic-name">${r.name || 'Unnamed Relic'}</span>
                     <div class="resize-handle"></div>
                 `;
 
