@@ -184,7 +184,6 @@
         const isMobile = () => window.innerWidth <= 600;
         const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
 
-        // High-contrast, lightweight thematic visual fallbacks to safely circumvent payload failures
         const DEFAULT_FOLDER_IMG = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop";
         const DEFAULT_RELIC_IMG = "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=200&auto=format&fit=crop";
 
@@ -403,7 +402,6 @@
                         if (r.type === 'folder') {
                             enterFolder(id, r.name);
                         } else if (r.url) {
-                            // Targeted forced isolated window routing
                             window.open(r.url.startsWith('http') ? r.url : 'https://' + r.url, '_blank');
                         }
                     }
@@ -540,7 +538,9 @@
             const name = document.getElementById('sum-name').value.trim(); 
             const url = document.getElementById('sum-url').value.trim(); 
             const type = document.getElementById('sum-type').value; 
-            const file = document.getElementById('sum-file').files[0]; 
+            const fileInput = document.getElementById('sum-file');
+            const file = fileInput.files ? fileInput.files[0] : null; 
+            
             if (!name) return; 
 
             const saveToDatabase = (finalImgUrl) => { 
@@ -557,11 +557,11 @@
                 }).then(() => {
                     document.getElementById('sum-name').value = '';
                     document.getElementById('sum-url').value = '';
-                    document.getElementById('sum-file').value = '';
+                    fileInput.value = '';
                     closeModals(); 
                 }).catch(err => {
-                    console.error("Firebase Transaction Rejected:", err);
-                    alert("Write failed. Image file may be too large for Realtime Database rules.");
+                    console.error("Firebase Core Error Log:", err);
+                    alert("Database write rejected: " + err.message);
                 });
             }; 
 
@@ -572,7 +572,6 @@
                 }; 
                 reader.readAsDataURL(file); 
             } else {
-                // Instantly apply static placeholder fallback to ensure write passes structure limits cleanly
                 const fallback = (type === 'folder') ? DEFAULT_FOLDER_IMG : DEFAULT_RELIC_IMG;
                 saveToDatabase(fallback); 
             }
