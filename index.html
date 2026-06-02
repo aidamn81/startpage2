@@ -43,7 +43,6 @@
         #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
         .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; }
         
-        /* Hidden by default, only shown via JS in edit mode */
         #summon-nav-btn { display: none; }
         
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; }
@@ -205,13 +204,11 @@
             container.style.bottom = 'auto';
         }
 
-        // Setup immediate local sync fallback and robust data listeners
+        // Clean initial background data connection loop
         function initializeDatabaseSync() {
             rtdb.ref('relics').on('value', snap => { 
                 allRelics = snap.val() || {}; 
                 render(); 
-            }, err => {
-                console.warn("Retrying data listener configuration...");
             });
 
             rtdb.ref('todos').on('value', snap => {
@@ -227,18 +224,8 @@
             });
         }
 
-        // Forced session handling to satisfy the console's strict auth context
-        firebase.auth().onAuthStateChanged((user) => {
-            if (user) {
-                initializeDatabaseSync();
-            } else {
-                firebase.auth().signInAnonymously()
-                    .catch(() => {
-                        // Safe internal fallback loop to guarantee operational status
-                        initializeDatabaseSync();
-                    });
-            }
-        });
+        // Primary initialization execution line
+        initializeDatabaseSync();
 
         const todoHeader = document.getElementById('todo-header');
         const todoContainer = document.getElementById('todo-container');
@@ -612,3 +599,4 @@
     </script>
 </body>
 </html>
+
