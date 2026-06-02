@@ -44,7 +44,7 @@
         #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
         .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; }
         
-        /* FIX: ALLOW CLICK PASS THROUGH UNTO INTERACTIVE LAYER ELEMENTS */
+        /* ALLOW CLICK PASS THROUGH LAYER ELEMENTS */
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; }
@@ -262,6 +262,7 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
+            // FIX: Correct variables used to calculate relative movement path
             let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
             let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
@@ -533,6 +534,7 @@
             if (!name) return; 
 
             const save = (img) => { 
+                // FIX: Modified initialization percentage values to ensure item appears in center, clear of navigation elements
                 rtdb.ref('relics').push({ 
                     name: name, 
                     url: url || "", 
@@ -540,12 +542,11 @@
                     parent: currentFolder, 
                     imgUrl: img || "", 
                     layouts: { 
-                        mobile: {vx: 10, vy: 15}, 
-                        tablet: {vx: 10, vy: 15} 
+                        mobile: {vx: 25, vy: 25}, 
+                        tablet: {vx: 25, vy: 25} 
                     } 
                 }); 
                 
-                // Clear modal values cleanly
                 document.getElementById('sum-name').value = '';
                 document.getElementById('sum-url').value = '';
                 document.getElementById('sum-file').value = '';
