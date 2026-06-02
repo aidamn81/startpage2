@@ -32,7 +32,6 @@
         }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); }
         
-        /* VISIBLE GUIDE GRID ON EDIT MODE ONLY */
         body.is-editing::before {
             content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
             background-size: 40px 40px;
@@ -44,7 +43,6 @@
         #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
         .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; }
         
-        /* ALLOW CLICK PASS THROUGH LAYER ELEMENTS */
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; }
@@ -52,7 +50,6 @@
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        /* RESIZE HANDLES ALWAYS PRESERVED FOR EDIT MODE */
         .resize-handle { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; pointer-events: auto; cursor: se-resize; touch-action: none; }
         body.is-editing .resize-handle { display: block; }
         .dragging { opacity: 0.6; z-index: 5000 !important; }
@@ -71,7 +68,6 @@
         #context-menu::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 2px; }
         .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
-        /* SCROLL OF TASKS - STRICT POSITION OVERRIDES */
         #todo-container {
             position: absolute; 
             width: 260px;
@@ -190,8 +186,9 @@
             container.style.bottom = 'auto';
         }
 
-        firebase.auth().onAuthStateChanged(user => { 
-            if (user) {
+        // AUTH CONTEXT BUGFIX: Establish secure session before calling references
+        firebase.auth().signInAnonymously()
+            .then(() => {
                 rtdb.ref('relics').on('value', snap => { 
                     allRelics = snap.val() || {}; 
                     render(); 
@@ -206,10 +203,8 @@
                         applyTodoLayout(snap.val());
                     }
                 });
-            } else {
-                firebase.auth().signInAnonymously();
-            }
-        });
+            })
+            .catch(err => console.error("Database connection failed:", err));
 
         const todoHeader = document.getElementById('todo-header');
         const todoContainer = document.getElementById('todo-container');
@@ -262,7 +257,6 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            // FIX: Correct variables used to calculate relative movement path
             let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
             let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
@@ -330,7 +324,6 @@
                 wrap.className = 'relic-wrapper';
                 const layout = (r.layouts && r.layouts[platform]) ? r.layouts[platform] : {};
                 
-                // SOFT SNAP TO GRID POSITIONING LOGIC
                 let px = layout.vx !== undefined ? (layout.vx * window.innerWidth / 100) : (index % 4) * (window.innerWidth / 4.5) + 20;
                 let py = layout.vy !== undefined ? (layout.vy * window.innerHeight / 100) : Math.floor(index / 4) * 110 + 80;
                 let pWidth = layout.w || null;
@@ -534,7 +527,6 @@
             if (!name) return; 
 
             const save = (img) => { 
-                // FIX: Modified initialization percentage values to ensure item appears in center, clear of navigation elements
                 rtdb.ref('relics').push({ 
                     name: name, 
                     url: url || "", 
