@@ -106,7 +106,7 @@
             -webkit-user-select: none; user-select: none; touch-action: none;
         }
         .todo-toggle-btn { background: transparent; border: none; color: var(--gold); font-family: 'Cinzel'; cursor: pointer; font-size: 0.65rem; padding: 2px 6px; pointer-events: auto; }
-        #todo-body { display: flex; flex-direction: column; height: 100%; min-height: 100px; }
+        #todo-body { display: none; flex-direction: column; height: 100%; min-height: 100px; }
         #todo-list { overflow-y: auto; padding: 0; margin: 0; list-style: none; flex: 1; scrollbar-width: none; pointer-events: auto; }
         #todo-list::-webkit-scrollbar { display: none; }
         .todo-item {
@@ -148,7 +148,7 @@
     <div id="todo-container" onclick="event.stopPropagation()">
         <div id="todo-header">
             <span>📜 SCROLL OF TASKS</span>
-            <button class="todo-toggle-btn" onclick="toggleTodoCollapse(event)">[ - ]</button>
+            <button class="todo-toggle-btn" onclick="toggleTodoCollapse(event)">[ + ]</button>
         </div>
         <div id="todo-body">
             <ul id="todo-list"></ul>
@@ -200,7 +200,7 @@
         let dragEl = null, startX, startY, initialX, initialY, hasMoved = false;
         
         let todoItems = [];
-        let isTodoCollapsed = false;
+        let isTodoCollapsed = true; // Kept collapsed on page load initialization
         let todoDragActive = false, todoStartX, todoStartY, todoInitX, todoInitY;
 
         const isMobile = () => window.innerWidth <= 600;
@@ -209,7 +209,7 @@
         const getPlatformKey = () => {
             if (isMobile()) return 'mobile';
             if (isTablet()) return 'tablet';
-            return 'desktop'; // Support dedicated layout scaling across all formats
+            return 'desktop';
         };
 
         const DEFAULT_FOLDER_IMG = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop";
@@ -302,8 +302,8 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
+            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10; // Fixed structural math variable typo safely
+            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
         };
