@@ -21,9 +21,28 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
     <style>
-        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 80px; }
-        @media only screen and (min-width: 768px) { :root { --base-size: 100px; } }
-        @media only screen and (max-width: 600px) { :root { --base-size: 70px; } }
+        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 85px; }
+        
+        /* Tablet Adaptive Viewports (iPads and larger handhelds) */
+        @media only screen and (min-width: 601px) and (max-width: 1024px) { 
+            :root { --base-size: 100px; } 
+            .nav-link { padding: 8px 16px; font-size: 0.75rem; }
+            #status-display { font-size: 1rem; top: 25px; left: 25px; }
+        }
+        
+        /* Desktop Screens */
+        @media only screen and (min-width: 1025px) { 
+            :root { --base-size: 100px; } 
+        }
+        
+        /* Compact Mobile Phone Screens */
+        @media only screen and (max-width: 600px) { 
+            :root { --base-size: 72px; } 
+            .nav-link { padding: 5px 10px; font-size: 0.6rem; gap: 4px; }
+            #status-display { font-size: 0.75rem; top: 18px; left: 15px; }
+            #top-nav { padding: 12px; gap: 5px; }
+            #todo-container { width: 230px; }
+        }
         
         html, body { 
             width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
@@ -39,15 +58,15 @@
                               linear-gradient(to bottom, rgba(140, 115, 64, 0.05) 1px, transparent 1px);
         }
 
-        #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; }
-        #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); }
-        .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; }
+        #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; transition: all 0.2s ease; }
+        #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); transition: all 0.2s ease; }
+        .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
         
         #summon-nav-btn { display: none; }
         
         #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; }
         
-        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; }
+        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; transition: width 0.15s ease; }
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; display: flex; align-items: center; justify-content: center; aspect-ratio: 1/1; }
         .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.55rem; color: #fff; text-align: center; width: 120%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -78,6 +97,7 @@
             box-shadow: 0 12px 30px rgba(0,0,0,0.9); 
             touch-action: none; pointer-events: auto;
             -webkit-overflow-scrolling: touch;
+            transition: width 0.2s ease, height 0.2s ease;
         }
         #todo-header {
             padding: 12px 14px; background: #111; border-bottom: 1px solid #222;
@@ -184,7 +204,13 @@
         let todoDragActive = false, todoStartX, todoStartY, todoInitX, todoInitY;
 
         const isMobile = () => window.innerWidth <= 600;
-        const getPlatformKey = () => isMobile() ? 'mobile' : 'tablet';
+        const isTablet = () => window.innerWidth > 600 && window.innerWidth <= 1024;
+        
+        const getPlatformKey = () => {
+            if (isMobile()) return 'mobile';
+            if (isTablet()) return 'tablet';
+            return 'desktop'; // Support dedicated layout scaling across all formats
+        };
 
         const DEFAULT_FOLDER_IMG = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200&auto=format&fit=crop";
         const DEFAULT_RELIC_IMG = "https://images.unsplash.com/photo-1516979187457-637abb4f9353?q=80&w=200&auto=format&fit=crop";
@@ -204,7 +230,6 @@
             container.style.bottom = 'auto';
         }
 
-        // Clean initial background data connection loop
         function initializeDatabaseSync() {
             rtdb.ref('relics').on('value', snap => { 
                 allRelics = snap.val() || {}; 
@@ -224,7 +249,6 @@
             });
         }
 
-        // Primary initialization execution line
         initializeDatabaseSync();
 
         const todoHeader = document.getElementById('todo-header');
@@ -278,8 +302,8 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
+            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
         };
@@ -336,7 +360,6 @@
             document.body.classList.toggle('is-editing', isEditMode);
             document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
 
-            // Enforce visibility of SUMMON button exclusively when Edit Mode is active
             document.getElementById('summon-nav-btn').style.display = isEditMode ? "inline-flex" : "none";
 
             renderTodos();
@@ -561,7 +584,8 @@
                     imgUrl: finalImgUrl, 
                     layouts: { 
                         mobile: {vx: 15, vy: 20}, 
-                        tablet: {vx: 15, vy: 20} 
+                        tablet: {vx: 15, vy: 20},
+                        desktop: {vx: 15, vy: 20}
                     } 
                 }).then(() => {
                     document.getElementById('sum-name').value = '';
@@ -599,4 +623,3 @@
     </script>
 </body>
 </html>
-
