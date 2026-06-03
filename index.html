@@ -47,7 +47,6 @@
         html, body { 
             width: 100%; min-height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
             color: var(--text); font-family: 'Playfair Display', serif; overflow-x: hidden; 
-            /* Changed overflow-y to auto and switch touch action to pan-y to enable vertical canvas scrolling */
             overflow-y: auto;
             -webkit-user-select: none; user-select: none; touch-action: pan-y; 
         }
@@ -66,7 +65,6 @@
         
         #summon-nav-btn { display: none; }
         
-        /* Adjusted positioning rules to dynamically handle layout heights when scrolling elements are placed deep into the page */
         #archive-grid { position: relative; width: 100%; min-height: 120vh; overflow: visible; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; padding-bottom: 300px; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; transition: width 0.15s ease; }
@@ -85,7 +83,7 @@
         .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 14px; border-radius: 4px; font-family: 'Cinzel'; cursor: pointer; font-weight: bold; }
         
         #context-menu { 
-            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 180px; max-height: 220px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--gold) #0a0a0a; -webkit-overflow-scrolling: touch; pointer-events: auto;
+            position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 180px; max-height: 240px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--gold) #0a0a0a; -webkit-overflow-scrolling: touch; pointer-events: auto;
         }
         #context-menu::-webkit-scrollbar { width: 4px; }
         #context-menu::-webkit-scrollbar-track { background: #0a0a0a; }
@@ -178,14 +176,23 @@
             <button class="ritual-btn" onclick="runSummonRitual()">COMMEMORATE</button>
         </div>
     </div>
+
+    <div id="banish-confirm-modal" class="modal-overlay" onclick="event.stopPropagation()">
+        <div class="modal-content" style="text-align: center;">
+            <div class="close-ritual" onclick="closeModals()">CANCEL</div>
+            <div style="font-family: 'Cinzel'; color: var(--gold); margin-bottom: 20px; font-size: 0.9rem;">CONFIRM BANISHMENT?</div>
+            <p style="font-size: 0.75rem; color: #fff; margin-bottom: 20px;">This asset will be permanently removed from the architecture bounds.</p>
+            <button class="ritual-btn" id="confirm-banish-btn">PURGE RESIDUE</button>
+        </div>
+    </div>
     
     <div id="context-menu" onclick="event.stopPropagation()">
         <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Upload Image</div>
+        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Upload New Cover Image</div>
         <div class="menu-item" onclick="toggleMoveMenu()">Move to Folder...</div>
-        <div id="move-sub-menu" style="display:none; background:#050505;"></div>
+        <div id="move-sub-menu" style="display:none; background:#050505; max-height: 120px; overflow-y: auto;"></div>
         <div class="menu-item" onclick="menuSnapOriginal()">Snap Original</div>
-        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson)">Banish</div>
+        <div class="menu-item" onclick="triggerBanishConfirmation()" style="color:var(--crimson)">Banish</div>
     </div>
     <input type="file" id="img-swap" style="display:none" onchange="swapImage(this)" accept="image/*">
 
@@ -383,7 +390,6 @@
                 wrap.style.top = Math.round(py / 10) * 10 + 'px';
                 if(pWidth) wrap.style.width = pWidth + 'px';
 
-                // Track the vertical ceiling of all assets to automatically adjust container size if items grow downward
                 let itemBottomEdge = py + (pWidth || 100) + 120;
                 if (itemBottomEdge > maxCalculatedHeight) {
                     maxCalculatedHeight = itemBottomEdge;
@@ -402,6 +408,7 @@
                     hasMoved = false;
                     const now = Date.now();
                     
+                    // Double Tap option processing for Edit Mode
                     if (isEditMode && now - (wrap.lastTap || 0) < 300) { 
                         activeMenuId = id; 
                         showMenu(e); 
@@ -434,7 +441,6 @@
                     wrap.style.left = nx + 'px'; 
                     wrap.style.top = ny + 'px'; 
 
-                    // Dynamically increase workspace grid zone if item is dragged down deep
                     if (ny + 200 > grid.offsetHeight) {
                         grid.style.minHeight = (ny + 500) + 'px';
                     }
@@ -451,6 +457,7 @@
                         dragEl = null;
                         render();
                     } else if (!hasMoved) {
+                        // Standard taps trigger navigation/viewing parameters
                         if (r.type === 'folder') {
                             enterFolder(id, r.name);
                         } else if (r.url) {
@@ -462,7 +469,6 @@
                 grid.appendChild(wrap);
             });
 
-            // Commit layout bounds adjustments to the workspace view layer
             grid.style.minHeight = maxCalculatedHeight + 'px';
         }
 
@@ -559,7 +565,7 @@
             let targetY = e.clientY;
 
             if (targetX + 190 > window.innerWidth) targetX = window.innerWidth - 190;
-            if (targetY + 220 > window.innerHeight) targetY = window.innerHeight - 220;
+            if (targetY + 240 > window.innerHeight) targetY = window.innerHeight - 240;
             if (targetY < 0) targetY = 10;
 
             m.style.left = targetX + 'px'; 
@@ -569,7 +575,7 @@
 
         function toggleMoveMenu() { 
             const sub = document.getElementById('move-sub-menu'); 
-            sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')">🏛 INDEX</div>`; 
+            sub.innerHTML = `<div class="menu-item" onclick="moveRelic('root')" style="background: rgba(140,115,64,0.15)">🏛 INDEX PAGE</div>`; 
             Object.entries(allRelics).forEach(([id, r]) => { 
                 if(r.type === 'folder' && id !== activeMenuId) {
                     sub.innerHTML += `<div class="menu-item" onclick="moveRelic('${id}')">📁 ${r.name.toUpperCase()}</div>`; 
@@ -581,9 +587,23 @@
         function moveRelic(dest) { rtdb.ref(`relics/${activeMenuId}`).update({ parent: dest }); closeMenu(); }
         function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
         function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
+        
+        function triggerBanishConfirmation() {
+            closeMenu();
+            const modal = document.getElementById('banish-confirm-modal');
+            const confirmBtn = document.getElementById('confirm-banish-btn');
+            
+            confirmBtn.onclick = function() {
+                if (activeMenuId) {
+                    rtdb.ref(`relics/${activeMenuId}`).remove();
+                }
+                closeModals();
+            };
+            modal.style.display = 'flex';
+        }
+
         function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
         function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function menuDelete() { if(confirm("Banish?")) rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}/layouts/${getPlatformKey()}`).update({w: null}); closeMenu(); }
         function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
