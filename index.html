@@ -45,11 +45,11 @@
         }
         
         html, body { 
-            width: 100%; height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
-            color: var(--text); font-family: 'Playfair Display', serif; overflow: hidden; 
+            width: 100%; min-height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
+            color: var(--text); font-family: 'Playfair Display', serif; overflow-x: hidden; overflow-y: auto;
             -webkit-user-select: none; user-select: none; touch-action: none; 
         }
-        body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); }
+        body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); background-attachment: fixed; }
         
         body.is-editing::before {
             content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -58,13 +58,13 @@
                               linear-gradient(to bottom, rgba(140, 115, 64, 0.05) 1px, transparent 1px);
         }
 
-        #status-display { position: absolute; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; transition: all 0.2s ease; }
-        #top-nav { position: absolute; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); transition: all 0.2s ease; }
+        #status-display { position: fixed; top: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.8rem; z-index: 3000; transition: all 0.2s ease; pointer-events: none; }
+        #top-nav { position: fixed; top: 0; right: 0; padding: 15px; display: flex; gap: 8px; z-index: 4000; padding-top: env(safe-area-inset-top, 15px); transition: all 0.2s ease; }
         .nav-link { background: transparent; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; cursor: pointer; text-decoration: none; text-transform: uppercase; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease; }
         
         #summon-nav-btn { display: none; }
         
-        #archive-grid { position: absolute; inset: 0; overflow: auto; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; }
+        #archive-grid { position: absolute; inset: 0; overflow: visible; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; min-height: 100vh; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; transition: width 0.15s ease; }
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; display: flex; align-items: center; justify-content: center; aspect-ratio: 1/1; }
@@ -90,7 +90,7 @@
         .menu-item { padding: 10px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
 
         #todo-container {
-            position: absolute; 
+            position: fixed; 
             width: 260px;
             background: rgba(10, 10, 10, 0.98); border: 1px solid var(--crimson);
             border-radius: 6px; z-index: 4500; display: flex; flex-direction: column;
@@ -200,7 +200,7 @@
         let dragEl = null, startX, startY, initialX, initialY, hasMoved = false;
         
         let todoItems = [];
-        let isTodoCollapsed = true; // Kept collapsed on page load initialization
+        let isTodoCollapsed = true;
         let todoDragActive = false, todoStartX, todoStartY, todoInitX, todoInitY;
 
         const isMobile = () => window.innerWidth <= 600;
@@ -266,7 +266,6 @@
 
         window.addEventListener('touchmove', (e) => {
             if (!todoDragActive) return;
-            if (e.cancelable) e.preventDefault();
             
             const touch = e.touches[0];
             let nx = Math.round((todoInitX + (touch.clientX - todoStartX)) / 10) * 10;
@@ -279,7 +278,7 @@
 
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
-        }, { passive: false });
+        }, { passive: true });
 
         window.addEventListener('touchend', () => {
             if (!todoDragActive) return;
@@ -302,8 +301,8 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10; // Fixed structural math variable typo safely
-            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
+            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
         };
