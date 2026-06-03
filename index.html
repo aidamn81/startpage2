@@ -314,8 +314,8 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
+            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
         };
@@ -409,22 +409,22 @@
                     hasMoved = false;
                     const now = Date.now();
                     
-                    if (isEditMode && now - (wrap.lastTap || 0) < 300) { 
-                        activeMenuId = id; 
-                        showMenu(e); 
-                        return; 
-                    }
-                    wrap.lastTap = now;
-                    
-                    if (isEditMode) { 
+                    if (isEditMode) {
+                        activeMenuId = id;
+                        showMenu(e);
+                        
+                        wrap.lastTap = now;
                         dragEl = wrap; 
                         startX = e.clientX; 
                         startY = e.clientY; 
                         initialX = wrap.offsetLeft; 
                         initialY = wrap.offsetTop; 
                         wrap.classList.add('dragging'); 
-                        wrap.setPointerCapture(e.pointerId); 
+                        wrap.setPointerCapture(e.pointerId);
+                        return;
                     }
+                    
+                    wrap.lastTap = now;
                 };
 
                 wrap.onpointermove = (e) => { 
@@ -443,12 +443,17 @@
                     if (dragEl) {
                         wrap.releasePointerCapture(e.pointerId);
                         dragEl.classList.remove('dragging');
-                        rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ 
-                            vx: (parseInt(wrap.style.left)/window.innerWidth)*100, 
-                            vy: (parseInt(wrap.style.top)/window.innerHeight)*100 
-                        });
+                        
+                        if (hasMoved) {
+                            rtdb.ref(`relics/${id}/layouts/${getPlatformKey()}`).update({ 
+                                vx: (parseInt(wrap.style.left)/window.innerWidth)*100, 
+                                vy: (parseInt(wrap.style.top)/window.innerHeight)*100 
+                            });
+                        }
                         dragEl = null;
-                        render();
+                        if (hasMoved) {
+                            render();
+                        }
                     } else if (!hasMoved) {
                         if (!isEditMode) {
                             if (r.type === 'folder') {
