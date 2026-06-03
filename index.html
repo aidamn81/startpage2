@@ -46,8 +46,10 @@
         
         html, body { 
             width: 100%; min-height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
-            color: var(--text); font-family: 'Playfair Display', serif; overflow-x: hidden; overflow-y: auto;
-            -webkit-user-select: none; user-select: none; touch-action: none; 
+            color: var(--text); font-family: 'Playfair Display', serif; overflow-x: hidden; 
+            /* Changed overflow-y to auto and switch touch action to pan-y to enable vertical canvas scrolling */
+            overflow-y: auto;
+            -webkit-user-select: none; user-select: none; touch-action: pan-y; 
         }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); background-attachment: fixed; }
         
@@ -64,7 +66,8 @@
         
         #summon-nav-btn { display: none; }
         
-        #archive-grid { position: absolute; inset: 0; overflow: visible; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; min-height: 100vh; }
+        /* Adjusted positioning rules to dynamically handle layout heights when scrolling elements are placed deep into the page */
+        #archive-grid { position: relative; width: 100%; min-height: 120vh; overflow: visible; z-index: 5; padding: 20px; box-sizing: border-box; pointer-events: none; padding-bottom: 300px; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); pointer-events: auto; transition: width 0.15s ease; }
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); pointer-events: none; width: 100%; display: flex; align-items: center; justify-content: center; aspect-ratio: 1/1; }
@@ -301,8 +304,8 @@
         };
         todoHeader.onpointermove = (e) => {
             if (e.pointerType === 'touch' || !todoDragActive) return;
-            let nx = Math.round((todoInitX + (e.clientX - todoStartX)) / 10) * 10;
-            let ny = Math.round((todoInitY + (e.clientY - todoStartY)) / 10) * 10;
+            let nx = Math.round((todoInitX + (e.clientX - startX)) / 10) * 10;
+            let ny = Math.round((todoInitY + (e.clientY - startY)) / 10) * 10;
             todoContainer.style.left = nx + 'px';
             todoContainer.style.top = ny + 'px';
         };
@@ -365,6 +368,8 @@
 
             const items = Object.entries(allRelics).filter(([id, r]) => (r.parent || 'root') === currentFolder);
 
+            let maxCalculatedHeight = window.innerHeight;
+
             items.forEach(([id, r], index) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
@@ -377,6 +382,12 @@
                 wrap.style.left = Math.round(px / 10) * 10 + 'px';
                 wrap.style.top = Math.round(py / 10) * 10 + 'px';
                 if(pWidth) wrap.style.width = pWidth + 'px';
+
+                // Track the vertical ceiling of all assets to automatically adjust container size if items grow downward
+                let itemBottomEdge = py + (pWidth || 100) + 120;
+                if (itemBottomEdge > maxCalculatedHeight) {
+                    maxCalculatedHeight = itemBottomEdge;
+                }
 
                 wrap.innerHTML = `
                     <div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}" style="width:${pWidth?pWidth+'px':''}; height:${pWidth?pWidth+'px':''};">
@@ -416,8 +427,17 @@
                     }
                     let nx = Math.round((initialX + (e.clientX - startX))/10)*10; 
                     let ny = Math.round((initialY + (e.clientY - startY))/10)*10; 
+                    
+                    if (nx < 0) nx = 0;
+                    if (ny < 0) ny = 0;
+
                     wrap.style.left = nx + 'px'; 
                     wrap.style.top = ny + 'px'; 
+
+                    // Dynamically increase workspace grid zone if item is dragged down deep
+                    if (ny + 200 > grid.offsetHeight) {
+                        grid.style.minHeight = (ny + 500) + 'px';
+                    }
                 };
 
                 wrap.onpointerup = (e) => {
@@ -429,6 +449,7 @@
                             vy: (parseInt(wrap.style.top)/window.innerHeight)*100 
                         });
                         dragEl = null;
+                        render();
                     } else if (!hasMoved) {
                         if (r.type === 'folder') {
                             enterFolder(id, r.name);
@@ -440,6 +461,9 @@
                 };
                 grid.appendChild(wrap);
             });
+
+            // Commit layout bounds adjustments to the workspace view layer
+            grid.style.minHeight = maxCalculatedHeight + 'px';
         }
 
         function toggleTodoCollapse(e) {
@@ -524,7 +548,7 @@
             }
         }
 
-        function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
+        function handleResize(e, el, id) { e.stopPropagation(); const platform = getPlatformKey(); const frame = el.querySelector('.relic-frame, .folder-frame'); const startW = frame.offsetWidth; const sX = e.clientX; const onM = (ev) => { const nw = Math.max(40, startW + (ev.clientX - sX)); frame.style.width = nw + 'px'; frame.style.height = nw + 'px'; el.style.width = nw + 'px'; }; const onU = () => { window.removeEventListener('pointermove', onM); window.removeEventListener('pointerup', onU); rtdb.ref(`relics/${id}/layouts/${platform}`).update({ w: parseInt(frame.style.width) }); render(); }; window.addEventListener('pointermove', onM); window.addEventListener('pointerup', onU); }
         
         function showMenu(e) { 
             const m = document.getElementById('context-menu'); 
