@@ -111,11 +111,17 @@
         .search-box {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
 
         .search-box label {
-            font-size: 12px;
+            font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 0.8px;
             color: #bfaeff;
@@ -127,8 +133,14 @@
             gap: 10px;
         }
 
+        .dateTime-wrapper {
+            display: grid;
+            grid-template-columns: 1.2fr 0.8fr;
+            gap: 10px;
+        }
+
         .input-field {
-            flex: 1;
+            width: 100%;
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             border-radius: 12px;
@@ -144,16 +156,25 @@
             box-shadow: 0 0 0 2px rgba(122, 92, 255, 0.15);
         }
 
+        /* Specific color tuning for system date/time native pickers */
+        input[type="date"]::-webkit-calendar-picker-indicator,
+        input[type="time"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.9);
+            cursor: pointer;
+        }
+
         .search-btn {
             background: var(--accent-glow);
             border: none;
-            padding: 0 20px;
+            padding: 14px 20px;
             border-radius: 12px;
             color: white;
             font-weight: 600;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 4px;
         }
 
         .search-btn:hover {
@@ -215,6 +236,7 @@
             gap: 12px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.3);
             animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            margin-bottom: 12px;
         }
 
         .itinerary-header {
@@ -417,11 +439,23 @@
     <main class="main-content">
         <!-- Input Form Block Area -->
         <section class="search-box">
-            <label for="destInput">Enter Destination</label>
-            <div class="input-wrapper">
+            <div class="input-group">
+                <label for="destInput">Destination Location</label>
                 <input type="text" id="destInput" class="input-field" placeholder="e.g., Manchester, Brighton, York..." autocomplete="off">
-                <button id="searchBtn" class="search-btn">Find Routes</button>
             </div>
+
+            <div class="dateTime-wrapper">
+                <div class="input-group">
+                    <label for="dateInput">Travel Date</label>
+                    <input type="date" id="dateInput" class="input-field">
+                </div>
+                <div class="input-group">
+                    <label for="timeInput">Time (Optional)</label>
+                    <input type="time" id="timeInput" class="input-field">
+                </div>
+            </div>
+
+            <button id="searchBtn" class="search-btn">Find Routes</button>
         </section>
 
         <!-- Tracking Monitor Banner Section (iOS Shortcut Sync) -->
@@ -448,7 +482,7 @@
                 </div>
             </div>
 
-            <div id="itineraryCardsContainer" class="display-flex flex-direction-column gap-16">
+            <div id="itineraryCardsContainer">
                 <!-- Programmatically generated transit options append here -->
             </div>
         </section>
@@ -456,18 +490,20 @@
 </div>
 
 <script>
-    // Local strict dataset mapping geographic coordinates & routes from London ChIJdd4hrwug2EcRmSrV3Vo6llI
+    // Local strict dataset mapping geographic coordinates & routes from London
     const databaseUK = {
-        "manchester": { name: "Manchester", distance: 163, trainTime: "2h 06m", trainPrice: "46.20", busTime: "4h 35m", busPrice: "14.50", trainStation: "MAN", busStation: "Coach Stn" },
-        "birmingham": { name: "Birmingham", distance: 101, trainTime: "1h 22m", trainPrice: "29.00", busTime: "2h 45m", busPrice: "8.50", trainStation: "BHM", busStation: "Digbeth" },
-        "brighton": { name: "Brighton", distance: 47, trainTime: "0h 58m", trainPrice: "19.80", busTime: "2h 10m", busPrice: "6.00", trainStation: "BTN", busStation: "Pool Valley" },
-        "york": { name: "York", distance: 174, trainTime: "1h 51m", trainPrice: "54.10", busTime: "5h 20m", busPrice: "18.00", trainStation: "YRK", busStation: "Blossom St" },
-        "bristol": { name: "Bristol", distance: 107, trainTime: "1h 34m", trainPrice: "36.50", busTime: "2h 50m", busPrice: "9.00", trainStation: "BRI", busStation: "Marlborough St" },
-        "leeds": { name: "Leeds", distance: 170, trainTime: "2h 13m", trainPrice: "51.00", busTime: "4h 50m", busPrice: "16.20", trainStation: "LDS", busStation: "Dyer Street" },
-        "liverpool": { name: "Liverpool", distance: 178, trainTime: "2h 21m", trainPrice: "49.50", busTime: "5h 15m", busPrice: "15.00", trainStation: "LIV", busStation: "One Bus Stn" }
+        "manchester": { name: "Manchester", distance: 163, trainTime: "2h 06m", trainMinutes: 126, trainPrice: "46.20", busTime: "4h 35m", busMinutes: 275, trainPrice: "46.20", busPrice: "14.50", trainStation: "MAN", busStation: "Coach Stn" },
+        "birmingham": { name: "Birmingham", distance: 101, trainTime: "1h 22m", trainMinutes: 82, trainPrice: "29.00", busTime: "2h 45m", busMinutes: 165, trainPrice: "29.00", busPrice: "8.50", trainStation: "BHM", busStation: "Digbeth" },
+        "brighton": { name: "Brighton", distance: 47, trainTime: "0h 58m", trainMinutes: 58, trainPrice: "19.80", busTime: "2h 10m", busMinutes: 130, trainPrice: "19.80", busPrice: "6.00", trainStation: "BTN", busStation: "Pool Valley" },
+        "york": { name: "York", distance: 174, trainTime: "1h 51m", trainMinutes: 111, trainPrice: "54.10", busTime: "5h 20m", busMinutes: 320, trainPrice: "54.10", busPrice: "18.00", trainStation: "YRK", busStation: "Blossom St" },
+        "bristol": { name: "Bristol", distance: 107, trainTime: "1h 34m", trainMinutes: 94, trainPrice: "36.50", busTime: "2h 50m", busMinutes: 170, trainPrice: "36.50", busPrice: "9.00", trainStation: "BRI", busStation: "Marlborough St" },
+        "leeds": { name: "Leeds", distance: 170, trainTime: "2h 13m", trainMinutes: 133, trainPrice: "51.00", busTime: "4h 50m", busMinutes: 290, trainPrice: "51.00", busPrice: "16.20", trainStation: "LDS", busStation: "Dyer Street" },
+        "liverpool": { name: "Liverpool", distance: 178, trainTime: "2h 21m", trainMinutes: 141, trainPrice: "49.50", busTime: "5h 15m", busMinutes: 315, trainPrice: "49.50", busPrice: "15.00", trainStation: "LIV", busStation: "One Bus Stn" }
     };
 
     const destInput = document.getElementById('destInput');
+    const dateInput = document.getElementById('dateInput');
+    const timeInput = document.getElementById('timeInput');
     const searchBtn = document.getElementById('searchBtn');
     const resultsWrapper = document.getElementById('resultsWrapper');
     const displayTargetName = document.getElementById('displayTargetName');
@@ -482,6 +518,10 @@
         targetTime: null
     };
 
+    // Set default placeholder values matching current active calendar date structure
+    const today = new Date();
+    dateInput.value = today.toISOString().split('T')[0];
+
     searchBtn.addEventListener('click', processQuery);
     destInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') processQuery(); });
 
@@ -489,50 +529,69 @@
         const query = destInput.value.trim().toLowerCase();
         if (!query) return;
 
-        // Matches query token against internal programmatic travel metrics
         const dataMatch = databaseUK[query];
 
-        if (dataMatch) {
-            renderRouteMetrics(dataMatch);
+        // Resolve historical date parameters seamlessly
+        let targetedDepartureBase = new Date(dateInput.value);
+        if (timeInput.value) {
+            const timeFragments = timeInput.value.split(':');
+            targetedDepartureBase.setHours(parseInt(timeFragments[0]), parseInt(timeFragments[1]), 0, 0);
         } else {
-            // Graceful baseline calculation generation fallback logic if location isn't explicit in basic database
+            // Fallback default context assignment loops forward to arbitrary upcoming 10 min window if checking today
+            const currentRealTime = new Date();
+            if (targetedDepartureBase.toDateString() === currentRealTime.toDateString()) {
+                targetedDepartureBase = new Date(currentRealTime.getTime() + 10 * 60000);
+            } else {
+                targetedDepartureBase.setHours(9, 0, 0, 0); // Default to a standard 09:00 morning slot for future dates
+            }
+        }
+
+        if (dataMatch) {
+            renderRouteMetrics(dataMatch, targetedDepartureBase);
+        } else {
             const proceduralName = query.charAt(0).toUpperCase() + query.slice(1);
             const proceduralMetrics = {
                 name: proceduralName,
                 distance: Math.floor(Math.random() * (220 - 40) + 40),
                 trainTime: "1h 45m",
+                trainMinutes: 105,
                 trainPrice: (Math.random() * (55 - 20) + 20).toFixed(2),
                 busTime: "3h 50m",
+                busMinutes: 230,
                 busPrice: (Math.random() * (16 - 7) + 7).toFixed(2),
                 trainStation: "UKX",
                 busStation: "Stn"
             };
-            renderRouteMetrics(proceduralMetrics);
+            renderRouteMetrics(proceduralMetrics, targetedDepartureBase);
         }
     }
 
-    function renderRouteMetrics(data) {
+    function renderRouteMetrics(data, departureBaseTime) {
         resultsWrapper.classList.remove('hidden');
         displayTargetName.textContent = data.name;
         distVal.textContent = `${data.distance} miles`;
         timeVal.textContent = data.trainTime;
 
-        // Clear layout element before appending absolute items
         itineraryCardsContainer.innerHTML = '';
 
-        // Generate clean structural Train Option
-        const trainCard = createTransitCard('Train', data.trainTime, data.trainPrice, 'LON', data.trainStation, 'https://www.thetrainline.com');
-        // Generate clean structural Bus Option
-        const busCard = createTransitCard('National Express Bus', data.busTime, data.busPrice, 'VCS', data.busStation, 'https://www.nationalexpress.com');
+        // Train departures map standard from computed timeline anchor
+        const trainDeparture = new Date(departureBaseTime.getTime());
+        const trainArrival = new Date(trainDeparture.getTime() + data.trainMinutes * 60000);
+        
+        // Bus departures offset sequentially by a brief layout gap safely
+        const busDeparture = new Date(departureBaseTime.getTime() + 15 * 60000);
+        const busArrival = new Date(busDeparture.getTime() + data.busMinutes * 60000);
+
+        const trainCard = createTransitCard('Train', data.trainTime, data.trainPrice, 'LON', data.trainStation, trainDeparture, trainArrival, 'https://www.thetrainline.com');
+        const busCard = createTransitCard('National Express Bus', data.busTime, data.busPrice, 'VCS', data.busStation, busDeparture, busArrival, 'https://www.nationalexpress.com');
 
         itineraryCardsContainer.appendChild(trainCard);
         itineraryCardsContainer.appendChild(busCard);
     }
 
-    function createTransitCard(type, duration, price, originCode, destCode, externalUrl) {
-        const now = new Date();
-        const departureTime = new Date(now.getTime() + 4 * 60000); // 4 minutes countdown offset for operational layout testing
+    function createTransitCard(type, duration, price, originCode, destCode, depTime, arrTime, externalUrl) {
         const formatClock = (d) => d.toTimeString().substring(0, 5);
+        const formatDateLabel = (d) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
         const card = document.createElement('div');
         card.className = 'itinerary-card';
@@ -540,26 +599,26 @@
             <div class="itinerary-header">
                 <span class="transit-type">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transform:translateY(1px);"><rect x="4" y="3" width="16" height="14" rx="2"></rect><path d="M4 11h16"></path><path d="M12 3v8"></path><path d="M8 17l-2 4"></path><path d="M16 17l2 4"></path></svg>
-                    ${type}
+                    ${type} <span style="color: var(--text-secondary); font-size: 11px; margin-left: 4px;">(${formatDateLabel(depTime)})</span>
                 </span>
                 <span class="fare-badge">£${price}</span>
             </div>
             <div class="transit-timeline">
                 <div class="timeline-node">
-                    <span class="node-time">${formatClock(departureTime)}</span>
+                    <span class="node-time">${formatClock(depTime)}</span>
                     <span class="node-station">${originCode}</span>
                 </div>
                 <div class="timeline-line">
                     <span class="duration-label">${duration}</span>
                 </div>
                 <div class="timeline-node destination">
-                    <span class="node-time">--:--</span>
+                    <span class="node-time">${formatClock(arrTime)}</span>
                     <span class="node-station">${destCode}</span>
                 </div>
             </div>
             <div class="action-row">
                 <a href="${externalUrl}" target="_blank" class="btn btn-secondary">Find Tickets</a>
-                <button class="btn btn-primary" onclick="armShortcutTrigger(${departureTime.getTime()}, '${displayTargetName.textContent}')">Set iOS Alert</button>
+                <button class="btn btn-primary" onclick="armShortcutTrigger(${depTime.getTime()}, '${displayTargetName.textContent}')">Set iOS Alert</button>
             </div>
         `;
         return card;
@@ -570,6 +629,14 @@
         if (trackingEngine.timerId) clearInterval(trackingEngine.timerId);
         
         trackingEngine.targetTime = targetTimestamp;
+        
+        // Immediate cross-check validation edge case: alert immediately if tracking an option whose timeline has rolled past
+        const initialCheckDistance = trackingEngine.targetTime - new Date().getTime();
+        if (initialCheckDistance <= 0) {
+            triggerNativeiOSShortcut(`Departure warning: Your transport to ${locationName} leaves now!`);
+            return;
+        }
+
         countdownBanner.classList.remove('hidden');
 
         const evaluateTimelineClock = () => {
@@ -583,10 +650,18 @@
                 return;
             }
 
+            const days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const min = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
             const sec = Math.floor((timeDifference % (1000 * 60)) / 1000);
             
-            countdownClock.textContent = `${min}m ${sec}s remaining`;
+            if (days > 0) {
+                countdownClock.textContent = `${days}d ${hours}h remaining`;
+            } else if (hours > 0) {
+                countdownClock.textContent = `${hours}h ${min}m remaining`;
+            } else {
+                countdownClock.textContent = `${min}m ${sec}s remaining`;
+            }
         };
 
         evaluateTimelineClock();
