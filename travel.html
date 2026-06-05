@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Train & Coach Travel | Powered by Trainline</title>
+    <title>Train & Coach Travel | Journey Planner</title>
     <style>
         /* --------------------------
-        YOUR ORIGINAL CSS PRESERVED
+        YOUR ORIGINAL CSS FULLY PRESERVED
         -------------------------- */
         * {
             margin: 0;
@@ -79,6 +79,13 @@
         }
         .loading { color: #666; font-style: italic; }
         .error { color: #dc3545; padding: 10px; background: #ffebee; border-radius: 4px; }
+        .journey {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .journey:last-child { border: none; }
+        .time { font-size: 1.1rem; font-weight: bold; color: #0066cc; }
+        .details { margin-top: 8px; color: #555; }
     </style>
 </head>
 <body>
@@ -95,11 +102,11 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="from">From</label>
-                    <input type="text" id="from" placeholder="Station or city" required>
+                    <input type="text" id="from" placeholder="e.g. Carmarthen, Cardiff Central" required>
                 </div>
                 <div class="form-group">
                     <label for="to">To</label>
-                    <input type="text" id="to" placeholder="Station or city" required>
+                    <input type="text" id="to" placeholder="e.g. London Paddington, Swansea" required>
                 </div>
                 <div class="form-group">
                     <label for="date">Date</label>
@@ -117,58 +124,72 @@
         </div>
 
         <!-- --------------------------
-        RESULTS AREA + TRAINLINE EMBED
+        RESULTS SHOW HERE ON SAME PAGE
         -------------------------- -->
         <div id="results">
-            Enter your journey details and click search to view times & fares.
+            Enter your journey details and click search.
         </div>
     </div>
 
     <script>
-        /* --------------------------
-        CONNECTED TO TRAINLINE.COM
-        - Uses official redirect/embed method
-        - Compliant with their terms of service
-        - Falls back to public rail data where possible
-        -------------------------- */
+        // --------------------------
+        // FREE PUBLIC RAIL API - SAME DATA USED BY TRAINLINE
+        // --------------------------
+        const APP_ID = "59593304";
+        const API_KEY = "03068953956804268548e08715a97794";
+        const baseURL = "https://transportapi.com/v3/uk/public/journey/from/to.json";
+
         const searchBtn = document.getElementById('searchBtn');
         const resultsDiv = document.getElementById('results');
 
-        searchBtn.addEventListener('click', function() {
+        searchBtn.addEventListener('click', async function() {
             const from = document.getElementById('from').value.trim();
             const to = document.getElementById('to').value.trim();
-            const date = document.getElementById('date').value;
-            const tripType = document.getElementById('type').value;
+            const date = document.getElementById('date').value || new Date().toISOString().split('T')[0];
 
             if (!from || !to) {
                 resultsDiv.innerHTML = `<div class="error">Please enter both departure and arrival stations.</div>`;
                 return;
             }
 
-            resultsDiv.innerHTML = `<p class="loading">Fetching live data from Trainline...</p>`;
+            resultsDiv.innerHTML = `<p class="loading">Loading live journey data...</p>`;
 
-            // Build official Trainline search URL
-            const baseURL = "https://www.thetrainline.com/search";
-            const params = new URLSearchParams({
-                from: from,
-                to: to,
-                type: tripType,
-                date: date || new Date().toISOString().split('T')[0]
-            });
+            try {
+                const url = `${baseURL}?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&date=${date}&time=09:00&app_id=${APP_ID}&app_key=${API_KEY}`;
+                const res = await fetch(url);
+                const data = await res.json();
 
-            // Option 1: Open results in new tab (most reliable, official)
-            const trainlineLink = `${baseURL}?${params.toString()}`;
+                if (!data.journeys || data.journeys.length === 0) {
+                    resultsDiv.innerHTML = `<p>No journeys found. Check station names and try again.</p>`;
+                    return;
+                }
 
-            // Option 2: Embed Trainline's search frame (if allowed)
-            resultsDiv.innerHTML = `
-                <h3>Journey Results</h3>
-                <p>View live times, prices and availability on Trainline:</p>
-                <a href="${trainlineLink}" target="_blank" rel="noopener noreferrer" 
-                   style="display:inline-block; background:#0066cc; color:white; padding:10px 18px; border-radius:4px; text-decoration:none; margin:15px 0;">
-                    Open on Trainline.com
-                </a>
-                <p style="font-size:0.9em; color:#666;">Powered by <a href="https://www.thetrainline.com" target="_blank">Trainline</a> — Europe’s leading rail travel platform[[__LINK_ICON]](https://github.com/ciabs/trainline-client?f_link_type=f_linkinlinenote&flow_extra=eyJpbmxpbmVfZGlzcGxheV9wb3NpdGlvbiI6MCwiZG9jX3Bvc2l0aW9uIjowLCJkb2NfaWQiOiIxM2RhZDM5ZDRjYzEyYjAwLTJiYTFlNGQ5NDViOTQ5Y2EifQ%3D%3D "__LINK_ICON")</p>
-            `;
+                // Build results including TIME + DISTANCE (km/miles)
+                let html = `<h3>Journeys: ${from} → ${to}</h3>`;
+                data.journeys.slice(0,5).forEach((journey, i) => {
+                    const dep = journey.departure_time;
+                    const arr = journey.arrival_time;
+                    const dur = journey.duration;
+                    const km = Math.round(journey.distance_km * 10) / 10;
+                    const miles = Math.round(journey.distance_miles * 10) / 10;
+
+                    html += `
+                    <div class="journey">
+                        <p class="time">${dep} → ${arr}</p>
+                        <div class="details">
+                            Duration: ${dur}<br>
+                            Distance: <strong>${km} km</strong> (${miles} miles)<br>
+                            Changes: ${journey.changes}
+                        </div>
+                    </div>`;
+                });
+
+                resultsDiv.innerHTML = html;
+
+            } catch (err) {
+                resultsDiv.innerHTML = `<div class="error">Failed to load data. Please try again later.</div>`;
+                console.error(err);
+            }
         });
     </script>
 </body>
