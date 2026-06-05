@@ -139,7 +139,7 @@
         <button class="nav-link" onclick="event.stopPropagation(); triggerTodoMenu()">TODO</button>
         <a href="oracle.html" class="nav-link">ORACLE</a>
         <a href="travel.html" class="nav-link">TRAVEL</a>
-        <a href="accom.html" class="nav-link">ACCOM</a>
+        <a href="accom.html" class="nav-link">ACCOMODATION</a>
         <button class="nav-link" onclick="event.stopPropagation(); showCalc()">PERCENTAGE</button>
         <button id="summon-nav-btn" class="nav-link" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
         <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
@@ -601,7 +601,7 @@
         function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
         function menuChangeUrl() { const u = prompt("Change Destination Target URL:", allRelics[activeMenuId].url || ""); if(u !== null) rtdb.ref(`relics/${activeMenuId}`).update({url: u.trim()}); closeMenu(); }
         function menuSnapOriginal() { rtdb.ref(`relics/${activeMenuId}/layouts/${getPlatformKey()}`).update({w: null}); closeMenu(); }
-        swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
+        function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
         function runCalcRitual() { const a = parseFloat(document.getElementById('calc-amount').value); const p = parseFloat(document.getElementById('calc-percent').value); if (!isNaN(a)) alert(`Tithe: ${(a * (p/100)).toFixed(2)}`); closeModals(); }
         
         function runSummonRitual() { 
