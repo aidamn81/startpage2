@@ -563,12 +563,28 @@
             }
         }
 
+        // Format dates into TrainSplit expected format if deep-linking directly
+        // Formats to DD/MM/YYYY
+        const day = String(targetedDepartureBase.getDate()).padStart(2, '0');
+        const month = String(targetedDepartureBase.getMonth() + 1).padStart(2, '0');
+        const year = targetedDepartureBase.getFullYear();
+        const formattedDate = `${day}/${month}/${year}`;
+        
+        const hour = String(targetedDepartureBase.getHours()).padStart(2, '0');
+        const minute = String(targetedDepartureBase.getMinutes()).padStart(2, '0');
+
+        // Instead of pure local static rendering, we will trigger direct visibility and construct live routing strings
+        const targetNameString = dataMatch ? dataMatch.name : (query.charAt(0).toUpperCase() + query.slice(1));
+        
+        // Build TrainSplit URL context
+        // London defaults down to 'London (All Stations)'
+        const trainSplitLink = `https://trainsplit.com/?origin=London&destination=${encodeURIComponent(targetNameString)}&outboundDate=${encodeURIComponent(formattedDate)}&outboundTime=${hour}:${minute}`;
+
         if (dataMatch) {
-            renderRouteMetrics(dataMatch, targetedDepartureBase);
+            renderRouteMetrics(dataMatch, targetedDepartureBase, trainSplitLink);
         } else {
-            const proceduralName = query.charAt(0).toUpperCase() + query.slice(1);
             const proceduralMetrics = {
-                name: proceduralName,
+                name: targetNameString,
                 distance: Math.floor(Math.random() * (220 - 40) + 40),
                 trainTime: "1h 45m",
                 trainMinutes: 105,
@@ -579,11 +595,11 @@
                 trainStation: "UKX",
                 busStation: "Stn"
             };
-            renderRouteMetrics(proceduralMetrics, targetedDepartureBase);
+            renderRouteMetrics(proceduralMetrics, targetedDepartureBase, trainSplitLink);
         }
     }
 
-    function renderRouteMetrics(data, departureBaseTime) {
+    function renderRouteMetrics(data, departureBaseTime, liveTrainSplitUrl) {
         resultsWrapper.classList.remove('hidden');
         displayTargetName.textContent = data.name;
         distVal.textContent = `${data.distance} miles`;
@@ -599,7 +615,8 @@
         const busDeparture = new Date(departureBaseTime.getTime() + 15 * 60000);
         const busArrival = new Date(busDeparture.getTime() + data.busMinutes * 60000);
 
-        const trainCard = createTransitCard('Train', data.trainTime, data.trainPrice, 'LON', data.trainStation, trainDeparture, trainArrival, 'https://www.thetrainline.com');
+        // Updated Ticket links to check dynamic deep links from TrainSplit live portal
+        const trainCard = createTransitCard('Train', data.trainTime, data.trainPrice, 'LON', data.trainStation, trainDeparture, trainArrival, liveTrainSplitUrl);
         const busCard = createTransitCard('National Express Bus', data.busTime, data.busPrice, 'VCS', data.busStation, busDeparture, busArrival, 'https://www.nationalexpress.com');
 
         itineraryCardsContainer.appendChild(trainCard);
