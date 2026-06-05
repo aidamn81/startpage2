@@ -74,7 +74,14 @@
             color: var(--text-secondary);
         }
 
-        .back-link {
+        /* Header Actions Layout Area */
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .back-link, .accom-link {
             font-size: 13px;
             color: var(--text-secondary);
             text-decoration: none;
@@ -84,9 +91,21 @@
             transition: all 0.2s ease;
         }
 
-        .back-link:hover {
+        .back-link:hover, .accom-link:hover {
             color: var(--text-primary);
             border-color: var(--text-secondary);
+        }
+
+        .accom-link {
+            background: rgba(122, 92, 255, 0.1);
+            border-color: rgba(122, 92, 255, 0.3);
+            color: #bfaeff;
+        }
+
+        .accom-link:hover {
+            background: rgba(122, 92, 255, 0.2);
+            border-color: var(--accent-glow);
+            color: var(--text-primary);
         }
 
         /* Scrollable Operational Container Context */
@@ -432,12 +451,13 @@
             <h1>UK Route Planner</h1>
             <p>Departure Station: London</p>
         </div>
-        <!-- Link context pointing straight back to index.html -->
-        <a href="index.html" class="back-link">← Main Site</a>
+        <div class="header-actions">
+            <a href="accom.html" class="accom-link">Accommodation</a>
+            <a href="index.html" class="back-link">← Back</a>
+        </div>
     </header>
 
     <main class="main-content">
-        <!-- Input Form Block Area -->
         <section class="search-box">
             <div class="input-group">
                 <label for="destInput">Destination Location</label>
@@ -458,7 +478,6 @@
             <button id="searchBtn" class="search-btn">Find Routes</button>
         </section>
 
-        <!-- Tracking Monitor Banner Section (iOS Shortcut Sync) -->
         <div id="countdownBanner" class="countdown-banner hidden">
             <div class="countdown-info">
                 <span class="countdown-title">Device Link Countdown</span>
@@ -467,7 +486,6 @@
             <button class="countdown-cancel" onclick="killTrackingClock()">Cancel</button>
         </div>
 
-        <!-- Output Visual Render Target Box -->
         <section id="resultsWrapper" class="results-panel hidden">
             <h2 id="displayTargetName" class="destination-title">Manchester</h2>
             
@@ -483,8 +501,7 @@
             </div>
 
             <div id="itineraryCardsContainer">
-                <!-- Programmatically generated transit options append here -->
-            </div>
+                </div>
         </section>
     </main>
 </div>
