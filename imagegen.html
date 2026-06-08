@@ -185,9 +185,6 @@
     color: #fff;
     border-color: var(--crimson);
   }
-  #menuBtn:active {
-    transform: scale(0.97);
-  }
   
   #menuBtn svg {
     width: 14px;
@@ -234,7 +231,6 @@
     background: var(--bg-hover);
   }
 
-  /* Animated Crimson Accents */
   .fancy-free {
     color: #ff3333;
     font-weight: bold;
@@ -274,12 +270,12 @@
 </div>
 
 <div id="ribbonEl">
-  🔮 IMAGE STUDIO — UNRESTRICTED GENERATION WORKSPACE Active
+  🔮 UNRESTRICTED IMAGE STUDIO — INFINITE GENERATIONS READY
   <span class="closeBtn" onclick="closeRibbon()" title="Hide bar">&times;</span>
 </div>
 
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://multimodalart-cosmxl.hf.space" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://null.perchance.org/free-image-to-image" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
@@ -340,7 +336,7 @@
 
   let isMenuOpen = false;
 
-  document.getElementById('menuBtn').addEventListener('click', function() {
+  function toggleMenu() {
     isMenuOpen = !isMenuOpen;
     let menuContent = document.getElementById('menuContent');
     let toolsWrapper = document.getElementById('toolsIconWrapper');
@@ -362,7 +358,7 @@
         menuLabel.style.display = 'inline';
       }, 200); 
     }
-  });
+  }
 
   function updateMenuPosition() {
     if (ribbonEl && !ribbonEl.classList.contains('closed')) {
