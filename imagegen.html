@@ -1,33 +1,371 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Studio - Image Generator</title>
-    <style>
-        /* This makes the iframe fill the entire screen */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #000;
-            overflow: hidden;
-        }
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-    </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Gothic Archive - Image Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
+
+<style>
+  :root { 
+    --obsidian: #050505; 
+    --crimson: #7a0000; 
+    --gold: #8c7340; 
+    --text: #a19a89; 
+    --bg-hover: rgba(122, 0, 0, 0.2);
+  }
+
+  body { 
+    background-color: var(--obsidian); 
+    background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png');
+    background-attachment: fixed;
+    margin: 0; 
+    display: flex; 
+    flex-direction: column; 
+    height: 100vh; 
+    overflow: hidden; 
+    font-family: 'Playfair Display', serif;
+    color: var(--text);
+  }
+  
+  /* Main Container */
+  #previewCtn {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    background: #000;
+    min-height: 0; 
+  }
+
+  /* Iframe fills the container perfectly */
+  #previewCtn iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    display: block;
+    background: transparent;
+  }
+
+  /* Gothic Loading Element */
+  #loadingEl {
+    position: absolute;
+    inset: 0; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--obsidian);
+    z-index: 50;
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    letter-spacing: 2px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid rgba(140, 115, 64, 0.1);
+    border-left-color: var(--crimson);
+    border-radius: 50%;
+    animation: spin 1.2s linear infinite;
+    margin-bottom: 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Crimson/Gold Velvet Ribbon */
+  #ribbonEl {
+    background: linear-gradient(135deg, #4a0000 0%, var(--crimson) 100%); 
+    color: #fff;
+    text-align: center;
+    padding: 12px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.75rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--gold);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    z-index: 100;
+    position: relative; 
+    overflow: hidden; 
+    transition: all 0.5s ease; 
+  }
+
+  #ribbonEl.closed {
+    height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    transform: translateY(-100%); 
+    pointer-events: none;
+    border-bottom: none;
+  }
+
+  footer {
+    background: #020202;
+    color: #555;
+    text-align: center;
+    padding: 10px;
+    font-size: 11px;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 1px;
+    border-top: 1px solid #161616;
+    position: relative; 
+    overflow: hidden; 
+    transition: all 0.5s ease; 
+  }
+
+  footer.closed {
+    height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    transform: translateY(100%); 
+    pointer-events: none;
+    border-top: none;
+  }
+
+  /* Close icons */
+  .closeBtn {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    opacity: 0.5;
+    font-size: 18px;
+    font-weight: bold;
+    padding: 2px 6px;
+    transition: opacity 0.2s, background 0.2s;
+    border-radius: 4px;
+    color: #fff;
+  }
+  .closeBtn:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.1);
+  }
+
+  /* --- Floating Menu Custom Styling --- */
+  #menuContainer {
+    position: fixed;
+    top: 16px; 
+    right: 16px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    transition: top 0.5s ease; 
+  }
+
+  #menuBtn {
+    background: rgba(10, 10, 10, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center; 
+    gap: 8px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    font-weight: bold;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+    outline: none;
+    position: relative; 
+    min-height: 36px; 
+    min-width: 36px;
+  }
+  #menuBtn:hover {
+    background: var(--crimson);
+    color: #fff;
+    border-color: var(--crimson);
+  }
+  #menuBtn:active {
+    transform: scale(0.97);
+  }
+  
+  #menuBtn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+  }
+
+  .fade-out { opacity: 0; transition: opacity 0.2s; }
+  .fade-in { opacity: 1; transition: opacity 0.2s; }
+
+  #menuContent {
+    margin-top: 8px;
+    background: rgba(5, 5, 5, 0.98);
+    border: 1px solid var(--crimson);
+    border-radius: 4px;
+    padding: 12px;
+    width: 220px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  #menuContent.open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+
+  #menuContent a {
+    display: block;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 0.75rem;
+    font-family: 'Cinzel', serif;
+    letter-spacing: 0.5px;
+    padding: 6px;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+  #menuContent a:hover {
+    color: #fff;
+    background: var(--bg-hover);
+  }
+
+  /* Animated Crimson Accents */
+  .fancy-free {
+    color: #ff3333;
+    font-weight: bold;
+    font-style: italic;
+    text-transform: uppercase;
+    animation: pulse-red 1.5s infinite alternate;
+    text-shadow: 0 0 5px rgba(255, 50, 50, 0.3);
+    display: inline-block;
+    margin-right: 4px;
+  }
+
+  @keyframes pulse-red {
+    0% { transform: scale(1); text-shadow: 0 0 5px rgba(255, 50, 50, 0.3); }
+    100% { transform: scale(1.05); text-shadow: 0 0 10px rgba(255, 0, 0, 0.6); }
+  }
+</style>
 </head>
 <body>
 
-    <iframe 
-        src="https://null.perchance.org/free-image-to-image" 
-        title="AI Image Studio"
-        allow="camera; microphone; clipboard-write">
-    </iframe>
+<div id="menuContainer">
+  <button id="menuBtn" onclick="toggleMenu()">
+    <span id="toolsIconWrapper">
+      <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.7 4.7C.6 7.1 1 10.1 3 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.0-1.4z"/></svg>
+    </span>
+    <span id="menuLabel">More Tools</span>
+    <span id="closeIconWrapper" class="fade-out" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center;">
+      <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+    </span>
+  </button>
+
+  <div id="menuContent">
+    <a href="index.html">🏛 Back to Index</a>
+    <a href="https://perchance.org/free-image-to-video" target="_blank">
+      <span class="fancy-free">FREE</span> Image to Video
+    </a>
+  </div>
+</div>
+
+<div id="ribbonEl">
+  AI STUDIO — CONJURE IMAGES
+  <span class="closeBtn" onclick="closeRibbon()" title="Hide bar">&times;</span>
+</div>
+
+<div id="previewCtn">
+  <iframe id="targetFrame" src="https://perchance.org/free-image-to-image" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  
+  <div id="loadingEl">
+    <div class="spinner"></div>
+    <div>ALREADY SUMMONING...</div>
+  </div>
+</div>
+
+<footer id="footerEl">
+  Perchance Image Studio Workspace
+  <span class="closeBtn" onclick="closeFooter()" title="Hide footer">&times;</span>
+</footer>
+
+<script>
+  const ribbonEl = document.getElementById('ribbonEl');
+  const footerEl = document.getElementById('footerEl');
+  const loadingEl = document.getElementById('loadingEl');
+  const menuContainer = document.getElementById('menuContainer');
+  const targetFrame = document.getElementById('targetFrame');
+
+  function checkStorage() {
+    if (localStorage.ribbonClosed === 'true') {
+      ribbonEl.classList.add('closed');
+    }
+    if (localStorage.footerClosed === 'true') {
+      footerEl.classList.add('closed');
+    }
+  }
+  
+  checkStorage();
+  updateMenuPosition();
+
+  // Dismiss loader frame smoothly as content drops in
+  if (targetFrame) {
+    targetFrame.onload = () => {
+      setTimeout(() => {
+        if(loadingEl) {
+          loadingEl.style.opacity = '0';
+          setTimeout(() => loadingEl.style.display = 'none', 500);
+        }
+      }, 1000);
+    };
+  }
+
+  function closeRibbon() {
+    ribbonEl.classList.add('closed');
+    localStorage.ribbonClosed = 'true'; 
+    updateMenuPosition(); 
+  }
+
+  function closeFooter() {
+    footerEl.classList.add('closed');
+    localStorage.footerClosed = 'true'; 
+  }
+
+  let isMenuOpen = false;
+
+  function toggleMenu() {
+    isMenuOpen = !isMenuOpen;
+    let menuContent = document.getElementById('menuContent');
+    let toolsWrapper = document.getElementById('toolsIconWrapper');
+    let closeWrapper = document.getElementById('closeIconWrapper');
+    let menuLabel = document.getElementById('menuLabel');
+
+    if (isMenuOpen) {
+      menuContent.classList.add('open');
+      menuLabel.style.display = 'none'; 
+      toolsWrapper.style.display = 'none'; 
+      closeWrapper.style.display = 'flex'; 
+      setTimeout(() => closeWrapper.classList.remove('fade-out'), 10);
+    } else {
+      menuContent.classList.remove('open');
+      closeWrapper.classList.add('fade-out');
+      setTimeout(() => {
+        closeWrapper.style.display = 'none';
+        toolsWrapper.style.display = 'block';
+        menuLabel.style.display = 'inline';
+      }, 200); 
+    }
+  }
+
+  function updateMenuPosition() {
+    if (ribbonEl && !ribbonEl.classList.contains('closed')) {
+      menuContainer.style.top = '65px';
+    } else {
+      menuContainer.style.top = '16px';
+    }
+  }
+</script>
 
 </body>
 </html>
