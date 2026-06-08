@@ -218,7 +218,7 @@
     pointer-events: auto;
   }
 
-  #menuContent a {
+  #menuContent a, #menuContent label {
     display: block;
     color: var(--text);
     text-decoration: none;
@@ -232,6 +232,19 @@
   #menuContent a:hover {
     color: #fff;
     background: var(--bg-hover);
+  }
+
+  .engine-select {
+    width: 100%;
+    background: #111;
+    border: 1px solid var(--gold);
+    color: var(--gold);
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    padding: 6px;
+    margin-top: 4px;
+    border-radius: 3px;
+    outline: none;
   }
 
   /* Animated Crimson Accents */
@@ -267,6 +280,16 @@
 
   <div id="menuContent">
     <a href="index.html">🏛 Back to Index</a>
+    
+    <div style="padding: 6px; border-bottom: 1px solid #222; margin-bottom: 6px;">
+      <label style="padding: 0; font-size: 0.6rem; color: var(--gold);">⚡ Switch Engine Vault</label>
+      <select class="engine-select" id="engineSelect" onchange="changeEngine(this.value)">
+        <option value="https://aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space">Vault Alpha (Active)</option>
+        <option value="https://mccscs2-qwen-image-edit-rapid-aio-loras-experimental.hf.space">Vault Beta (Backup)</option>
+        <option value="https://cruisewagner2220-qwen-image-edit-rapid-aio-loras-5154351.hf.space">Vault Original (Overloaded)</option>
+      </select>
+    </div>
+
     <a href="https://perchance.org/free-image-to-video" target="_blank">
       <span class="fancy-free">FREE</span> Image to Video
     </a>
@@ -279,7 +302,7 @@
 </div>
 
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://null.perchance.org/free-image-to-image" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
@@ -311,22 +334,31 @@
   checkStorage();
   updateMenuPosition();
 
-  // Dismiss loader frame cleanly when the frame completes its sync cycle
+  function triggerLoader() {
+    if(loadingEl) {
+      loadingEl.style.display = 'flex';
+      loadingEl.style.opacity = '1';
+    }
+  }
+
+  function hideLoader() {
+    if(loadingEl) {
+      loadingEl.style.opacity = '0';
+      setTimeout(() => loadingEl.style.display = 'none', 400);
+    }
+  }
+
   if (targetFrame) {
-    targetFrame.onload = () => {
-      if(loadingEl) {
-        loadingEl.style.opacity = '0';
-        setTimeout(() => loadingEl.style.display = 'none', 400);
-      }
-    };
+    targetFrame.onload = hideLoader;
     
-    // Safety fallback trigger to ensure loader drops out regardless of connection latency
-    setTimeout(() => {
-      if(loadingEl && loadingEl.style.display !== 'none') {
-        loadingEl.style.opacity = '0';
-        setTimeout(() => loadingEl.style.display = 'none', 400);
-      }
-    }, 2500);
+    // Safety fallback trigger
+    setTimeout(hideLoader, 2500);
+  }
+
+  function changeEngine(url) {
+    triggerLoader();
+    targetFrame.src = url;
+    closeMenu();
   }
 
   function closeRibbon() {
