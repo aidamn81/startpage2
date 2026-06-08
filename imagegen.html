@@ -97,7 +97,7 @@
     color: #888;
   }
 
-  textarea, select {
+  textarea, select, input[type="range"] {
     background: #000;
     border: 1px solid #252525;
     color: #fff;
@@ -116,6 +116,40 @@
   #promptText { height: 110px; }
   #negativePromptText { height: 65px; font-size: 0.75rem; color: #ccbba0; }
 
+  /* Custom styling for Gothic sliders */
+  input[type="range"] {
+    -webkit-appearance: none;
+    padding: 0;
+    height: 6px;
+    background: #111;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--gold);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  .range-label-flex {
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .range-value { font-family: monospace; font-size: 0.75rem; color: var(--gold); }
+
+  /* File upload stylized container */
+  .file-uploader {
+    border: 1px dashed var(--gold);
+    background: rgba(140, 115, 64, 0.03);
+    padding: 20px 12px;
+    text-align: center;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background 0.2s;
+    color: var(--gold);
+  }
+  .file-uploader:hover { background: rgba(140, 115, 64, 0.08); }
+  
   .action-btn {
     background: linear-gradient(to bottom, #5a0000, var(--crimson));
     border: 1px solid var(--gold);
@@ -242,44 +276,65 @@
 <body>
 
 <div id="ribbonEl">
-  🔮 HYPER-REALISTIC SYNTHESIS ENGINE — PRIORITY VAULT ACTIVE
+  🔮 HYPER-REALISM IMAGE-TO-IMAGE STUDIO — PRIORITY VAULT ACTIVE
 </div>
 
 <div class="workspace">
   <div class="control-panel">
     <div>
-      <h3 class="panel-title">Manifestation Script</h3>
+      <h3 class="panel-title">Media & Script</h3>
       
-      <div class="field-group" style="margin-top:14px;">
-        <label>Creative Prompt</label>
-        <textarea id="promptText" placeholder="An elegant Victorian gothic portrait, hyper-realistic, 8k resolution, cinematic lighting, intricate details, highly detailed textures..."></textarea>
+      <div class="field-group" style="margin-top:16px;">
+        <label>Source Image (Upload)</label>
+        <div class="file-uploader" onclick="document.getElementById('fileSource').click()">
+          <span id="uploadLabel">📸 Tap to Upload Image</span>
+          <input type="file" id="fileSource" accept="image/*" style="display:none;" onchange="handleFileLoad(event)">
+        </div>
       </div>
 
-      <div class="field-group" style="margin-top:14px;">
+      <div class="field-group" style="margin-top:16px;">
+        <label>Modification Prompt</label>
+        <textarea id="promptText" placeholder="Alter this Victorian portrait into a highly-detailed gothic 8k hyper-realistic photograph, intricate lace, sharp focus, photographic depth..."></textarea>
+      </div>
+
+      <div class="field-group" style="margin-top:16px;">
         <label>Negative Filter (What to exclude)</label>
-        <textarea id="negativePromptText">canvas, illustration, cartoon, anime, drawing, digital art, airbrushed, deformed, low quality</textarea>
-      </div>
-
-      <div class="field-group" style="margin-top:14px;">
-        <label>Aspect Ratio Frame</label>
-        <select id="aspectRatio">
-          <option value="portrait">Portrait Frame (3:4)</option>
-          <option value="square" selected>Square Archive (1:1)</option>
-          <option value="landscape">Landscape Canvas (4:3)</option>
-        </select>
+        <textarea id="negativePromptText">canvas, illustration, cartoon, anime, drawing, digital art, airbrushed, deformed, low quality, blurred</textarea>
       </div>
     </div>
 
-    <button class="action-btn" onclick="summonHyperRealism()">Summon Manifestation</button>
+    <div>
+      <h3 class="panel-title">Precision Controls</h3>
+      
+      <div class="field-group" style="margin-top:16px;">
+        <div class="range-label-flex">
+          <label>Mutation Strength (Noise)</label>
+          <span class="range-value" id="strengthVal">0.65</span>
+        </div>
+        <input type="range" id="mutationStrength" min="0" max="1" step="0.01" value="0.65" oninput="updateRangeVal('mutationStrength', 'strengthVal')">
+        <span style="font-size: 9px; color: #555; margin-top:-4px;">Lower = preserve details; Higher = massive changes</span>
+      </div>
+
+      <div class="field-group" style="margin-top:16px;">
+        <div class="range-label-flex">
+          <label>Focus Guidance (Focus)</label>
+          <span class="range-value" id="guidanceVal">7.5</span>
+        </div>
+        <input type="range" id="focusGuidance" min="1" max="20" step="0.5" value="7.5" oninput="updateRangeVal('focusGuidance', 'guidanceVal')">
+        <span style="font-size: 9px; color: #555; margin-top:-4px;">How rigidly the engine follows your text script</span>
+      </div>
+    </div>
+
+    <button class="action-btn" onclick="summonHyperRealismIm2Im()">Execute Mutation</button>
   </div>
 
   <div class="display-panel">
-    <div id="placeholderText">HYPER-REALISM ENGINE STANDBY<br><span style="font-size:10px; color:#333;">Draft your manifestation script and execute the sequence</span></div>
+    <div id="placeholderText">IMAGE-TO-IMAGE STUDIO STANDBY<br><span style="font-size:10px; color:#333;">Upload a source image, draft your prompt, and execute the mutation sequence</span></div>
     <img id="canvasTarget" alt="Synthesized Hyper-Realistic Output">
 
     <div id="summoningOverlay">
       <div class="spinner"></div>
-      <div id="summoningStatus">RENDERING HIGH-FIDELITY PARTICLES...</div>
+      <div id="summoningStatus">MUTATING PARTICLES INTO HIGH-FIDELITY...</div>
     </div>
   </div>
 </div>
@@ -297,32 +352,45 @@
 
 <script>
   const _0x5f3e = "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";
+  let base64ImageString = null;
 
-  async function summonHyperRealism() {
+  function updateRangeVal(sliderId, displayId) {
+    document.getElementById(displayId).innerText = document.getElementById(sliderId).value;
+  }
+
+  function handleFileLoad(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('uploadLabel').innerText = "⚡ " + file.name;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      base64ImageString = e.target.result; // Store base64 data for secure multi-part form data creation
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function summonHyperRealismIm2Im() {
     const prompt = document.getElementById('promptText').value.trim();
     const negativePrompt = document.getElementById('negativePromptText').value.trim();
-    const aspect = document.getElementById('aspectRatio').value;
+    const strength = document.getElementById('mutationStrength').value;
+    const guidance = document.getElementById('focusGuidance').value;
     const overlay = document.getElementById('summoningOverlay');
     const displayImg = document.getElementById('canvasTarget');
     const placeholder = document.getElementById('placeholderText');
 
-    if(!prompt) { alert("Please input your manifestation script prompt."); return; }
+    if(!base64ImageString) { alert("Please upload an input picture first."); return; }
+    if(!prompt) { alert("Please input your modification script prompt."); return; }
 
     overlay.classList.add('active');
 
-    // Automatically injecting structural photographic anchors to guarantee deep realism
-    const structuralEnhancement = ", hyperrealistic photography, depth of field, sharp focus, 35mm photograph, cinematic textures, highly detailed skin grain";
+    // Automatically inject photographic anchors to enforce hyper-realism on the base image
+    const structuralEnhancement = ", sharp focus, 35mm photograph, cinematic textures, highly detailed skin grain, intricate photographic depth of field";
     const absolutePrompt = prompt + structuralEnhancement;
 
-    // Mapping exact aspect resolution layouts for hyper-realistic rendering nodes
-    let width = 1024;
-    let height = 1024;
-    if (aspect === 'portrait') { width = 768; height = 1024; }
-    if (aspect === 'landscape') { width = 1024; height = 768; }
-
     try {
-      // Connect directly to the lightning-fast serverless infrastructure framework
-      const response = await fetch("https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large", {
+      // Connect directly to the stable serverless infrastructure framework for Flux.1 Schnell-level performance
+      const response = await fetch("https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -330,11 +398,11 @@
         },
         body: JSON.stringify({
           inputs: absolutePrompt,
+          image: base64ImageString, // Directly sending the multi-part data string
           parameters: {
             negative_prompt: negativePrompt,
-            width: width,
-            height: height,
-            guidance_scale: 7.5,
+            strength: parseFloat(strength),
+            guidance_scale: parseFloat(guidance),
             num_inference_steps: 40
           },
           options: { wait_for_model: true }
@@ -342,7 +410,7 @@
       });
 
       if (!response.ok) {
-        throw new Error("Cluster cold start or queue exception. Status code: " + response.status);
+        throw new Error("Pipeline cold start or busy exception. Status code: " + response.status);
       }
 
       // Convert raw image streams cleanly directly into an operational display URL
@@ -355,7 +423,7 @@
 
     } catch (err) {
       console.error(err);
-      alert("Synthesis Exception: " + err.message + "\n\nIf the engine is waking up, wait 10 seconds and try again.");
+      alert("Pipeline Exception: " + err.message + "\n\nIf the engine is waking up, wait 10 seconds and try again.");
     } finally {
       overlay.classList.remove('active');
     }
