@@ -185,6 +185,9 @@
     color: #fff;
     border-color: var(--crimson);
   }
+  #menuBtn:active {
+    transform: scale(0.97);
+  }
   
   #menuBtn svg {
     width: 14px;
@@ -231,6 +234,7 @@
     background: var(--bg-hover);
   }
 
+  /* Animated Crimson Accents */
   .fancy-free {
     color: #ff3333;
     font-weight: bold;
@@ -270,12 +274,12 @@
 </div>
 
 <div id="ribbonEl">
-  🔮 UNRESTRICTED IMAGE STUDIO — INFINITE GENERATIONS READY
+  🔮 IMAGE STUDIO — UNRESTRICTED PRIORITY GENERATION ACTIVE
   <span class="closeBtn" onclick="closeRibbon()" title="Hide bar">&times;</span>
 </div>
 
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://null.perchance.org/free-image-to-image" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://signsur4739379373-qwen-image-edit-rapid-aio-loras-v2.hf.space" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
@@ -307,6 +311,7 @@
   checkStorage();
   updateMenuPosition();
 
+  // Dismiss loader cleanly when the frame content settles
   if (targetFrame) {
     targetFrame.onload = () => {
       if(loadingEl) {
@@ -315,6 +320,7 @@
       }
     };
     
+    // Safety fallback trigger
     setTimeout(() => {
       if(loadingEl && loadingEl.style.display !== 'none') {
         loadingEl.style.opacity = '0';
