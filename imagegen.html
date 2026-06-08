@@ -77,7 +77,10 @@
   #ribbonEl {
     background: linear-gradient(135deg, #4a0000 0%, var(--crimson) 100%); 
     color: #fff;
-    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
     padding: 12px;
     font-family: 'Cinzel', serif;
     font-size: 0.75rem;
@@ -87,7 +90,6 @@
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     z-index: 100;
     position: relative; 
-    overflow: hidden; 
     transition: all 0.5s ease; 
   }
 
@@ -99,6 +101,25 @@
     transform: translateY(-100%); 
     pointer-events: none;
     border-bottom: none;
+  }
+
+  .vault-btn {
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 4px 12px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.65rem;
+    border-radius: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .vault-btn:hover {
+    background: #000;
+    color: #fff;
+    border-color: #fff;
   }
 
   footer {
@@ -274,12 +295,13 @@
 </div>
 
 <div id="ribbonEl">
-  🔮 IMAGE STUDIO — UNRESTRICTED PRIORITY GENERATION ACTIVE
+  <span>🔮 IMAGE STUDIO — GENERATION WORKSPACE ACTIVE</span>
+  <a class="vault-btn" href="https://huggingface.co/settings/tokens" target="_blank">🔐 Token Vault Settings</a>
   <span class="closeBtn" onclick="closeRibbon()" title="Hide bar">&times;</span>
 </div>
 
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://signsur4739379373-qwen-image-edit-rapid-aio-loras-v2.hf.space" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://huggingface.co/spaces/Qwen/Qwen-Image-Edit-2509/embed" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
@@ -311,7 +333,6 @@
   checkStorage();
   updateMenuPosition();
 
-  // Dismiss loader cleanly when the frame content settles
   if (targetFrame) {
     targetFrame.onload = () => {
       if(loadingEl) {
@@ -320,7 +341,6 @@
       }
     };
     
-    // Safety fallback trigger
     setTimeout(() => {
       if(loadingEl && loadingEl.style.display !== 'none') {
         loadingEl.style.opacity = '0';
