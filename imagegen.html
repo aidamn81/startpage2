@@ -73,15 +73,14 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Crimson/Gold Velvet Ribbon */
+  /* Crimson/Gold Velvet Ribbon with Integrated Vault Controls */
   #ribbonEl {
     background: linear-gradient(135deg, #4a0000 0%, var(--crimson) 100%); 
     color: #fff;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 15px;
-    padding: 12px;
+    padding: 10px 20px;
     font-family: 'Cinzel', serif;
     font-size: 0.75rem;
     font-weight: bold;
@@ -95,24 +94,39 @@
 
   #ribbonEl.closed {
     height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0;
     opacity: 0;
     transform: translateY(-100%); 
     pointer-events: none;
     border-bottom: none;
   }
 
+  .vault-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .vault-input {
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--gold);
+    color: #fff;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    border-radius: 3px;
+    width: 180px;
+    outline: none;
+  }
+
   .vault-btn {
-    background: rgba(0, 0, 0, 0.6);
+    background: var(--obsidian);
     color: var(--gold);
     border: 1px solid var(--gold);
-    padding: 4px 12px;
+    padding: 4px 10px;
     font-family: 'Cinzel', serif;
     font-size: 0.65rem;
     border-radius: 3px;
     cursor: pointer;
-    text-decoration: none;
     transition: all 0.2s;
   }
 
@@ -132,44 +146,33 @@
     letter-spacing: 1px;
     border-top: 1px solid #161616;
     position: relative; 
-    overflow: hidden; 
     transition: all 0.5s ease; 
   }
 
   footer.closed {
     height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
+    padding: 0;
     opacity: 0;
     transform: translateY(100%); 
     pointer-events: none;
     border-top: none;
   }
 
-  /* Close icons */
   .closeBtn {
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
     cursor: pointer;
     opacity: 0.5;
-    font-size: 18px;
+    font-size: 16px;
     font-weight: bold;
-    padding: 2px 6px;
-    transition: opacity 0.2s, background 0.2s;
-    border-radius: 4px;
+    padding: 0 4px;
+    transition: opacity 0.2s;
     color: #fff;
   }
-  .closeBtn:hover {
-    opacity: 1;
-    background: rgba(255,255,255,0.1);
-  }
+  .closeBtn:hover { opacity: 1; }
 
   /* --- Floating Menu Custom Styling --- */
   #menuContainer {
     position: fixed;
-    top: 16px; 
+    top: 65px; 
     right: 16px;
     z-index: 200;
     display: flex;
@@ -197,27 +200,14 @@
     letter-spacing: 1px;
     transition: all 0.3s;
     outline: none;
-    position: relative; 
-    min-height: 36px; 
-    min-width: 36px;
   }
   #menuBtn:hover {
     background: var(--crimson);
     color: #fff;
     border-color: var(--crimson);
   }
-  #menuBtn:active {
-    transform: scale(0.97);
-  }
   
-  #menuBtn svg {
-    width: 14px;
-    height: 14px;
-    fill: currentColor;
-  }
-
-  .fade-out { opacity: 0; transition: opacity 0.2s; }
-  .fade-in { opacity: 1; transition: opacity 0.2s; }
+  #menuBtn svg { width: 14px; height: 14px; fill: currentColor; }
 
   #menuContent {
     margin-top: 8px;
@@ -230,7 +220,7 @@
     opacity: 0;
     transform: translateY(-10px) scale(0.95);
     pointer-events: none;
-    transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   #menuContent.open {
@@ -239,7 +229,7 @@
     pointer-events: auto;
   }
 
-  #menuContent a {
+  #menuContent a, .engine-select {
     display: block;
     color: var(--text);
     text-decoration: none;
@@ -249,69 +239,63 @@
     padding: 6px;
     border-radius: 3px;
     transition: all 0.2s;
+    cursor: pointer;
   }
-  #menuContent a:hover {
+  #menuContent a:hover, .engine-select:hover {
     color: #fff;
     background: var(--bg-hover);
   }
 
-  /* Animated Crimson Accents */
-  .fancy-free {
-    color: #ff3333;
-    font-weight: bold;
-    font-style: italic;
+  .engine-divider {
+    border-top: 1px solid #222;
+    margin: 6px 0;
+    padding-top: 6px;
+    font-size: 0.6rem;
+    color: var(--gold);
+    letter-spacing: 1px;
     text-transform: uppercase;
-    animation: pulse-red 1.5s infinite alternate;
-    text-shadow: 0 0 5px rgba(255, 50, 50, 0.3);
-    display: inline-block;
-    margin-right: 4px;
-  }
-
-  @keyframes pulse-red {
-    0% { transform: scale(1); text-shadow: 0 0 5px rgba(255, 50, 50, 0.3); }
-    100% { transform: scale(1.05); text-shadow: 0 0 10px rgba(255, 0, 0, 0.6); }
   }
 </style>
 </head>
 <body>
 
+<div id="ribbonEl">
+  <span>🔮 IMAGE STUDIO ARCHIVE</span>
+  <div class="vault-controls">
+    <input type="password" id="vaultKey" class="vault-input" placeholder="Paste hf_ write token...">
+    <button class="vault-btn" onclick="saveVaultKey()">Lock Vault</button>
+    <a class="vault-btn" href="https://huggingface.co/settings/tokens" target="_blank">Get Key</a>
+    <span class="closeBtn" onclick="closeRibbon()">&times;</span>
+  </div>
+</div>
+
 <div id="menuContainer">
   <button id="menuBtn" onclick="toggleMenu()">
-    <span id="toolsIconWrapper">
-      <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.7 4.7C.6 7.1 1 10.1 3 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.0-1.4z"/></svg>
-    </span>
-    <span id="menuLabel">More Tools</span>
-    <span id="closeIconWrapper" class="fade-out" style="display:none; position:absolute; inset:0; align-items:center; justify-content:center;">
-      <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-    </span>
+    <svg viewBox="0 0 24 24"><path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.7 4.7C.6 7.1 1 10.1 3 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.0-1.4z"/></svg>
+    <span id="menuLabel">Studio Tools</span>
   </button>
 
   <div id="menuContent">
     <a href="index.html">🏛 Back to Index</a>
-    <a href="https://perchance.org/free-image-to-video" target="_blank">
-      <span class="fancy-free">FREE</span> Image to Video
-    </a>
+    
+    <div class="engine-divider">Swap Engine Pipeline</div>
+    <div class="engine-select" onclick="switchEngine('lora')">✨ Qwen LoRAs Edition</div>
+    <div class="engine-select" onclick="switchEngine('base')">🎨 Qwen Standard Edit</div>
   </div>
 </div>
 
-<div id="ribbonEl">
-  <span>🔮 IMAGE STUDIO — GENERATION WORKSPACE ACTIVE</span>
-  <a class="vault-btn" href="https://huggingface.co/settings/tokens" target="_blank">🔐 Token Vault Settings</a>
-  <span class="closeBtn" onclick="closeRibbon()" title="Hide bar">&times;</span>
-</div>
-
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://huggingface.co/spaces/Qwen/Qwen-Image-Edit-2509/embed" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://huggingface.co/spaces/Qwen/Qwen-Image-Edit-2509-LoRAs-Fast/embed" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
-    <div>ALREADY SUMMONING...</div>
+    <div>CONJURING WORKSPACE...</div>
   </div>
 </div>
 
 <footer id="footerEl">
-  Image Studio Workspace
-  <span class="closeBtn" onclick="closeFooter()" title="Hide footer">&times;</span>
+  Gothic Studio Workspace Base
+  <span class="closeBtn" onclick="closeFooter()">&times;</span>
 </footer>
 
 <script>
@@ -320,18 +304,44 @@
   const loadingEl = document.getElementById('loadingEl');
   const menuContainer = document.getElementById('menuContainer');
   const targetFrame = document.getElementById('targetFrame');
+  const vaultKeyInput = document.getElementById('vaultKey');
 
-  function checkStorage() {
-    if (localStorage.ribbonClosed === 'true') {
-      ribbonEl.classList.add('closed');
+  const engines = {
+    lora: "https://huggingface.co/spaces/Qwen/Qwen-Image-Edit-2509-LoRAs-Fast/embed",
+    base: "https://huggingface.co/spaces/Qwen/Qwen-Image-Edit/embed"
+  };
+
+  function initWorkspace() {
+    if (localStorage.ribbonClosed === 'true') ribbonEl.classList.add('closed');
+    if (localStorage.footerClosed === 'true') footerEl.classList.add('closed');
+    if (localStorage.hfWorkspaceKey) {
+      vaultKeyInput.value = localStorage.hfWorkspaceKey;
     }
-    if (localStorage.footerClosed === 'true') {
-      footerEl.classList.add('closed');
+    updateMenuPosition();
+  }
+
+  function saveVaultKey() {
+    const key = vaultKeyInput.value.trim();
+    if(key) {
+      localStorage.hfWorkspaceKey = key;
+      alert("Access token safely locked into local storage environment! Refreshing engine context...");
+      targetFrame.src = targetFrame.src; // Reload iframe to force authentication pass
+    } else {
+      delete localStorage.hfWorkspaceKey;
+      alert("Vault cleared.");
+    }
+  }
+
+  function switchEngine(type) {
+    if(engines[type]) {
+      loadingEl.style.display = 'flex';
+      loadingEl.style.opacity = '1';
+      targetFrame.src = engines[type];
+      toggleMenu();
     }
   }
   
-  checkStorage();
-  updateMenuPosition();
+  initWorkspace();
 
   if (targetFrame) {
     targetFrame.onload = () => {
@@ -340,13 +350,6 @@
         setTimeout(() => loadingEl.style.display = 'none', 400);
       }
     };
-    
-    setTimeout(() => {
-      if(loadingEl && loadingEl.style.display !== 'none') {
-        loadingEl.style.opacity = '0';
-        setTimeout(() => loadingEl.style.display = 'none', 400);
-      }
-    }, 2500);
   }
 
   function closeRibbon() {
@@ -361,39 +364,14 @@
   }
 
   let isMenuOpen = false;
-
   function toggleMenu() {
     isMenuOpen = !isMenuOpen;
-    let menuContent = document.getElementById('menuContent');
-    let toolsWrapper = document.getElementById('toolsIconWrapper');
-    let closeWrapper = document.getElementById('closeIconWrapper');
-    let menuLabel = document.getElementById('menuLabel');
-
-    if (isMenuOpen) {
-      menuContent.classList.add('open');
-      menuLabel.style.display = 'none'; 
-      toolsWrapper.style.display = 'none'; 
-      closeWrapper.style.display = 'flex'; 
-      setTimeout(() => closeWrapper.classList.remove('fade-out'), 10);
-    } else {
-      menuContent.classList.remove('open');
-      closeWrapper.classList.add('fade-out');
-      setTimeout(() => {
-        closeWrapper.style.display = 'none';
-        toolsWrapper.style.display = 'block';
-        menuLabel.style.display = 'inline';
-      }, 200); 
-    }
+    document.getElementById('menuContent').classList.toggle('open', isMenuOpen);
   }
 
   function updateMenuPosition() {
-    if (ribbonEl && !ribbonEl.classList.contains('closed')) {
-      menuContainer.style.top = '65px';
-    } else {
-      menuContainer.style.top = '16px';
-    }
+    menuContainer.style.top = (ribbonEl && !ribbonEl.classList.contains('closed')) ? '65px' : '16px';
   }
 </script>
-
 </body>
 </html>
