@@ -284,9 +284,9 @@
     <div style="padding: 6px; border-bottom: 1px solid #222; margin-bottom: 6px;">
       <label style="padding: 0; font-size: 0.6rem; color: var(--gold);">⚡ Switch Engine Vault</label>
       <select class="engine-select" id="engineSelect" onchange="changeEngine(this.value)">
-        <option value="https://aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space">Vault Alpha (Active)</option>
-        <option value="https://mccscs2-qwen-image-edit-rapid-aio-loras-experimental.hf.space">Vault Beta (Backup)</option>
-        <option value="https://cruisewagner2220-qwen-image-edit-rapid-aio-loras-5154351.hf.space">Vault Original (Overloaded)</option>
+        <option value="https://signsur4739379373-qwen-image-edit-rapid-aio-nsfw-v23.hf.space">Vault Unthrottled (Primary)</option>
+        <option value="https://cruisewagner2220-qwen-image-edit-rapid-aio-loras-experimental-neo.hf.space">Vault Neo (Alternative)</option>
+        <option value="https://aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space">Vault Alpha (Legacy Shared)</option>
       </select>
     </div>
 
@@ -302,7 +302,7 @@
 </div>
 
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://aet256-qwen-image-edit-rapid-aio-loras-experimental.hf.space" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://signsur4739379373-qwen-image-edit-rapid-aio-nsfw-v23.hf.space" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
@@ -311,7 +311,7 @@
 </div>
 
 <footer id="footerEl">
-  Perchance Image Studio Workspace
+  Image Studio Workspace
   <span class="closeBtn" onclick="closeFooter()" title="Hide footer">&times;</span>
 </footer>
 
@@ -350,8 +350,6 @@
 
   if (targetFrame) {
     targetFrame.onload = hideLoader;
-    
-    // Safety fallback trigger
     setTimeout(hideLoader, 2500);
   }
 
@@ -388,14 +386,24 @@
       closeWrapper.style.display = 'flex'; 
       setTimeout(() => closeWrapper.classList.remove('fade-out'), 10);
     } else {
-      menuContent.classList.remove('open');
-      closeWrapper.classList.add('fade-out');
-      setTimeout(() => {
-        closeWrapper.style.display = 'none';
-        toolsWrapper.style.display = 'block';
-        menuLabel.style.display = 'inline';
-      }, 200); 
+      closeMenu();
     }
+  }
+
+  function closeMenu() {
+    let menuContent = document.getElementById('menuContent');
+    let toolsWrapper = document.getElementById('toolsIconWrapper');
+    let closeWrapper = document.getElementById('closeIconWrapper');
+    let menuLabel = document.getElementById('menuLabel');
+    
+    isMenuOpen = false;
+    menuContent.classList.remove('open');
+    closeWrapper.classList.add('fade-out');
+    setTimeout(() => {
+      closeWrapper.style.display = 'none';
+      toolsWrapper.style.display = 'block';
+      menuLabel.style.display = 'inline';
+    }, 200);
   }
 
   function updateMenuPosition() {
