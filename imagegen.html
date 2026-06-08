@@ -5,10 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Character Generator</title>
     <script src="https://perchance.org/api/v1/t2i-framework-plugin-v2.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        #app { max-width: 800px; margin: 0 auto; }
+    </style>
 </head>
 <body>
 
+    <div id="app"></div>
+
     <script type="text/perchance-config">
+        // Link the configuration to the app container
+        mountPoint = document.getElementById("app")
+        
         generateHTML = {import:t2i-framework-plugin-v2}
 
         $meta
