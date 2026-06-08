@@ -43,7 +43,7 @@
     height: 100%;
     border: none;
     display: block;
-    background: transparent;
+    background: #000;
   }
 
   /* Gothic Loading Element */
@@ -60,6 +60,8 @@
     font-family: 'Cinzel', serif;
     font-size: 0.8rem;
     letter-spacing: 2px;
+    opacity: 1;
+    transition: opacity 0.4s ease;
   }
   .spinner {
     width: 40px; height: 40px;
@@ -277,7 +279,7 @@
 </div>
 
 <div id="previewCtn">
-  <iframe id="targetFrame" src="https://perchance.org/free-image-to-image" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
+  <iframe id="targetFrame" src="https://null.perchance.org/free-image-to-image" allow="clipboard-read; clipboard-write; camera; microphone"></iframe>
   
   <div id="loadingEl">
     <div class="spinner"></div>
@@ -309,16 +311,22 @@
   checkStorage();
   updateMenuPosition();
 
-  // Dismiss loader frame smoothly as content drops in
+  // Dismiss loader frame cleanly when the frame completes its sync cycle
   if (targetFrame) {
     targetFrame.onload = () => {
-      setTimeout(() => {
-        if(loadingEl) {
-          loadingEl.style.opacity = '0';
-          setTimeout(() => loadingEl.style.display = 'none', 500);
-        }
-      }, 1000);
+      if(loadingEl) {
+        loadingEl.style.opacity = '0';
+        setTimeout(() => loadingEl.style.display = 'none', 400);
+      }
     };
+    
+    // Safety fallback trigger to ensure loader drops out regardless of connection latency
+    setTimeout(() => {
+      if(loadingEl && loadingEl.style.display !== 'none') {
+        loadingEl.style.opacity = '0';
+        setTimeout(() => loadingEl.style.display = 'none', 400);
+      }
+    }, 2500);
   }
 
   function closeRibbon() {
