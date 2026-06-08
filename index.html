@@ -23,19 +23,16 @@
     <style>
         :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 85px; }
         
-        /* Tablet Adaptive Viewports (iPads and larger handhelds) */
         @media only screen and (min-width: 601px) and (max-width: 1024px) { 
             :root { --base-size: 100px; } 
             .nav-link { padding: 8px 16px; font-size: 0.75rem; }
             #status-display { font-size: 1rem; top: 25px; left: 25px; }
         }
         
-        /* Desktop Screens */
         @media only screen and (min-width: 1025px) { 
             :root { --base-size: 100px; } 
         }
         
-        /* Compact Mobile Phone Screens */
         @media only screen and (max-width: 600px) { 
             :root { --base-size: 72px; } 
             .nav-link { padding: 5px 10px; font-size: 0.6rem; gap: 4px; }
@@ -140,7 +137,7 @@
         <a href="oracle.html" class="nav-link">ORACLE</a>
         <a href="travel.html" class="nav-link">TRAVEL</a>
         <a href="accom.html" class="nav-link">ACCOMODATION</a>
-        <a href="imagegen.html" class="nav-link">IMAGE</a>
+        <a href="https://perchance.org/ai-character-generator" class="nav-link" target="_blank" rel="noopener noreferrer">IMAGE</a>
         <button class="nav-link" onclick="event.stopPropagation(); showCalc()">PERCENTAGE</button>
         <button id="summon-nav-btn" class="nav-link" onclick="event.stopPropagation(); showSummon()">SUMMON</button>
         <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
