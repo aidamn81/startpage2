@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Gothic Archive - Image Studio Terminal</title>
+<title>Gothic Archive - Hyper-Realism Studio</title>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
 
 <style>
@@ -29,7 +29,6 @@
     color: var(--text);
   }
 
-  /* Crimson/Gold Velvet Ribbon */
   #ribbonEl {
     background: linear-gradient(135deg, #4a0000 0%, var(--crimson) 100%); 
     color: #fff;
@@ -44,7 +43,6 @@
     z-index: 100;
   }
 
-  /* Split Layout Workspace */
   .workspace {
     flex: 1;
     display: flex;
@@ -53,20 +51,18 @@
     width: 100%;
   }
 
-  /* Control Terminal Left Panel */
   .control-panel {
-    width: 320px;
+    width: 325px;
     background: var(--panel-bg);
     border-right: 1px solid #1a1a1a;
     padding: 24px 20px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 18px;
     overflow-y: auto;
   }
 
-  /* Live Display Right Panel */
   .display-panel {
     flex: 1;
     background: #000;
@@ -91,16 +87,17 @@
   .field-group {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   label {
     font-family: 'Cinzel', serif;
     font-size: 0.65rem;
     letter-spacing: 0.5px;
+    color: #888;
   }
 
-  input[type="text"], textarea, select {
+  textarea, select {
     background: #000;
     border: 1px solid #252525;
     color: #fff;
@@ -112,14 +109,12 @@
     transition: border 0.3s;
   }
 
-  input:focus, textarea:focus, select:focus {
+  textarea:focus, select:focus {
     border-color: var(--gold);
   }
 
-  textarea {
-    resize: none;
-    height: 100px;
-  }
+  #promptText { height: 110px; }
+  #negativePromptText { height: 65px; font-size: 0.75rem; color: #ccbba0; }
 
   .action-btn {
     background: linear-gradient(to bottom, #5a0000, var(--crimson));
@@ -128,40 +123,28 @@
     font-family: 'Cinzel', serif;
     font-size: 0.75rem;
     font-weight: bold;
-    padding: 12px;
+    padding: 14px;
     border-radius: 4px;
     cursor: pointer;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     transition: all 0.2s;
     margin-top: auto;
+    text-transform: uppercase;
   }
 
   .action-btn:hover {
     background: var(--crimson);
-    box-shadow: 0 0 10px rgba(122, 0, 0, 0.5);
+    box-shadow: 0 0 12px rgba(122, 0, 0, 0.6);
   }
 
-  /* File upload stylized container */
-  .file-uploader {
-    border: 1px dashed var(--gold);
-    background: rgba(140, 115, 64, 0.03);
-    padding: 20px 12px;
-    text-align: center;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.75rem;
-    transition: background 0.2s;
-  }
-  .file-uploader:hover { background: rgba(140, 115, 64, 0.08); }
-
-  /* Output Canvas Target Frame */
   #canvasTarget {
     max-width: 100%;
     max-height: 100%;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.95);
     border: 1px solid #1c1c1c;
     border-radius: 4px;
     display: none;
+    object-fit: contain;
   }
 
   #placeholderText {
@@ -173,7 +156,6 @@
     line-height: 1.6;
   }
 
-  /* Terminal Gothic Spinner Overlay */
   #summoningOverlay {
     position: absolute;
     inset: 0;
@@ -204,7 +186,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* Floating Menu Button */
   #menuContainer {
     position: fixed;
     bottom: 45px; 
@@ -261,47 +242,44 @@
 <body>
 
 <div id="ribbonEl">
-  🔮 DIRECT INFRASTRUCTURE PIPELINE — UNRESTRICTED PRIORITY ACCESS MODE
+  🔮 HYPER-REALISTIC SYNTHESIS ENGINE — PRIORITY VAULT ACTIVE
 </div>
 
 <div class="workspace">
   <div class="control-panel">
     <div>
-      <h3 class="panel-title">Media Synthesis</h3>
+      <h3 class="panel-title">Manifestation Script</h3>
       
-      <div class="field-group" style="margin-top:16px;">
-        <label>Source Image</label>
-        <div class="file-uploader" onclick="document.getElementById('fileSource').click()">
-          <span id="uploadLabel">📸 Tap to Upload Image</span>
-          <input type="file" id="fileSource" accept="image/*" style="display:none;" onchange="handleFileLoad(event)">
-        </div>
+      <div class="field-group" style="margin-top:14px;">
+        <label>Creative Prompt</label>
+        <textarea id="promptText" placeholder="An elegant Victorian gothic portrait, hyper-realistic, 8k resolution, cinematic lighting, intricate details, highly detailed textures..."></textarea>
       </div>
 
-      <div class="field-group" style="margin-top:16px;">
-        <label>Transformation Script (Prompt)</label>
-        <textarea id="promptText" placeholder="Describe your creative alterations here..."></textarea>
+      <div class="field-group" style="margin-top:14px;">
+        <label>Negative Filter (What to exclude)</label>
+        <textarea id="negativePromptText">canvas, illustration, cartoon, anime, drawing, digital art, airbrushed, deformed, low quality</textarea>
       </div>
 
-      <div class="field-group" style="margin-top:16px;">
-        <label>Aesthetic Target Profile</label>
-        <select id="styleProfile">
-          <option value="Photo-to-Anime">Photo-to-Anime</option>
-          <option value="Refining-Details">Refining-Details</option>
-          <option value="Face-To-Cyberpunk">Face-To-Cyberpunk</option>
+      <div class="field-group" style="margin-top:14px;">
+        <label>Aspect Ratio Frame</label>
+        <select id="aspectRatio">
+          <option value="portrait">Portrait Frame (3:4)</option>
+          <option value="square" selected>Square Archive (1:1)</option>
+          <option value="landscape">Landscape Canvas (4:3)</option>
         </select>
       </div>
     </div>
 
-    <button class="action-btn" onclick="executeTransformation()">Execute Mutation</button>
+    <button class="action-btn" onclick="summonHyperRealism()">Summon Manifestation</button>
   </div>
 
   <div class="display-panel">
-    <div id="placeholderText">IMAGE STUDIO STANDBY<br><span style="font-size:10px; color:#333;">Upload a source image and enter editing commands</span></div>
-    <img id="canvasTarget" alt="Synthesized Output">
+    <div id="placeholderText">HYPER-REALISM ENGINE STANDBY<br><span style="font-size:10px; color:#333;">Draft your manifestation script and execute the sequence</span></div>
+    <img id="canvasTarget" alt="Synthesized Hyper-Realistic Output">
 
     <div id="summoningOverlay">
       <div class="spinner"></div>
-      <div id="summoningStatus">ENGAGING PRIVATE HARDWARE PIPELINE...</div>
+      <div id="summoningStatus">RENDERING HIGH-FIDELITY PARTICLES...</div>
     </div>
   </div>
 </div>
@@ -318,67 +296,66 @@
 </footer>
 
 <script>
-  // Embedded write token directly feeding client runtime processing headers
-  const _0x5f3e = "Hf_enyzzrRILgFZcwthIJxrJhVfxNPSBQMhgz";
-  let base64ImageString = null;
+  const _0x5f3e = "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";
 
-  function handleFileLoad(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    document.getElementById('uploadLabel').innerText = "⚡ " + file.name;
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      base64ImageString = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  }
-
-  async function executeTransformation() {
+  async function summonHyperRealism() {
     const prompt = document.getElementById('promptText').value.trim();
-    const style = document.getElementById('styleProfile').value;
+    const negativePrompt = document.getElementById('negativePromptText').value.trim();
+    const aspect = document.getElementById('aspectRatio').value;
     const overlay = document.getElementById('summoningOverlay');
     const displayImg = document.getElementById('canvasTarget');
     const placeholder = document.getElementById('placeholderText');
 
-    if(!base64ImageString) { alert("Please upload an input picture first."); return; }
-    if(!prompt) { alert("Please type your generation instructions into the script field."); return; }
+    if(!prompt) { alert("Please input your manifestation script prompt."); return; }
 
     overlay.classList.add('active');
-    
+
+    // Automatically injecting structural photographic anchors to guarantee deep realism
+    const structuralEnhancement = ", hyperrealistic photography, depth of field, sharp focus, 35mm photograph, cinematic textures, highly detailed skin grain";
+    const absolutePrompt = prompt + structuralEnhancement;
+
+    // Mapping exact aspect resolution layouts for hyper-realistic rendering nodes
+    let width = 1024;
+    let height = 1024;
+    if (aspect === 'portrait') { width = 768; height = 1024; }
+    if (aspect === 'landscape') { width = 1024; height = 768; }
+
     try {
-      const response = await fetch("https://qwen-qwen-image-edit-2509.hf.space/api/predict", {
+      // Connect directly to the lightning-fast serverless infrastructure framework
+      const response = await fetch("https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${_0x5f3e}`
         },
         body: JSON.stringify({
-          data: [
-            base64ImageString, 
-            prompt,
-            style
-          ]
+          inputs: absolutePrompt,
+          parameters: {
+            negative_prompt: negativePrompt,
+            width: width,
+            height: height,
+            guidance_scale: 7.5,
+            num_inference_steps: 40
+          },
+          options: { wait_for_model: true }
         })
       });
 
       if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(errText || "Server hardware infrastructure returned an error state.");
+        throw new Error("Cluster cold start or queue exception. Status code: " + response.status);
       }
 
-      const resultData = await response.json();
-      if(resultData && resultData.data && resultData.data[0]) {
-        displayImg.src = resultData.data[0];
-        displayImg.style.display = 'block';
-        placeholder.style.display = 'none';
-      } else {
-        throw new Error("Invalid format returned from production nodes.");
-      }
+      // Convert raw image streams cleanly directly into an operational display URL
+      const imageBlob = await response.blob();
+      const objectURL = URL.createObjectURL(imageBlob);
+      
+      displayImg.src = objectURL;
+      displayImg.style.display = 'block';
+      placeholder.style.display = 'none';
 
     } catch (err) {
       console.error(err);
-      alert("Pipeline Exception: " + err.message);
+      alert("Synthesis Exception: " + err.message + "\n\nIf the engine is waking up, wait 10 seconds and try again.");
     } finally {
       overlay.classList.remove('active');
     }
