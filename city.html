@@ -125,14 +125,6 @@
             background: #09090d;
         }
 
-        .main-content::-webkit-scrollbar {
-            width: 4px;
-        }
-        .main-content::-webkit-scrollbar-thumb {
-            background: var(--border-glow);
-            border-radius: 2px;
-        }
-
         .search-panel {
             background: rgba(17, 17, 24, 0.6);
             border: 1px solid var(--border-subtle);
@@ -198,12 +190,6 @@
             overflow-x: auto;
             padding-bottom: 4px;
         }
-        .saved-shelf::-webkit-scrollbar {
-            height: 3px;
-        }
-        .saved-shelf::-webkit-scrollbar-thumb {
-            background: var(--border-subtle);
-        }
 
         .shelf-pill {
             background: var(--bg-card);
@@ -228,9 +214,6 @@
             font-weight: bold;
             font-size: 10px;
             padding: 0 2px;
-        }
-        .shelf-pill .delete-pill:hover {
-            color: var(--goth-crimson);
         }
 
         .action-button {
@@ -384,7 +367,7 @@
             </div>
             
             <div class="input-wrapper">
-                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?" value="Early's Court">
+                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?" value="Earl's Court">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
                 <button id="bookmarkEnd" class="bookmark-btn" title="Save destination">★</button>
             </div>
@@ -405,7 +388,6 @@
 
 <script>
     (function() {
-        // Your newly supplied active personal token safely configured:
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
         const map = new mapboxgl.Map({
@@ -483,7 +465,7 @@
             if (!start || !end) return;
 
             if (start.toLowerCase() === "current location") {
-                start = "London Charing Cross";
+                start = "1000044"; // Charing Cross Hub Numeric ID fallback
             }
 
             statusBox.textContent = "Calculating faster routes...";
@@ -492,13 +474,18 @@
             routesContainer.innerHTML = '';
 
             try {
-                const startResolved = await resolveFuzzyName(start);
-                const endResolved = await resolveFuzzyName(end);
+                // Resolve using numeric ids to prevent string evaluation crashes
+                const startId = await resolveToStationId(start);
+                const endId = await resolveToStationId(end);
 
-                const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startResolved)}/to/${encodeURIComponent(endResolved)}?nationalSearch=true&timeIs=Departing`;
+                const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${startId}/to/${endId}?nationalSearch=true&timeIs=Departing`;
                 const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error("TfL Endpoint responded with structural status: " + response.status);
+                }
+                
                 const data = await response.json();
-
                 statusBox.classList.add('hidden');
 
                 if (!data.journeys || data.journeys.length === 0) {
@@ -508,7 +495,6 @@
                 }
 
                 resultsSection.classList.remove('hidden');
-
                 const fastestJourneys = data.journeys.sort((a, b) => a.duration - b.duration).slice(0, 3);
 
                 fastestJourneys.forEach(journey => {
@@ -580,20 +566,30 @@
             }
         }
 
-        async function resolveFuzzyName(inputName) {
-            // Internal tweak to cleanly intercept common variant inputs directly
-            let target = inputName.trim().toLowerCase();
-            if (target.includes("early's") || target.includes("earlys")) {
-                return "Earl's Court Underground Station";
-            }
+        async function resolveToStationId(inputName) {
+            let normalized = inputName.trim().toLowerCase();
             
+            // Fix spelling errors immediately
+            if (normalized.includes("early's") || normalized.includes("earlys")) {
+                normalized = "earl's court";
+            }
+
             try {
-                const res = await fetch(`https://api.tfl.gov.uk/Stoppoint/Search/${encodeURIComponent(inputName)}?maxResults=1`);
+                const res = await fetch(`https://api.tfl.gov.uk/StopPoint/Search/${encodeURIComponent(normalized)}?maxResults=5`);
                 const searchData = await res.json();
+                
                 if (searchData.matches && searchData.matches.length > 0) {
-                    return searchData.matches[0].name; 
+                    // Pull the structural icsId directly to prevent route crashes
+                    let match = searchData.matches.find(m => m.icsId) || searchData.matches[0];
+                    if (match && match.icsId) {
+                        return match.icsId;
+                    } else if (match && match.id) {
+                        return match.id;
+                    }
                 }
-            } catch (e) { console.warn("Fuzzy resolver error: ", e); }
+            } catch (e) { 
+                console.warn("Identification lookup error: ", e); 
+            }
             return inputName; 
         }
     })();
