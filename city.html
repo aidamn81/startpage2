@@ -96,7 +96,6 @@
             border-color: var(--goth-neon);
         }
 
-        /* Dedicated Map Viewport Container Box */
         #gothMapContainer {
             width: 100%;
             height: 240px;
@@ -105,7 +104,6 @@
             position: relative;
         }
 
-        /* Custom Dark Overlay Panel to darken map transitions slightly */
         .map-tint-overlay {
             position: absolute;
             top: 0;
@@ -195,6 +193,13 @@
             box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
         }
 
+        .status-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 10px;
+        }
+
         .results-section {
             display: flex;
             flex-direction: column;
@@ -247,11 +252,16 @@
             padding: 4px 8px;
             border-radius: 6px;
             color: #fff;
+            text-transform: capitalize;
         }
 
-        .badge-walk { background: #2e2e3a; color: var(--text-primary); }
+        .badge-walking { background: #2e2e3a; color: var(--text-primary); }
         .badge-tube { background: #0019a8; }
         .badge-bus { background: #dc241f; }
+        .badge-national-rail { background: #eb1c24; }
+        .badge-elizabeth-line { background: #712f87; }
+        .badge-dlr { background: #00afad; }
+        .badge-overground { background: #e86a10; }
 
         .chain-arrow {
             color: var(--text-secondary);
@@ -278,17 +288,10 @@
             color: var(--goth-mint);
         }
 
-        .cost-display {
-            font-size: 12px;
-            color: var(--text-secondary);
-            margin-top: 2px;
-        }
-
         .hidden {
             display: none !important;
         }
 
-        /* Styling for the custom Neon Goth Pin Marker */
         .goth-marker {
             width: 14px;
             height: 14px;
@@ -318,94 +321,151 @@
     <main class="main-content">
         <section class="search-panel">
             <div class="input-group">
-                <input type="text" id="startLoc" class="input-field" value="London, UK">
+                <input type="text" id="startLoc" class="input-field" placeholder="Departure (e.g., Stockwell)" value="Stockwell">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
             </div>
             
             <div class="input-group">
-                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?">
+                <input type="text" id="endLoc" class="input-field" placeholder="Arrival (e.g., Earl's Court)" value="Earl's Court">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
             </div>
 
-            <button id="planRouteBtn" class="action-button">Compute Fast Lines</button>
+            <button id="planRouteBtn" class="action-button">Compute Live Lines</button>
         </section>
+
+        <div id="statusBox" class="status-message hidden">Searching London networks...</div>
 
         <section id="resultsSection" class="results-section hidden">
             <span class="section-label">Suggested Direct Timelines</span>
-
-            <div class="route-card">
-                <div class="route-main">
-                    <div class="transit-chain">
-                        <span class="badge badge-walk">Walk 4m</span>
-                        <span class="chain-arrow">›</span>
-                        <span class="badge badge-tube">Piccadilly Line</span>
-                        <span class="chain-arrow">›</span>
-                        <span class="badge badge-walk">Walk 2m</span>
-                    </div>
-                    <div class="route-summary">Leaves station in <strong>3 mins</strong> • Platform 2</div>
-                </div>
-                <div class="route-metrics">
-                    <div class="time-display">24m</div>
-                    <div class="cost-display">£2.80</div>
-                </div>
-            </div>
-
-            <div class="route-card">
-                <div class="route-main">
-                    <div class="transit-chain">
-                        <span class="badge badge-walk">Walk 2m</span>
-                        <span class="chain-arrow">›</span>
-                        <span class="badge badge-bus">Bus 38</span>
-                        <span class="chain-arrow">›</span>
-                        <span class="badge badge-walk">Walk 5m</span>
-                    </div>
-                    <div class="route-summary">Arrives at stop in <strong>1 min</strong> • High frequency</div>
-                </div>
-                <div class="route-metrics">
-                    <div class="time-display">37m</div>
-                    <div class="cost-display">£1.75</div>
-                </div>
-            </div>
+            <div id="routesContainer"></div>
         </section>
     </main>
 </div>
 
 <script>
-    // Drop your personal public token key precisely inside the quotes below
+    // Your exact personal public token string:
     mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
     // Initialize the background map centered over London
     const map = new mapboxgl.Map({
         container: 'gothMapContainer',
-        style: 'mapbox://styles/mapbox/dark-v11', // Perfect gothic charcoal baseline skin
-        center: [-0.1276, 51.5074], // London coordinates
-        zoom: 12,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [-0.1276, 51.5074],
+        zoom: 11,
         attributionControl: false
     });
 
-    // Add a custom pulsing neon dot marker right on the map coordinates
     const el = document.createElement('div');
     el.className = 'goth-marker';
-    new mapboxgl.Marker(el)
+    const marker = new mapboxgl.Marker(el)
         .setLngLat([-0.1276, 51.5074])
         .addTo(map);
 
     const planRouteBtn = document.getElementById('planRouteBtn');
+    const statusBox = document.getElementById('statusBox');
     const resultsSection = document.getElementById('resultsSection');
+    const routesContainer = document.getElementById('routesContainer');
+    const startLoc = document.getElementById('startLoc');
     const endLoc = document.getElementById('endLoc');
 
-    planRouteBtn.addEventListener('click', () => {
-        if (!endLoc.value.trim()) return;
-        resultsSection.classList.remove('hidden');
-        
-        // Pan the map slightly to simulate movement calculation activity smoothly
-        map.flyTo({
-            center: [-0.1276 + (Math.random() - 0.5) * 0.05, 51.5074 + (Math.random() - 0.5) * 0.05],
-            essential: true,
-            zoom: 13.5
-        });
-    });
-</script>
+    planRouteBtn.addEventListener('click', fetchLiveTflRoutes);
 
+    // Common local corrections lookup to clear out quick typos safely before hitting TfL
+    function cleanStationName(name) {
+        let cleaned = name.toLowerCase().trim();
+        if (cleaned.includes('early') || cleaned.includes('earls') || cleaned.includes('earl\'s')) {
+            if (cleaned.includes('court')) return "Earl's Court Underground Station";
+        }
+        if (cleaned === 'stockwell') return "Stockwell Underground Station";
+        return name;
+    }
+
+    async function fetchLiveTflRoutes() {
+        const rawStart = startLoc.value.trim();
+        const rawEnd = endLoc.value.trim();
+        
+        if (!rawStart || !rawEnd) return;
+
+        const start = cleanStationName(rawStart);
+        const end = cleanStationName(rawEnd);
+
+        statusBox.textContent = "Searching London networks...";
+        statusBox.classList.remove('hidden');
+        resultsSection.classList.add('hidden');
+        routesContainer.innerHTML = '';
+
+        try {
+            const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(start)}/to/${encodeURIComponent(end)}?nationalSearch=false&timeIs=Departing`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            statusBox.classList.add('hidden');
+
+            if (!data.journeys || data.journeys.length === 0) {
+                statusBox.textContent = "No transit connections found. Check station names.";
+                statusBox.classList.remove('hidden');
+                return;
+            }
+
+            resultsSection.classList.remove('hidden');
+
+            data.journeys.slice(0, 3).forEach(journey => {
+                const routeCard = document.createElement('div');
+                routeCard.className = 'route-card';
+
+                let chainHtml = '';
+                journey.legs.forEach((leg, index) => {
+                    let modeClass = 'badge-walking';
+                    let modeName = leg.mode.name;
+
+                    if (leg.mode.id === 'tube') { modeClass = 'badge-tube'; modeName = leg.routeOptions[0].name; }
+                    else if (leg.mode.id === 'bus') { modeClass = 'badge-bus'; modeName = leg.routeOptions[0].name; }
+                    else if (leg.mode.id === 'elizabeth-line') { modeClass = 'badge-elizabeth-line'; modeName = "Elizabeth line"; }
+                    else if (leg.mode.id === 'national-rail') { modeClass = 'badge-national-rail'; modeName = "National Rail"; }
+                    else if (leg.mode.id === 'overground') { modeClass = 'badge-overground'; modeName = "Overground"; }
+                    else if (leg.mode.id === 'dlr') { modeClass = 'badge-dlr'; modeName = "DLR"; }
+
+                    chainHtml += `<span class="badge ${modeClass}">${modeName}</span>`;
+                    if (index < journey.legs.length - 1) {
+                        chainHtml += `<span class="chain-arrow">›</span>`;
+                    }
+                });
+
+                routeCard.innerHTML = `
+                    <div class="route-main">
+                        <div class="transit-chain">${chainHtml}</div>
+                        <div class="route-summary">Via <strong>${journey.legs[0].instruction.summary}</strong></div>
+                    </div>
+                    <div class="route-metrics">
+                        <div class="time-display">${journey.duration}m</div>
+                    </div>
+                `;
+
+                routeCard.addEventListener('click', () => {
+                    if (journey.legs[0].path && journey.legs[0].path.stopPoints && journey.legs[0].path.stopPoints[0]) {
+                        const lon = journey.legs[0].path.stopPoints[0].lon;
+                        const lat = journey.legs[0].path.stopPoints[0].lat;
+                        map.flyTo({ center: [lon, lat], zoom: 14, essential: true });
+                        marker.setLngLat([lon, lat]);
+                    }
+                });
+
+                routesContainer.appendChild(routeCard);
+            });
+
+            // Auto center map on the first solution coordinate pair smoothly
+            if (data.journeys[0].legs[0].path && data.journeys[0].legs[0].path.stopPoints && data.journeys[0].legs[0].path.stopPoints[0]) {
+                const firstLon = data.journeys[0].legs[0].path.stopPoints[0].lon;
+                const firstLat = data.journeys[0].legs[0].path.stopPoints[0].lat;
+                map.flyTo({ center: [firstLon, firstLat], zoom: 13, essential: true });
+                marker.setLngLat([firstLon, firstLat]);
+            }
+
+        } catch (error) {
+            statusBox.textContent = "Transit network calculation timed out.";
+            statusBox.classList.remove('hidden');
+        }
+    }
+</script>
 </body>
 </html>
