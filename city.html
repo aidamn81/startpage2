@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GothMapper - Dark Transit Canvas</title>
-    <!-- Mapbox GL JS Stylesheets and Core Assets -->
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl-js.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl-js.js"></script>
     <style>
@@ -393,8 +392,11 @@
         // Mapbox Engine Token
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
-        // --- PASTE YOUR FREE TFL PRIMARY KEY HERE ---
-        const tflAppKey = 'YOUR_TFL_PRIMARY_DEVELOPER_KEY_HERE'; 
+        // --- e668aacdd10e4368817ed5673a7d4a6e ---
+        const tflAppKey = 'e668aacdd10e4368817ed5673a7d4a6e'; 
+
+        // Secure open CORS bridge configuration for local files
+        const proxyPrefix = "https://cors-anywhere.herokuapp.com/";
 
         const map = new mapboxgl.Map({
             container: 'gothMapContainer',
@@ -430,6 +432,15 @@
             if (!tflAppKey || tflAppKey.includes('YOUR_TFL_')) return baseUrl;
             const separator = baseUrl.includes('?') ? '&' : '?';
             return `${baseUrl}${separator}app_key=${encodeURIComponent(tflAppKey)}`;
+        }
+
+        function buildFetchUrl(targetUrl) {
+            const authUrl = appendTflAuth(targetUrl);
+            // If running as local file system, run via proxy tunnel
+            if (window.location.protocol === 'file:') {
+                return `${proxyPrefix}${authUrl}`;
+            }
+            return authUrl;
         }
 
         function saveSpot(val) {
@@ -492,9 +503,9 @@
                 const endId = await resolveToStationId(end);
 
                 let rawUrl = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startId)}/to/${encodeURIComponent(endId)}?nationalSearch=true&timeIs=Departing`;
-                const authenticatedUrl = appendTflAuth(rawUrl);
+                const requestUrl = buildFetchUrl(rawUrl);
 
-                const response = await fetch(authenticatedUrl);
+                const response = await fetch(requestUrl);
                 
                 if (!response.ok) {
                     throw new Error(`TfL Router rejected endpoints (Status ${response.status})`);
@@ -587,9 +598,9 @@
 
             try {
                 let rawSearchUrl = `https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=3`;
-                const authenticatedSearchUrl = appendTflAuth(rawSearchUrl);
+                const requestUrl = buildFetchUrl(rawSearchUrl);
 
-                const res = await fetch(authenticatedSearchUrl);
+                const res = await fetch(requestUrl);
                 if (!res.ok) return inputName;
 
                 const searchData = await res.json();
