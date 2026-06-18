@@ -4,6 +4,613 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GothMapper - Dark Transit Canvas</title>
+    <!-- Mapbox GL JS Stylesheets and Core Assets -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl-js.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl-js.js"></script>
+    <style>
+        :root {
+            --bg-main: #0a0a0e;
+            --bg-card: #111118;
+            --border-glow: #2a1f4d;
+            --border-subtle: #1c1c28;
+            --text-primary: #e2e2ec;
+            --text-secondary: #797993;
+            --goth-neon: #8b5cf6;
+            --goth-crimson: #ef4444;
+            --goth-mint: #10b981;
+            --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            font-family: var(--font-stack);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            padding: 20px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 500px;
+            height: 90vh;
+            max-height: 850px;
+            background: linear-gradient(180deg, #0d0d14 0%, #07070a 100%);
+            border: 1px solid var(--border-glow);
+            border-radius: 24px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8), 0 0 40px rgba(139, 92, 246, 0.05);
+        }
+
+        .app-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(17, 17, 24, 0.85);
+            backdrop-filter: blur(20px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        .header-title-area h1 {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(139, 92, 246, 0.3);
+        }
+
+        .header-title-area p {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 2px;
+        }
+
+        .back-link {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 8px 14px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            transition: all 0.2s ease;
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .back-link:hover {
+            color: #fff;
+            border-color: var(--goth-neon);
+        }
+
+        #gothMapContainer {
+            width: 100%;
+            height: 220px;
+            background: #08080c;
+            border-bottom: 1px solid var(--border-subtle);
+            position: relative;
+        }
+
+        .map-tint-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(10,10,14,0.1), rgba(10,10,14,0.5));
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .main-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            background: #09090d;
+        }
+
+        .main-content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .main-content::-webkit-scrollbar-thumb {
+            background: var(--border-glow);
+            border-radius: 2px;
+        }
+
+        .search-panel {
+            background: rgba(17, 17, 24, 0.6);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-field {
+            width: 100%;
+            background: #050508;
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 14px 44px 14px 40px;
+            color: var(--text-primary);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .input-field:focus {
+            border-color: var(--goth-neon);
+            box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            width: 16px;
+            height: 16px;
+            fill: none;
+            stroke: var(--text-secondary);
+            stroke-width: 2;
+        }
+
+        .bookmark-btn {
+            position: absolute;
+            right: 14px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 18px;
+            transition: color 0.2s ease, transform 0.1s ease;
+            padding: 4px;
+        }
+        .bookmark-btn:hover {
+            color: #f59e0b;
+            transform: scale(1.1);
+        }
+
+        .saved-shelf {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .saved-shelf::-webkit-scrollbar {
+            height: 3px;
+        }
+        .saved-shelf::-webkit-scrollbar-thumb {
+            background: var(--border-subtle);
+        }
+
+        .shelf-pill {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            white-space: nowrap;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .shelf-pill:hover {
+            border-color: var(--goth-neon);
+            background: rgba(139, 92, 246, 0.05);
+        }
+        .shelf-pill .delete-pill {
+            color: var(--text-secondary);
+            font-weight: bold;
+            font-size: 10px;
+            padding: 0 2px;
+        }
+        .shelf-pill .delete-pill:hover {
+            color: var(--goth-crimson);
+        }
+
+        .action-button {
+            background: var(--goth-neon);
+            color: #fff;
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .action-button:hover {
+            background: #7c3aed;
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);
+        }
+
+        .status-message {
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 10px;
+        }
+
+        .results-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .section-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 700;
+            padding-left: 4px;
+        }
+
+        .route-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .route-card:hover {
+            border-color: var(--goth-neon);
+            transform: translateY(-2px);
+        }
+
+        .route-main {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .transit-chain {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: #fff;
+            text-transform: capitalize;
+        }
+
+        .badge-walking { background: #2e2e3a; color: var(--text-primary); }
+        .badge-tube { background: #0019a8; }
+        .badge-bus { background: #dc241f; }
+        .badge-national-rail { background: #eb1c24; }
+        .badge-elizabeth-line { background: #712f87; }
+        .badge-dlr { background: #00afad; }
+        .badge-overground { background: #e86a10; }
+
+        .chain-arrow {
+            color: var(--text-secondary);
+            font-size: 12px;
+        }
+
+        .route-summary {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .route-summary strong {
+            color: var(--text-primary);
+        }
+
+        .route-metrics {
+            text-align: right;
+            padding-left: 16px;
+        }
+
+        .time-display {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--goth-mint);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .goth-marker {
+            width: 14px;
+            height: 14px;
+            background-color: var(--goth-neon);
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--goth-neon), 0 0 5px var(--goth-neon);
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header class="app-header">
+        <div class="header-title-area">
+            <h1>GothMapper</h1>
+            <p>Realtime Transit Canvas</p>
+        </div>
+        <a href="travel.html" class="back-link">← Travel</a>
+    </header>
+
+    <div id="gothMapContainer">
+        <div class="map-tint-overlay"></div>
+    </div>
+
+    <main class="main-content">
+        <section class="search-panel">
+            <div class="input-wrapper">
+                <input type="text" id="startLoc" class="input-field" placeholder="Departure location..." value="Euston">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                <button id="bookmarkStart" class="bookmark-btn" title="Save departure">★</button>
+            </div>
+            
+            <div class="input-wrapper">
+                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?">
+                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+                <button id="bookmarkEnd" class="bookmark-btn" title="Save destination">★</button>
+            </div>
+
+            <!-- Saved Vault Shortcuts Bar -->
+            <div id="savedShelf" class="saved-shelf hidden"></div>
+
+            <button id="planRouteBtn" class="action-button">Compute Live Lines</button>
+        </section>
+
+        <div id="statusBox" class="status-message hidden">Searching London networks...</div>
+
+        <section id="resultsSection" class="results-section hidden">
+            <span class="section-label">Suggested Direct Timelines</span>
+            <div id="routesContainer"></div>
+        </section>
+    </main>
+</div>
+
+<script>
+    mapboxgl.accessToken = 'pk.eyJ1IjoibW44MSIsImEiOiJjbXN4eWNmd24wMHk3MmlzYTkwemU2c2d3In0.YndL1_KCH7zY8E-6k2Z9fQ';
+
+    const map = new mapboxgl.Map({
+        container: 'gothMapContainer',
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [-0.1276, 51.5074],
+        zoom: 11,
+        attributionControl: false
+    });
+
+    const el = document.createElement('div');
+    el.className = 'goth-marker';
+    const marker = new mapboxgl.Marker(el).setLngLat([-0.1276, 51.5074]).addTo(map);
+
+    const planRouteBtn = document.getElementById('planRouteBtn');
+    const statusBox = document.getElementById('statusBox');
+    const resultsSection = document.getElementById('resultsSection');
+    const routesContainer = document.getElementById('routesContainer');
+    const startLoc = document.getElementById('startLoc');
+    const endLoc = document.getElementById('endLoc');
+    const savedShelf = document.getElementById('savedShelf');
+    const bookmarkStart = document.getElementById('bookmarkStart');
+    const bookmarkEnd = document.getElementById('bookmarkEnd');
+
+    // LocalStorage State Machine for Saved Points
+    let savedLocations = JSON.parse(localStorage.getItem('gothmapper_saved')) || [];
+
+    // Initialize System Elements
+    renderSavedShelf();
+    planRouteBtn.addEventListener('click', fetchLiveTflRoutes);
+
+    // Save Location via Stars
+    bookmarkStart.addEventListener('click', () => saveSpot(startLoc.value));
+    bookmarkEnd.addEventListener('click', () => saveSpot(endLoc.value));
+
+    function saveSpot(val) {
+        const clean = val.trim();
+        if (!clean || clean.toLowerCase() === "current location" || savedLocations.includes(clean)) return;
+        savedLocations.push(clean);
+        localStorage.setItem('gothmapper_saved', JSON.stringify(savedLocations));
+        renderSavedShelf();
+    }
+
+    function removeSpot(idx, e) {
+        e.stopPropagation(); 
+        savedLocations.splice(idx, 1);
+        localStorage.setItem('gothmapper_saved', JSON.stringify(savedLocations));
+        renderSavedShelf();
+    }
+
+    function renderSavedShelf() {
+        if (savedLocations.length === 0) {
+            savedShelf.classList.add('hidden');
+            return;
+        }
+        savedShelf.classList.remove('hidden');
+        savedShelf.innerHTML = '';
+        
+        savedLocations.forEach((loc, index) => {
+            const pill = document.createElement('div');
+            pill.className = 'shelf-pill';
+            pill.innerHTML = `♠ ${loc} <span class="delete-pill" data-index="${index}">×</span>`;
+            
+            pill.addEventListener('click', () => {
+                endLoc.value = loc;
+                fetchLiveTflRoutes();
+            });
+
+            pill.querySelector('.delete-pill').addEventListener('click', (e) => removeSpot(index, e));
+            savedShelf.appendChild(pill);
+        });
+    }
+
+    // Dynamic Fuzzy Resolver + Live TfL Routing Pipeline
+    async function fetchLiveTflRoutes() {
+        let start = startLoc.value.trim();
+        let end = endLoc.value.trim();
+        
+        if (!start || !end) return;
+
+        // If user left placeholder or literally types current location, default to central hub safely
+        if (start.toLowerCase() === "current location") {
+            start = "London Charing Cross";
+        }
+
+        statusBox.textContent = "Calculating faster routes...";
+        statusBox.classList.remove('hidden');
+        resultsSection.classList.add('hidden');
+        routesContainer.innerHTML = '';
+
+        try {
+            // Step 1: Run autocomplete validation queries to handle typos dynamically
+            const startResolved = await resolveFuzzyName(start);
+            const endResolved = await resolveFuzzyName(end);
+
+            // Step 2: Query the core Journey Planner with corrected, safe parameters
+            const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startResolved)}/to/${encodeURIComponent(endResolved)}?nationalSearch=true&timeIs=Departing`;
+            const response = await fetch(url);
+            const data = await response.json();
+
+            statusBox.classList.add('hidden');
+
+            if (!data.journeys || data.journeys.length === 0) {
+                statusBox.textContent = "No transit connections found. Check station names.";
+                statusBox.classList.remove('hidden');
+                return;
+            }
+
+            resultsSection.classList.remove('hidden');
+
+            // Sort journeys explicitly by duration (fastest first)
+            const fastestJourneys = data.journeys.sort((a, b) => a.duration - b.duration).slice(0, 3);
+
+            fastestJourneys.forEach(journey => {
+                const routeCard = document.createElement('div');
+                routeCard.className = 'route-card';
+
+                let chainHtml = '';
+                journey.legs.forEach((leg, index) => {
+                    let modeClass = 'badge-walking';
+                    let modeName = leg.mode.name;
+
+                    if (leg.mode.id === 'tube' && leg.routeOptions && leg.routeOptions[0]) { 
+                        modeClass = 'badge-tube'; 
+                        modeName = leg.routeOptions[0].name; 
+                    }
+                    else if (leg.mode.id === 'bus' && leg.routeOptions && leg.routeOptions[0]) { 
+                        modeClass = 'badge-bus'; 
+                        modeName = leg.routeOptions[0].name; 
+                    }
+                    else if (leg.mode.id === 'elizabeth-line') { modeClass = 'badge-elizabeth-line'; modeName = "Elizabeth line"; }
+                    else if (leg.mode.id === 'national-rail') { modeClass = 'badge-national-rail'; modeName = "National Rail"; }
+                    else if (leg.mode.id === 'overground') { modeClass = 'badge-overground'; modeName = "Overground"; }
+                    else if (leg.mode.id === 'dlr') { modeClass = 'badge-dlr'; modeName = "DLR"; }
+
+                    chainHtml += `<span class="badge ${modeClass}">${modeName}</span>`;
+                    if (index < journey.legs.length - 1) {
+                        chainHtml += `<span class="chain-arrow">›</span>`;
+                    }
+                });
+
+                // Fixed scoping bug here: explicitly targeting the first leg of this specific loop iteration
+                let summaryLine = "Transit Corridor";
+                if (journey.legs && journey.legs[0] && journey.legs[0].instruction) {
+                    summaryLine = journey.legs[0].instruction.summary;
+                }
+
+                routeCard.innerHTML = `
+                    <div class="route-main">
+                        <div class="transit-chain">${chainHtml}</div>
+                        <div class="route-summary">Via <strong>${summaryLine}</strong></div>
+                    </div>
+                    <div class="route-metrics">
+                        <div class="time-display">${journey.duration}m</div>
+                    </div>
+                `;
+
+                // Interactive click alignment to map viewport
+                routeCard.addEventListener('click', () => {
+                    if (journey.legs[0].path && journey.legs[0].path.stopPoints && journey.legs[0].path.stopPoints[0]) {
+                        const lon = journey.legs[0].path.stopPoints[0].lon;
+                        const lat = journey.legs[0].path.stopPoints[0].lat;
+                        map.flyTo({ center: [lon, lat], zoom: 14, essential: true });
+                        marker.setLngLat([lon, lat]);
+                    }
+                });
+
+                routesContainer.appendChild(routeCard);
+            });
+
+            // Smooth focal zoom update to initial target coordinates
+            if (fastestJourneys[0].legs[0].path && fastestJourneys[0].legs[0].path.stopPoints && fastestJourneys[0].legs[0].path.stopPoints[0]) {
+                const firstLon = fastestJourneys[0].legs[0].path.stopPoints[0].lon;
+                const firstLat = fastestJourneys[0].legs[0].path.stopPoints[0].lat;
+                map.flyTo({ center: [firstLon, firstLat], zoom: 13, essential: true });
+                marker.setLngLat([firstLon, firstLat]);
+            }
+
+        } catch (error) {
+            statusBox.textContent = "Transit engine timed out or match not found.";
+            statusBox.classList.remove('hidden');
+            console.error(error);
+        }
+    }
+
+    // Core Autocomplete Spell-Check Function via TfL Directory
+    async function resolveFuzzyName(inputName) {
+        try {
+            const res = await fetch(`https://api.tfl.gov.uk/Stoppoint/Search/${encodeURIComponent(inputName)}?maxResults=1`);
+            const searchData = await res.json();
+            if (searchData.matches && searchData.matches.length > 0) {
+                return searchData.matches[0].name; 
+            }
+        } catch (e) { console.warn("Fuzzy resolver error: ", e); }
+        return inputName; 
+    }
+</script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GothMapper - Dark Transit Canvas</title>
     <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl-js.css" rel="stylesheet">
     <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl-js.js"></script>
     <style>
