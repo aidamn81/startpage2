@@ -388,8 +388,10 @@
 
 <script>
     (function() {
+        // Active verified token match
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
+        // Using standard Mapbox dark-v11 endpoint instead of a custom user style path to prevent cross-account blocks
         const map = new mapboxgl.Map({
             container: 'gothMapContainer',
             style: 'mapbox://styles/mapbox/dark-v11',
@@ -465,7 +467,7 @@
             if (!start || !end) return;
 
             if (start.toLowerCase() === "current location") {
-                start = "1000044"; // Charing Cross Hub Numeric ID fallback
+                start = "1000044"; 
             }
 
             statusBox.textContent = "Calculating faster routes...";
@@ -474,7 +476,6 @@
             routesContainer.innerHTML = '';
 
             try {
-                // Resolve using numeric ids to prevent string evaluation crashes
                 const startId = await resolveToStationId(start);
                 const endId = await resolveToStationId(end);
 
@@ -568,8 +569,6 @@
 
         async function resolveToStationId(inputName) {
             let normalized = inputName.trim().toLowerCase();
-            
-            // Fix spelling errors immediately
             if (normalized.includes("early's") || normalized.includes("earlys")) {
                 normalized = "earl's court";
             }
@@ -579,7 +578,6 @@
                 const searchData = await res.json();
                 
                 if (searchData.matches && searchData.matches.length > 0) {
-                    // Pull the structural icsId directly to prevent route crashes
                     let match = searchData.matches.find(m => m.icsId) || searchData.matches[0];
                     if (match && match.icsId) {
                         return match.icsId;
