@@ -115,6 +115,14 @@
             z-index: 2;
         }
 
+        .london-banner {
+            width: 100%;
+            height: 110px;
+            object-fit: cover;
+            border-bottom: 1px solid var(--border-subtle);
+            display: block;
+        }
+
         .main-content {
             flex: 1;
             overflow-y: auto;
@@ -359,6 +367,8 @@
         <div class="map-tint-overlay"></div>
     </div>
 
+    <img src="london.jpg" alt="London Canvas" class="london-banner">
+
     <main class="main-content">
         <section class="search-panel">
             <div class="input-wrapper">
@@ -392,11 +402,8 @@
         // Mapbox Engine Token
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
-        // --- e668aacdd10e4368817ed5673a7d4a6e ---
+        // --- PASTE YOUR FREE TFL PRIMARY KEY HERE ---
         const tflAppKey = 'e668aacdd10e4368817ed5673a7d4a6e'; 
-
-        // Secure open CORS bridge configuration for local files
-        const proxyPrefix = "https://cors-anywhere.herokuapp.com/";
 
         const map = new mapboxgl.Map({
             container: 'gothMapContainer',
@@ -428,19 +435,30 @@
         bookmarkStart.addEventListener('click', () => saveSpot(startLoc.value));
         bookmarkEnd.addEventListener('click', () => saveSpot(endLoc.value));
 
-        function appendTflAuth(baseUrl) {
-            if (!tflAppKey || tflAppKey.includes('YOUR_TFL_')) return baseUrl;
-            const separator = baseUrl.includes('?') ? '&' : '?';
-            return `${baseUrl}${separator}app_key=${encodeURIComponent(tflAppKey)}`;
-        }
+        function jsonpRequest(url) {
+            return new Promise((resolve, reject) => {
+                const callbackName = 'tfl_jsonp_' + Math.round(100000 * Math.random());
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    resolve(data);
+                };
 
-        function buildFetchUrl(targetUrl) {
-            const authUrl = appendTflAuth(targetUrl);
-            // If running as local file system, run via proxy tunnel
-            if (window.location.protocol === 'file:') {
-                return `${proxyPrefix}${authUrl}`;
-            }
-            return authUrl;
+                const appendChar = url.includes('?') ? '&' : '?';
+                let finalUrl = `${url}${appendChar}callback=${callbackName}`;
+                if (tflAppKey && !tflAppKey.includes('YOUR_TFL_')) {
+                    finalUrl += `&app_key=${encodeURIComponent(tflAppKey)}`;
+                }
+
+                const script = document.createElement('script');
+                script.src = finalUrl;
+                script.onerror = () => {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    reject(new Error("Network connection breakdown or invalid TfL security key."));
+                };
+                document.body.appendChild(script);
+            });
         }
 
         function saveSpot(val) {
@@ -502,16 +520,9 @@
                 const startId = await resolveToStationId(start);
                 const endId = await resolveToStationId(end);
 
-                let rawUrl = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startId)}/to/${encodeURIComponent(endId)}?nationalSearch=true&timeIs=Departing`;
-                const requestUrl = buildFetchUrl(rawUrl);
-
-                const response = await fetch(requestUrl);
+                let targetUrl = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startId)}/to/${encodeURIComponent(endId)}?nationalSearch=true&timeIs=Departing`;
+                const data = await jsonpRequest(targetUrl);
                 
-                if (!response.ok) {
-                    throw new Error(`TfL Router rejected endpoints (Status ${response.status})`);
-                }
-                
-                const data = await response.json();
                 statusBox.classList.add('hidden');
 
                 if (!data.journeys || data.journeys.length === 0) {
@@ -587,7 +598,7 @@
 
             } catch (error) {
                 statusBox.style.color = "var(--goth-crimson)";
-                statusBox.textContent = `Engine alert: ${error.message}. Check your TfL API configuration key values.`;
+                statusBox.textContent = `Engine alert: ${error.message}`;
                 statusBox.classList.remove('hidden');
                 console.error("GothMapper execution error:", error);
             }
@@ -595,15 +606,9 @@
 
         async function resolveToStationId(inputName) {
             let normalized = inputName.trim().toLowerCase();
-
             try {
-                let rawSearchUrl = `https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=3`;
-                const requestUrl = buildFetchUrl(rawSearchUrl);
-
-                const res = await fetch(requestUrl);
-                if (!res.ok) return inputName;
-
-                const searchData = await res.json();
+                let searchUrl = `https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=3`;
+                const searchData = await jsonpRequest(searchUrl);
                 if (searchData.matches && searchData.matches.length > 0) {
                     return searchData.matches[0].id;
                 }
