@@ -388,10 +388,8 @@
 
 <script>
     (function() {
-        // Active verified token match
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
-        // Using standard Mapbox dark-v11 endpoint instead of a custom user style path to prevent cross-account blocks
         const map = new mapboxgl.Map({
             container: 'gothMapContainer',
             style: 'mapbox://styles/mapbox/dark-v11',
@@ -479,11 +477,11 @@
                 const startId = await resolveToStationId(start);
                 const endId = await resolveToStationId(end);
 
-                const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${startId}/to/${endId}?nationalSearch=true&timeIs=Departing`;
+                const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startId)}/to/${encodeURIComponent(endId)}?nationalSearch=true&timeIs=Departing`;
                 const response = await fetch(url);
                 
                 if (!response.ok) {
-                    throw new Error("TfL Endpoint responded with structural status: " + response.status);
+                    throw new Error("TfL Response Status Error: " + response.status);
                 }
                 
                 const data = await response.json();
@@ -574,9 +572,11 @@
             }
 
             try {
-                const res = await fetch(`https://api.tfl.gov.uk/StopPoint/Search/${encodeURIComponent(normalized)}?maxResults=5`);
+                // Corrected endpoint format using ?query= parameter
+                const res = await fetch(`https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=5`);
+                if (!res.ok) return inputName;
+
                 const searchData = await res.json();
-                
                 if (searchData.matches && searchData.matches.length > 0) {
                     let match = searchData.matches.find(m => m.icsId) || searchData.matches[0];
                     if (match && match.icsId) {
@@ -588,7 +588,7 @@
             } catch (e) { 
                 console.warn("Identification lookup error: ", e); 
             }
-            return inputName; 
+            return inputName; // Fallback to raw name string if API structure drops out
         }
     })();
 </script>
