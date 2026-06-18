@@ -98,7 +98,7 @@
 
         #gothMapContainer {
             width: 100%;
-            height: 240px;
+            height: 220px;
             background: #08080c;
             border-bottom: 1px solid var(--border-subtle);
             position: relative;
@@ -121,7 +121,7 @@
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
             background: #09090d;
         }
 
@@ -143,8 +143,10 @@
             gap: 12px;
         }
 
-        .input-group {
+        .input-wrapper {
             position: relative;
+            display: flex;
+            align-items: center;
         }
 
         .input-field {
@@ -152,7 +154,7 @@
             background: #050508;
             border: 1px solid var(--border-subtle);
             border-radius: 12px;
-            padding: 14px 16px 14px 40px;
+            padding: 14px 44px 14px 40px;
             color: var(--text-primary);
             font-size: 14px;
             outline: none;
@@ -167,13 +169,73 @@
         .input-icon {
             position: absolute;
             left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
             width: 16px;
             height: 16px;
             fill: none;
             stroke: var(--text-secondary);
             stroke-width: 2;
+        }
+
+        /* Location Bookmark Star System */
+        .bookmark-btn {
+            position: absolute;
+            right: 14px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 18px;
+            transition: color 0.2s ease, transform 0.1s ease;
+            padding: 4px;
+        }
+        .bookmark-btn:hover {
+            color: #f59e0b;
+            transform: scale(1.1);
+        }
+        .bookmark-btn.active {
+            color: #f59e0b;
+        }
+
+        /* Saved Fast Shelf Layout */
+        .saved-shelf {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+        }
+        .saved-shelf::-webkit-scrollbar {
+            height: 3px;
+        }
+        .saved-shelf::-webkit-scrollbar-thumb {
+            background: var(--border-subtle);
+        }
+
+        .shelf-pill {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            white-space: nowrap;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+        .shelf-pill:hover {
+            border-color: var(--goth-neon);
+            background: rgba(139, 92, 246, 0.05);
+        }
+        .shelf-pill .delete-pill {
+            color: var(--text-secondary);
+            font-weight: bold;
+            font-size: 10px;
+            padding: 0 2px;
+        }
+        .shelf-pill .delete-pill:hover {
+            color: var(--goth-crimson);
         }
 
         .action-button {
@@ -320,15 +382,19 @@
 
     <main class="main-content">
         <section class="search-panel">
-            <div class="input-group">
-                <input type="text" id="startLoc" class="input-field" placeholder="Departure (e.g., Stockwell)" value="Stockwell">
+            <div class="input-wrapper">
+                <input type="text" id="startLoc" class="input-field" placeholder="Departure location..." value="Current Location">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
+                <button id="bookmarkStart" class="bookmark-btn" title="Save departure">★</button>
             </div>
             
-            <div class="input-group">
-                <input type="text" id="endLoc" class="input-field" placeholder="Arrival (e.g., Earl's Court)" value="Earl's Court">
+            <div class="input-wrapper">
+                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
+                <button id="bookmarkEnd" class="bookmark-btn" title="Save destination">★</button>
             </div>
+
+            <div id="savedShelf" class="saved-shelf hidden"></div>
 
             <button id="planRouteBtn" class="action-button">Compute Live Lines</button>
         </section>
@@ -343,10 +409,8 @@
 </div>
 
 <script>
-    // Your exact personal public token string:
     mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
-    // Initialize the background map centered over London
     const map = new mapboxgl.Map({
         container: 'gothMapContainer',
         style: 'mapbox://styles/mapbox/dark-v11',
@@ -357,9 +421,7 @@
 
     const el = document.createElement('div');
     el.className = 'goth-marker';
-    const marker = new mapboxgl.Marker(el)
-        .setLngLat([-0.1276, 51.5074])
-        .addTo(map);
+    const marker = new mapboxgl.Marker(el).setLngLat([-0.1276, 51.5074]).addTo(map);
 
     const planRouteBtn = document.getElementById('planRouteBtn');
     const statusBox = document.getElementById('statusBox');
@@ -367,49 +429,100 @@
     const routesContainer = document.getElementById('routesContainer');
     const startLoc = document.getElementById('startLoc');
     const endLoc = document.getElementById('endLoc');
+    const savedShelf = document.getElementById('savedShelf');
+    const bookmarkStart = document.getElementById('bookmarkStart');
+    const bookmarkEnd = document.getElementById('bookmarkEnd');
 
+    // LocalStorage State Machine for Saved Points
+    let savedLocations = JSON.parse(localStorage.getItem('gothmapper_saved')) || [];
+
+    // Initialize System Elements
+    renderSavedShelf();
     planRouteBtn.addEventListener('click', fetchLiveTflRoutes);
 
-    // Common local corrections lookup to clear out quick typos safely before hitting TfL
-    function cleanStationName(name) {
-        let cleaned = name.toLowerCase().trim();
-        if (cleaned.includes('early') || cleaned.includes('earls') || cleaned.includes('earl\'s')) {
-            if (cleaned.includes('court')) return "Earl's Court Underground Station";
-        }
-        if (cleaned === 'stockwell') return "Stockwell Underground Station";
-        return name;
+    // Save Location via Stars
+    bookmarkStart.addEventListener('click', () => saveSpot(startLoc.value));
+    bookmarkEnd.addEventListener('click', () => saveSpot(endLoc.value));
+
+    function saveSpot(val) {
+        const clean = val.trim();
+        if (!clean || clean === "Current Location" || savedLocations.includes(clean)) return;
+        savedLocations.push(clean);
+        localStorage.setItem('gothmapper_saved', JSON.stringify(savedLocations));
+        renderSavedShelf();
     }
 
-    async function fetchLiveTflRoutes() {
-        const rawStart = startLoc.value.trim();
-        const rawEnd = endLoc.value.trim();
+    function removeSpot(idx, e) {
+        e.stopPropagation(); // Avoid triggering standard button input click
+        savedLocations.splice(idx, 1);
+        localStorage.setItem('gothmapper_saved', JSON.stringify(savedLocations));
+        renderSavedShelf();
+    }
+
+    function renderSavedShelf() {
+        if (savedLocations.length === 0) {
+            savedShelf.classList.add('hidden');
+            return;
+        }
+        savedShelf.classList.remove('hidden');
+        savedShelf.innerHTML = '';
         
-        if (!rawStart || !rawEnd) return;
+        savedLocations.forEach((loc, index) => {
+            const pill = document.createElement('div');
+            pill.className = 'shelf-pill';
+            pill.innerHTML = `♠ ${loc} <span class="delete-pill" data-index="${index}">×</span>`;
+            
+            // Tap to automatically fill destination target slot
+            pill.addEventListener('click', () => {
+                endLoc.value = loc;
+                fetchLiveTflRoutes();
+            });
 
-        const start = cleanStationName(rawStart);
-        const end = cleanStationName(rawEnd);
+            pill.querySelector('.delete-pill').addEventListener('click', (e) => removeSpot(index, e));
+            savedShelf.appendChild(pill);
+        });
+    }
 
-        statusBox.textContent = "Searching London networks...";
+    // Dynamic Fuzzy Resolver + Live TfL Routing Pipeline
+    async function fetchLiveTflRoutes() {
+        let start = startLoc.value.trim();
+        let end = endLoc.value.trim();
+        
+        if (!start || !end) return;
+
+        if (start.toLowerCase() === "current location") {
+            start = "London Charing Cross"; // Dynamic central fallback line if coordinates empty
+        }
+
+        statusBox.textContent = "Calculating faster routes...";
         statusBox.classList.remove('hidden');
         resultsSection.classList.add('hidden');
         routesContainer.innerHTML = '';
 
         try {
-            const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(start)}/to/${encodeURIComponent(end)}?nationalSearch=false&timeIs=Departing`;
+            // Step 1: Run spell-checking & name normalization requests via TfL StopPoint engine
+            const startResolved = await resolveFuzzyName(start);
+            const endResolved = await resolveFuzzyName(end);
+
+            // Step 2: Push fully resolved location strings straight to Route Engine
+            const url = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startResolved)}/to/${encodeURIComponent(endResolved)}?nationalSearch=true&timeIs=Departing`;
             const response = await fetch(url);
             const data = await response.json();
 
             statusBox.classList.add('hidden');
 
             if (!data.journeys || data.journeys.length === 0) {
-                statusBox.textContent = "No transit connections found. Check station names.";
+                statusBox.textContent = "No valid lines found. Clarify station spelling.";
                 statusBox.classList.remove('hidden');
                 return;
             }
 
             resultsSection.classList.remove('hidden');
 
-            data.journeys.slice(0, 3).forEach(journey => {
+            // Sort journeys by duration to ensure the absolute fastest options display first
+            const fastestJourneys = data.journeys.sort((a, b) => a.duration - b.duration).slice(0, 3);
+
+            fastestJourneys.forEach(journey => {
                 const routeCard = document.createElement('div');
                 routeCard.className = 'route-card';
 
@@ -434,13 +547,14 @@
                 routeCard.innerHTML = `
                     <div class="route-main">
                         <div class="transit-chain">${chainHtml}</div>
-                        <div class="route-summary">Via <strong>${journey.legs[0].instruction.summary}</strong></div>
+                        <div class="route-summary">Via <strong>${legSummaryText(journey.legs)}</strong></div>
                     </div>
                     <div class="route-metrics">
                         <div class="time-display">${journey.duration}m</div>
                     </div>
                 `;
 
+                // Fly map camera to coordinates upon row click interaction
                 routeCard.addEventListener('click', () => {
                     if (journey.legs[0].path && journey.legs[0].path.stopPoints && journey.legs[0].path.stopPoints[0]) {
                         const lon = journey.legs[0].path.stopPoints[0].lon;
@@ -453,17 +567,37 @@
                 routesContainer.appendChild(routeCard);
             });
 
-            // Auto center map on the first solution coordinate pair smoothly
-            if (data.journeys[0].legs[0].path && data.journeys[0].legs[0].path.stopPoints && data.journeys[0].legs[0].path.stopPoints[0]) {
-                const firstLon = data.journeys[0].legs[0].path.stopPoints[0].lon;
-                const firstLat = data.journeys[0].legs[0].path.stopPoints[0].lat;
+            // Center camera context on the initial leg coordinate sets
+            if (fastestJourneys[0].legs[0].path && fastestJourneys[0].legs[0].path.stopPoints && fastestJourneys[0].legs[0].path.stopPoints[0]) {
+                const firstLon = fastestJourneys[0].legs[0].path.stopPoints[0].lon;
+                const firstLat = fastestJourneys[0].legs[0].path.stopPoints[0].lat;
                 map.flyTo({ center: [firstLon, firstLat], zoom: 13, essential: true });
                 marker.setLngLat([firstLon, firstLat]);
             }
 
         } catch (error) {
-            statusBox.textContent = "Transit network calculation timed out.";
+            statusBox.textContent = "Transit network connection failed.";
             statusBox.classList.remove('hidden');
+        }
+    }
+
+    // Dynamic Autocomplete Spell Correction Resolver
+    async function resolveFuzzyName(inputName) {
+        try {
+            const res = await fetch(`https://api.tfl.gov.uk/Stoppoint/Search/${encodeURIComponent(inputName)}?maxResults=1`);
+            const searchData = await res.json();
+            if (searchData.matches && searchData.matches.length > 0) {
+                return searchData.matches[0].name; // Returns clean system string
+            }
+        } catch (e) { /* Fallback cleanly to string match if query offline */ }
+        return inputName;
+    }
+
+    function legSummaryText(legs) {
+        try {
+            return legs[0].instruction.summary || "Transit Corridor";
+        } catch(e) {
+            return "Transit Corridor";
         }
     }
 </script>
