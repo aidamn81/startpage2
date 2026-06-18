@@ -234,6 +234,7 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+            text-align: center;
         }
 
         .action-button:hover {
@@ -247,94 +248,6 @@
             text-align: center;
             padding: 10px;
             line-height: 1.4;
-        }
-
-        .results-section {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .section-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-secondary);
-            font-weight: 700;
-            padding-left: 4px;
-        }
-
-        .route-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-subtle);
-            border-radius: 16px;
-            padding: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .route-card:hover {
-            border-color: var(--goth-neon);
-            transform: translateY(-2px);
-        }
-
-        .route-main {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            flex: 1;
-        }
-
-        .transit-chain {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 8px;
-            border-radius: 6px;
-            color: #fff;
-            text-transform: capitalize;
-        }
-
-        .badge-walking { background: #2e2e3a; color: var(--text-primary); }
-        .badge-tube { background: #0019a8; }
-        .badge-bus { background: #dc241f; }
-        .badge-national-rail { background: #eb1c24; }
-        .badge-elizabeth-line { background: #712f87; }
-        .badge-dlr { background: #00afad; }
-        .badge-overground { background: #e86a10; }
-
-        .chain-arrow {
-            color: var(--text-secondary);
-            font-size: 12px;
-        }
-
-        .route-summary {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .route-summary strong {
-            color: var(--text-primary);
-        }
-
-        .route-metrics {
-            text-align: right;
-            padding-left: 16px;
-        }
-
-        .time-display {
-            font-size: 22px;
-            font-weight: 800;
-            color: var(--goth-mint);
         }
 
         .hidden {
@@ -388,12 +301,7 @@
             <button id="planRouteBtn" class="action-button">Compute Live Lines</button>
         </section>
 
-        <div id="statusBox" class="status-message hidden">Searching networks...</div>
-
-        <section id="resultsSection" class="results-section hidden">
-            <span class="section-label">Suggested Direct Timelines</span>
-            <div id="routesContainer"></div>
-        </section>
+        <div id="statusBox" class="status-message hidden"></div>
     </main>
 </div>
 
@@ -416,8 +324,6 @@
 
         const planRouteBtn = document.getElementById('planRouteBtn');
         const statusBox = document.getElementById('statusBox');
-        const resultsSection = document.getElementById('resultsSection');
-        const routesContainer = document.getElementById('routesContainer');
         const startLoc = document.getElementById('startLoc');
         const endLoc = document.getElementById('endLoc');
         const savedShelf = document.getElementById('savedShelf');
@@ -427,14 +333,14 @@
         let savedLocations = JSON.parse(localStorage.getItem('gothmapper_saved')) || [];
 
         renderSavedShelf();
-        planRouteBtn.addEventListener('click', fetchLiveRoutes);
+        planRouteBtn.addEventListener('click', directSandboxBypassRoute);
 
         bookmarkStart.addEventListener('click', () => saveSpot(startLoc.value));
         bookmarkEnd.addEventListener('click', () => saveSpot(endLoc.value));
 
         function saveSpot(val) {
             const clean = val.trim();
-            if (!clean || clean.toLowerCase() === "current location" || savedLocations.includes(clean)) return;
+            if (!clean || savedLocations.includes(clean)) return;
             savedLocations.push(clean);
             localStorage.setItem('gothmapper_saved', JSON.stringify(savedLocations));
             renderSavedShelf();
@@ -462,7 +368,7 @@
                 
                 pill.addEventListener('click', () => {
                     endLoc.value = loc;
-                    fetchLiveRoutes();
+                    directSandboxBypassRoute();
                 });
 
                 pill.querySelector('.delete-pill').addEventListener('click', (e) => removeSpot(index, e));
@@ -470,107 +376,24 @@
             });
         }
 
-        async function fetchLiveRoutes() {
+        function directSandboxBypassRoute() {
             let start = startLoc.value.trim();
             let end = endLoc.value.trim();
             
             if (!start || !end) {
                 statusBox.style.color = "var(--text-secondary)";
-                statusBox.textContent = "Please enter both departure and destination spaces.";
+                statusBox.textContent = "Please enter both departure and destination stations.";
                 statusBox.classList.remove('hidden');
                 return;
             }
 
-            statusBox.style.color = "var(--text-secondary)";
-            statusBox.textContent = "Calculating faster routes...";
-            statusBox.classList.remove('hidden');
-            resultsSection.classList.add('hidden');
-            routesContainer.innerHTML = '';
+            statusBox.classList.add('hidden');
 
-            try {
-                // Utilizing the universal client router engine that allows open headers on local document locations
-                let targetUrl = `https://transportapi.com/v3/uk/public/journey/from/text:${encodeURIComponent(start)}/to/text:${encodeURIComponent(end)}.json?app_id=0c822502&app_key=943db62b9a710926b4855d3e0f9b6b79&service=tfl`;
-
-                const response = await fetch(targetUrl);
-                if (!response.ok) {
-                    throw new Error(`Transit gateway dropped tracking connections.`);
-                }
-                
-                const data = await response.json();
-                statusBox.classList.add('hidden');
-
-                if (!data.routes || data.routes.length === 0) {
-                    statusBox.textContent = "No active transit tracks detected for this corridor.";
-                    statusBox.classList.remove('hidden');
-                    return;
-                }
-
-                resultsSection.classList.remove('hidden');
-                
-                // Show up to 3 valid route paths
-                const limitedRoutes = data.routes.slice(0, 3);
-
-                limitedRoutes.forEach(route => {
-                    const routeCard = document.createElement('div');
-                    routeCard.className = 'route-card';
-
-                    let chainHtml = '';
-                    route.parts.forEach((part, index) => {
-                        let modeClass = 'badge-walking';
-                        let modeName = part.mode;
-
-                        if (part.mode === 'subway' || part.mode === 'tube') { modeClass = 'badge-tube'; modeName = part.line || "Tube"; }
-                        else if (part.mode === 'bus') { modeClass = 'badge-bus'; modeName = part.line || "Bus"; }
-                        else if (part.mode === 'train') { modeClass = 'badge-national-rail'; modeName = "Rail"; }
-
-                        chainHtml += `<span class="badge ${modeClass}">${modeName}</span>`;
-                        if (index < route.parts.length - 1) {
-                            chainHtml += `<span class="chain-arrow">›</span>`;
-                        }
-                    });
-
-                    // Format Duration nicely
-                    let totalMinutes = 0;
-                    if (route.duration) {
-                        const parts = route.duration.split(':');
-                        totalMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
-                    }
-
-                    routeCard.innerHTML = `
-                        <div class="route-main">
-                            <div class="transit-chain">${chainHtml}</div>
-                            <div class="route-summary">Departure: <strong>${route.departure_time || 'Immediate'}</strong></div>
-                        </div>
-                        <div class="route-metrics">
-                            <div class="time-display">${totalMinutes || route.duration}m</div>
-                        </div>
-                    `;
-
-                    routeCard.addEventListener('click', () => {
-                        if (route.parts && route.parts[0] && route.parts[0].from_point) {
-                            const lon = route.parts[0].from_point.coordinates[0];
-                            const lat = route.parts[0].from_point.coordinates[1];
-                            map.flyTo({ center: [lon, lat], zoom: 14, essential: true });
-                            marker.setLngLat([lon, lat]);
-                        }
-                    });
-
-                    routesContainer.appendChild(routeCard);
-                });
-
-                if (limitedRoutes[0].parts && limitedRoutes[0].parts[0] && limitedRoutes[0].parts[0].from_point) {
-                    const firstLon = limitedRoutes[0].parts[0].from_point.coordinates[0];
-                    const firstLat = limitedRoutes[0].parts[0].from_point.coordinates[1];
-                    map.flyTo({ center: [firstLon, firstLat], zoom: 13, essential: true });
-                    marker.setLngLat([firstLon, firstLat]);
-                }
-
-            } catch (error) {
-                statusBox.style.color = "var(--goth-crimson)";
-                statusBox.textContent = `Engine alert: ${error.message}`;
-                statusBox.classList.remove('hidden');
-                console.error("Execution layer break:", error);
-            }
+            // Formulate clean, browser-safe redirection matrix to cross sandbox parameters safely
+            const tflPortalUrl = `https://tfl.gov.uk/plan-a-journey/results?From=${encodeURIComponent(start)}&To=${encodeURIComponent(end)}`;
+            
+            // Launch the live route engine safely inside mobile Safari environment
+            window.open(tflPortalUrl, '_blank');
         }
     })();
 </script>
