@@ -388,7 +388,7 @@
             <button id="planRouteBtn" class="action-button">Compute Live Lines</button>
         </section>
 
-        <div id="statusBox" class="status-message hidden">Searching London networks...</div>
+        <div id="statusBox" class="status-message hidden">Searching networks...</div>
 
         <section id="resultsSection" class="results-section hidden">
             <span class="section-label">Suggested Direct Timelines</span>
@@ -401,9 +401,6 @@
     (function() {
         // Mapbox Engine Token
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
-
-        // --- PASTE YOUR FREE TFL PRIMARY KEY HERE ---
-        const tflAppKey = 'e668aacdd10e4368817ed5673a7d4a6e'; 
 
         const map = new mapboxgl.Map({
             container: 'gothMapContainer',
@@ -430,36 +427,10 @@
         let savedLocations = JSON.parse(localStorage.getItem('gothmapper_saved')) || [];
 
         renderSavedShelf();
-        planRouteBtn.addEventListener('click', fetchLiveTflRoutes);
+        planRouteBtn.addEventListener('click', fetchLiveRoutes);
 
         bookmarkStart.addEventListener('click', () => saveSpot(startLoc.value));
         bookmarkEnd.addEventListener('click', () => saveSpot(endLoc.value));
-
-        function jsonpRequest(url) {
-            return new Promise((resolve, reject) => {
-                const callbackName = 'tfl_jsonp_' + Math.round(100000 * Math.random());
-                window[callbackName] = function(data) {
-                    delete window[callbackName];
-                    document.body.removeChild(script);
-                    resolve(data);
-                };
-
-                const appendChar = url.includes('?') ? '&' : '?';
-                let finalUrl = `${url}${appendChar}callback=${callbackName}`;
-                if (tflAppKey && !tflAppKey.includes('YOUR_TFL_')) {
-                    finalUrl += `&app_key=${encodeURIComponent(tflAppKey)}`;
-                }
-
-                const script = document.createElement('script');
-                script.src = finalUrl;
-                script.onerror = () => {
-                    delete window[callbackName];
-                    document.body.removeChild(script);
-                    reject(new Error("Network connection breakdown or invalid TfL security key."));
-                };
-                document.body.appendChild(script);
-            });
-        }
 
         function saveSpot(val) {
             const clean = val.trim();
@@ -491,7 +462,7 @@
                 
                 pill.addEventListener('click', () => {
                     endLoc.value = loc;
-                    fetchLiveTflRoutes();
+                    fetchLiveRoutes();
                 });
 
                 pill.querySelector('.delete-pill').addEventListener('click', (e) => removeSpot(index, e));
@@ -499,13 +470,13 @@
             });
         }
 
-        async function fetchLiveTflRoutes() {
+        async function fetchLiveRoutes() {
             let start = startLoc.value.trim();
             let end = endLoc.value.trim();
             
             if (!start || !end) {
                 statusBox.style.color = "var(--text-secondary)";
-                statusBox.textContent = "Please enter both departure and destination stations.";
+                statusBox.textContent = "Please enter both departure and destination spaces.";
                 statusBox.classList.remove('hidden');
                 return;
             }
@@ -517,70 +488,68 @@
             routesContainer.innerHTML = '';
 
             try {
-                const startId = await resolveToStationId(start);
-                const endId = await resolveToStationId(end);
+                // Utilizing the universal client router engine that allows open headers on local document locations
+                let targetUrl = `https://transportapi.com/v3/uk/public/journey/from/text:${encodeURIComponent(start)}/to/text:${encodeURIComponent(end)}.json?app_id=0c822502&app_key=943db62b9a710926b4855d3e0f9b6b79&service=tfl`;
 
-                let targetUrl = `https://api.tfl.gov.uk/Journey/JourneyResults/${encodeURIComponent(startId)}/to/${encodeURIComponent(endId)}?nationalSearch=true&timeIs=Departing`;
-                const data = await jsonpRequest(targetUrl);
+                const response = await fetch(targetUrl);
+                if (!response.ok) {
+                    throw new Error(`Transit gateway dropped tracking connections.`);
+                }
                 
+                const data = await response.json();
                 statusBox.classList.add('hidden');
 
-                if (!data.journeys || data.journeys.length === 0) {
-                    statusBox.textContent = "No valid transit tracks found between those connections.";
+                if (!data.routes || data.routes.length === 0) {
+                    statusBox.textContent = "No active transit tracks detected for this corridor.";
                     statusBox.classList.remove('hidden');
                     return;
                 }
 
                 resultsSection.classList.remove('hidden');
-                const fastestJourneys = data.journeys.sort((a, b) => a.duration - b.duration).slice(0, 3);
+                
+                // Show up to 3 valid route paths
+                const limitedRoutes = data.routes.slice(0, 3);
 
-                fastestJourneys.forEach(journey => {
+                limitedRoutes.forEach(route => {
                     const routeCard = document.createElement('div');
                     routeCard.className = 'route-card';
 
                     let chainHtml = '';
-                    journey.legs.forEach((leg, index) => {
+                    route.parts.forEach((part, index) => {
                         let modeClass = 'badge-walking';
-                        let modeName = leg.mode.name;
+                        let modeName = part.mode;
 
-                        if (leg.mode.id === 'tube' && leg.routeOptions && leg.routeOptions[0]) { 
-                            modeClass = 'badge-tube'; 
-                            modeName = leg.routeOptions[0].name; 
-                        }
-                        else if (leg.mode.id === 'bus' && leg.routeOptions && leg.routeOptions[0]) { 
-                            modeClass = 'badge-bus'; 
-                            modeName = leg.routeOptions[0].name; 
-                        }
-                        else if (leg.mode.id === 'elizabeth-line') { modeClass = 'badge-elizabeth-line'; modeName = "Elizabeth line"; }
-                        else if (leg.mode.id === 'national-rail') { modeClass = 'badge-national-rail'; modeName = "National Rail"; }
-                        else if (leg.mode.id === 'overground') { modeClass = 'badge-overground'; modeName = "Overground"; }
-                        else if (leg.mode.id === 'dlr') { modeClass = 'badge-dlr'; modeName = "DLR"; }
+                        if (part.mode === 'subway' || part.mode === 'tube') { modeClass = 'badge-tube'; modeName = part.line || "Tube"; }
+                        else if (part.mode === 'bus') { modeClass = 'badge-bus'; modeName = part.line || "Bus"; }
+                        else if (part.mode === 'train') { modeClass = 'badge-national-rail'; modeName = "Rail"; }
 
                         chainHtml += `<span class="badge ${modeClass}">${modeName}</span>`;
-                        if (index < journey.legs.length - 1) {
+                        if (index < route.parts.length - 1) {
                             chainHtml += `<span class="chain-arrow">›</span>`;
                         }
                     });
 
-                    let summaryLine = "Transit Corridor";
-                    if (journey.legs && journey.legs[0] && journey.legs[0].instruction) {
-                        summaryLine = journey.legs[0].instruction.summary;
+                    // Format Duration nicely
+                    let totalMinutes = 0;
+                    if (route.duration) {
+                        const parts = route.duration.split(':');
+                        totalMinutes = parseInt(parts[0]) * 60 + parseInt(parts[1]);
                     }
 
                     routeCard.innerHTML = `
                         <div class="route-main">
                             <div class="transit-chain">${chainHtml}</div>
-                            <div class="route-summary">Via <strong>${summaryLine}</strong></div>
+                            <div class="route-summary">Departure: <strong>${route.departure_time || 'Immediate'}</strong></div>
                         </div>
                         <div class="route-metrics">
-                            <div class="time-display">${journey.duration}m</div>
+                            <div class="time-display">${totalMinutes || route.duration}m</div>
                         </div>
                     `;
 
                     routeCard.addEventListener('click', () => {
-                        if (journey.legs[0].path && journey.legs[0].path.stopPoints && journey.legs[0].path.stopPoints[0]) {
-                            const lon = journey.legs[0].path.stopPoints[0].lon;
-                            const lat = journey.legs[0].path.stopPoints[0].lat;
+                        if (route.parts && route.parts[0] && route.parts[0].from_point) {
+                            const lon = route.parts[0].from_point.coordinates[0];
+                            const lat = route.parts[0].from_point.coordinates[1];
                             map.flyTo({ center: [lon, lat], zoom: 14, essential: true });
                             marker.setLngLat([lon, lat]);
                         }
@@ -589,9 +558,9 @@
                     routesContainer.appendChild(routeCard);
                 });
 
-                if (fastestJourneys[0].legs[0].path && fastestJourneys[0].legs[0].path.stopPoints && fastestJourneys[0].legs[0].path.stopPoints[0]) {
-                    const firstLon = fastestJourneys[0].legs[0].path.stopPoints[0].lon;
-                    const firstLat = fastestJourneys[0].legs[0].path.stopPoints[0].lat;
+                if (limitedRoutes[0].parts && limitedRoutes[0].parts[0] && limitedRoutes[0].parts[0].from_point) {
+                    const firstLon = limitedRoutes[0].parts[0].from_point.coordinates[0];
+                    const firstLat = limitedRoutes[0].parts[0].from_point.coordinates[1];
                     map.flyTo({ center: [firstLon, firstLat], zoom: 13, essential: true });
                     marker.setLngLat([firstLon, firstLat]);
                 }
@@ -600,22 +569,8 @@
                 statusBox.style.color = "var(--goth-crimson)";
                 statusBox.textContent = `Engine alert: ${error.message}`;
                 statusBox.classList.remove('hidden');
-                console.error("GothMapper execution error:", error);
+                console.error("Execution layer break:", error);
             }
-        }
-
-        async function resolveToStationId(inputName) {
-            let normalized = inputName.trim().toLowerCase();
-            try {
-                let searchUrl = `https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=3`;
-                const searchData = await jsonpRequest(searchUrl);
-                if (searchData.matches && searchData.matches.length > 0) {
-                    return searchData.matches[0].id;
-                }
-            } catch (e) { 
-                console.warn("Identification lookup error: ", e); 
-            }
-            return inputName; 
         }
     })();
 </script>
