@@ -394,7 +394,7 @@
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
         // --- PASTE YOUR FREE TFL PRIMARY KEY HERE ---
-        const tflAppKey = 'e668aacdd10e4368817ed5673a7d4a6e'; 
+        const tflAppKey = 'YOUR_TFL_PRIMARY_DEVELOPER_KEY_HERE'; 
 
         const map = new mapboxgl.Map({
             container: 'gothMapContainer',
@@ -584,9 +584,6 @@
 
         async function resolveToStationId(inputName) {
             let normalized = inputName.trim().toLowerCase();
-            
-            if (normalized === "stockwell") return "940GZZLUSTK";
-            if (normalized === "earl's court" || normalized === "earls court" || normalized.includes("early")) return "940GZZLUECT";
 
             try {
                 let rawSearchUrl = `https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=3`;
