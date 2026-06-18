@@ -238,6 +238,7 @@
             color: var(--text-secondary);
             text-align: center;
             padding: 10px;
+            line-height: 1.4;
         }
 
         .results-section {
@@ -361,13 +362,13 @@
     <main class="main-content">
         <section class="search-panel">
             <div class="input-wrapper">
-                <input type="text" id="startLoc" class="input-field" placeholder="Departure location..." value="Stockwell">
+                <input type="text" id="startLoc" class="input-field" placeholder="Departure location...">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
                 <button id="bookmarkStart" class="bookmark-btn" title="Save departure">★</button>
             </div>
             
             <div class="input-wrapper">
-                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?" value="Earl's Court">
+                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?">
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
                 <button id="bookmarkEnd" class="bookmark-btn" title="Save destination">★</button>
             </div>
@@ -462,12 +463,14 @@
             let start = startLoc.value.trim();
             let end = endLoc.value.trim();
             
-            if (!start || !end) return;
-
-            if (start.toLowerCase() === "current location") {
-                start = "1000044"; 
+            if (!start || !end) {
+                statusBox.style.color = "var(--text-secondary)";
+                statusBox.textContent = "Please enter both departure and destination stations.";
+                statusBox.classList.remove('hidden');
+                return;
             }
 
+            statusBox.style.color = "var(--text-secondary)";
             statusBox.textContent = "Calculating faster routes...";
             statusBox.classList.remove('hidden');
             resultsSection.classList.add('hidden');
@@ -481,14 +484,14 @@
                 const response = await fetch(url);
                 
                 if (!response.ok) {
-                    throw new Error("TfL Response Status Error: " + response.status);
+                    throw new Error(`TfL Router rejected endpoints (Status ${response.status})`);
                 }
                 
                 const data = await response.json();
                 statusBox.classList.add('hidden');
 
                 if (!data.journeys || data.journeys.length === 0) {
-                    statusBox.textContent = "No transit connections found. Check station names.";
+                    statusBox.textContent = "No valid transit tracks found between those connections.";
                     statusBox.classList.remove('hidden');
                     return;
                 }
@@ -559,36 +562,31 @@
                 }
 
             } catch (error) {
-                statusBox.textContent = "Transit engine timed out or match not found.";
+                statusBox.style.color = "var(--goth-crimson)";
+                statusBox.textContent = `Engine alert: ${error.message}. Verify network names or cross-links.`;
                 statusBox.classList.remove('hidden');
-                console.error(error);
+                console.error("GothMapper execution error:", error);
             }
         }
 
         async function resolveToStationId(inputName) {
             let normalized = inputName.trim().toLowerCase();
-            if (normalized.includes("early's") || normalized.includes("earlys")) {
-                normalized = "earl's court";
-            }
+            
+            if (normalized === "stockwell") return "940GZZLUSTK";
+            if (normalized === "earl's court" || normalized === "earls court" || normalized.includes("early")) return "940GZZLUECT";
 
             try {
-                // Corrected endpoint format using ?query= parameter
-                const res = await fetch(`https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=5`);
+                const res = await fetch(`https://api.tfl.gov.uk/StopPoint/Search?query=${encodeURIComponent(normalized)}&maxResults=3`);
                 if (!res.ok) return inputName;
 
                 const searchData = await res.json();
                 if (searchData.matches && searchData.matches.length > 0) {
-                    let match = searchData.matches.find(m => m.icsId) || searchData.matches[0];
-                    if (match && match.icsId) {
-                        return match.icsId;
-                    } else if (match && match.id) {
-                        return match.id;
-                    }
+                    return searchData.matches[0].id;
                 }
             } catch (e) { 
                 console.warn("Identification lookup error: ", e); 
             }
-            return inputName; // Fallback to raw name string if API structure drops out
+            return inputName; 
         }
     })();
 </script>
