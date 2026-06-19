@@ -36,7 +36,7 @@
 
         .calendar-container {
             width: 100%;
-            max-width: 900px;
+            max-width: 950px;
             background-color: var(--container-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
@@ -51,28 +51,35 @@
             align-items: center;
             padding: 20px 24px;
             border-bottom: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            gap: 16px;
         }
 
         .current-month-year {
             font-size: 1.5rem;
             font-weight: 600;
+            min-width: 200px;
         }
 
         .nav-buttons {
             display: flex;
-            gap: 8px;
+            gap: 6px;
+            align-items: center;
         }
 
         button {
             background-color: var(--border-color);
             color: var(--text-color);
             border: none;
-            padding: 8px 16px;
+            padding: 8px 14px;
             font-size: 0.95rem;
             font-weight: 500;
             border-radius: 6px;
             cursor: pointer;
             transition: background 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         button:hover {
@@ -85,6 +92,12 @@
 
         button.primary-btn:hover {
             background-color: var(--accent-hover);
+        }
+
+        .year-nav {
+            font-weight: bold;
+            letter-spacing: -1px;
+            background-color: rgba(255, 255, 255, 0.05);
         }
 
         /* Calendar Grid Architecture */
@@ -257,10 +270,12 @@
         <div class="calendar-header">
             <h2 class="current-month-year" id="monthYearDisplay">June 2026</h2>
             <div class="nav-buttons">
-                <button id="prevBtn">Prev</button>
+                <button id="prevYearBtn" class="year-nav" title="Previous Year">«</button>
+                <button id="prevBtn" title="Previous Month">Prev</button>
                 <button id="todayBtn">Today</button>
-                <button id="nextBtn">Next</button>
-                <button id="syncBtn" class="primary-btn">Sync Google</button>
+                <button id="nextBtn" title="Next Month">Next</button>
+                <button id="nextYearBtn" class="year-nav" title="Next Year">»</button>
+                <button id="syncBtn" class="primary-btn" style="margin-left: 8px;">Sync Google</button>
             </div>
         </div>
 
@@ -302,9 +317,13 @@
         // DOM Elements
         const monthYearDisplay = document.getElementById('monthYearDisplay');
         const calendarGrid = document.getElementById('calendarGrid');
+        
+        // Control Buttons
+        const prevYearBtn = document.getElementById('prevYearBtn');
         const prevBtn = document.getElementById('prevBtn');
         const todayBtn = document.getElementById('todayBtn');
         const nextBtn = document.getElementById('nextBtn');
+        const nextYearBtn = document.getElementById('nextYearBtn');
         const syncBtn = document.getElementById('syncBtn');
         
         // Modal Elements
@@ -330,7 +349,7 @@
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
-            // 1. Set Month/Year Title text
+            // 1. Set Month/Year Title text dynamically
             monthYearDisplay.textContent = currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
             // 2. Render Day Labels
@@ -358,8 +377,7 @@
                 createDayBlock(dayDate, true);
             }
 
-            // 6. Fill Next Month's Leading Grid Blocks to make a perfect grid wrap (multiple of 7)
-            const remainingCells = 42 - calendarGrid.children.length + 7; // Account for headers
+            // 6. Fill Next Month's Leading Grid Blocks to secure uniform grid architecture
             const actualCellsToFill = (calendarGrid.children.length - 7) % 7 === 0 ? 0 : 7 - ((calendarGrid.children.length - 7) % 7);
             
             for (let i = 1; i <= actualCellsToFill; i++) {
@@ -392,7 +410,7 @@
             eventsWrapper.className = 'events-wrapper';
             dayBlock.appendChild(eventsWrapper);
 
-            // Inject existing events if present
+            // Inject existing events matching this specific date key
             const dateKey = formatDateKey(date);
             if (events[dateKey]) {
                 events[dateKey].forEach(ev => {
@@ -407,7 +425,7 @@
                 });
             }
 
-            // Clicking an empty day slot lets you create a new item
+            // Clicking day slot pops open event builder
             dayBlock.addEventListener('click', () => {
                 openModal(dateKey);
             });
@@ -416,7 +434,10 @@
         }
 
         function formatDateKey(date) {
-            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
         }
 
         // Modal Management
@@ -457,13 +478,11 @@
             }
 
             if (eventIdInput.value) {
-                // Update transaction
                 const idx = events[dateKey].findIndex(e => e.id === id);
                 if (idx !== -1) {
                     events[dateKey][idx] = { ...events[dateKey][idx], title, description };
                 }
             } else {
-                // Insert transaction
                 events[dateKey].push({ id, title, description, source: 'local' });
             }
 
@@ -490,8 +509,15 @@
 
         // Hooking up Navigation Interactions
         function setupEventListeners() {
+            // Month Increments
             prevBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderGrid(); };
             nextBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderGrid(); };
+            
+            // Year Increments
+            prevYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() - 1); renderGrid(); };
+            nextYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() + 1); renderGrid(); };
+            
+            // Reset to Current Present Day
             todayBtn.onclick = () => { currentDate = new Date(); renderGrid(); };
             
             closeModalBtn.onclick = closeModal;
@@ -504,11 +530,10 @@
             };
         }
 
-        // Placeholder integration mimicry for your actual OAuth Pipeline later
         function mockGoogleSyncFetch() {
-            alert("This will open secure OAuth 2.0 flow. For now, mimicking inbound items!");
+            alert("This will hook into the Google Calendar API stream. Placing an event on your view now!");
             
-            const targetDate = formatDateKey(new Date());
+            const targetDate = formatDateKey(currentDate);
             if (!events[targetDate]) events[targetDate] = [];
             
             events[targetDate].push({
