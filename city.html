@@ -133,7 +133,8 @@
             background: #09090d;
         }
 
-        .search-panel {
+        /* Native Form Setup for Sandbox Bypass */
+        .search-panel-form {
             background: rgba(17, 17, 24, 0.6);
             border: 1px solid var(--border-subtle);
             border-radius: 16px;
@@ -186,6 +187,7 @@
             font-size: 18px;
             transition: color 0.2s ease, transform 0.1s ease;
             padding: 4px;
+            z-index: 5;
         }
         .bookmark-btn:hover {
             color: #f59e0b;
@@ -225,6 +227,7 @@
         }
 
         .action-button {
+            width: 100%;
             background: var(--goth-neon);
             color: #fff;
             border: none;
@@ -235,6 +238,7 @@
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
+            font-family: var(--font-stack);
         }
 
         .action-button:hover {
@@ -283,23 +287,23 @@
     <img src="london.jpg" alt="London Canvas" class="london-banner">
 
     <main class="main-content">
-        <section class="search-panel">
+        <form action="https://tfl.gov.uk/plan-a-journey/results" method="GET" target="_blank" class="search-panel-form" id="transitForm">
             <div class="input-wrapper">
-                <input type="text" id="startLoc" class="input-field" placeholder="Departure location...">
+                <input type="text" name="From" id="startLoc" class="input-field" placeholder="Departure location..." required>
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
-                <button id="bookmarkStart" class="bookmark-btn" title="Save departure">★</button>
+                <button type="button" id="bookmarkStart" class="bookmark-btn" title="Save departure">★</button>
             </div>
             
             <div class="input-wrapper">
-                <input type="text" id="endLoc" class="input-field" placeholder="Where out into the night?">
+                <input type="text" name="To" id="endLoc" class="input-field" placeholder="Where out into the night?" required>
                 <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/></svg>
-                <button id="bookmarkEnd" class="bookmark-btn" title="Save destination">★</button>
+                <button type="button" id="bookmarkEnd" class="bookmark-btn" title="Save destination">★</button>
             </div>
 
             <div id="savedShelf" class="saved-shelf hidden"></div>
 
-            <button id="planRouteBtn" class="action-button">Compute Live Lines</button>
-        </section>
+            <button type="submit" class="action-button">Compute Live Lines</button>
+        </form>
 
         <div id="statusBox" class="status-message hidden"></div>
     </main>
@@ -307,7 +311,7 @@
 
 <script>
     (function() {
-        // Mapbox Engine Token
+        // Mapbox Engine Activation
         mapboxgl.accessToken = 'pk.eyJ1IjoiYWlkYW1uODEiLCJhIjoiY21xaHpyeGhlMDFmajJxc2Zibnl0dGVyNyJ9.smCX4GZMcPtJfpBeb5To5Q';
 
         const map = new mapboxgl.Map({
@@ -322,8 +326,7 @@
         el.className = 'goth-marker';
         const marker = new mapboxgl.Marker(el).setLngLat([-0.1276, 51.5074]).addTo(map);
 
-        const planRouteBtn = document.getElementById('planRouteBtn');
-        const statusBox = document.getElementById('statusBox');
+        const transitForm = document.getElementById('transitForm');
         const startLoc = document.getElementById('startLoc');
         const endLoc = document.getElementById('endLoc');
         const savedShelf = document.getElementById('savedShelf');
@@ -333,10 +336,9 @@
         let savedLocations = JSON.parse(localStorage.getItem('gothmapper_saved')) || [];
 
         renderSavedShelf();
-        planRouteBtn.addEventListener('click', directSandboxBypassRoute);
 
-        bookmarkStart.addEventListener('click', () => saveSpot(startLoc.value));
-        bookmarkEnd.addEventListener('click', () => saveSpot(endLoc.value));
+        bookmarkStart.addEventListener('click', (e) => { e.preventDefault(); saveSpot(startLoc.value); });
+        bookmarkEnd.addEventListener('click', (e) => { e.preventDefault(); saveSpot(endLoc.value); });
 
         function saveSpot(val) {
             const clean = val.trim();
@@ -348,6 +350,7 @@
 
         function removeSpot(idx, e) {
             e.stopPropagation(); 
+            e.preventDefault();
             savedLocations.splice(idx, 1);
             localStorage.setItem('gothmapper_saved', JSON.stringify(savedLocations));
             renderSavedShelf();
@@ -366,34 +369,15 @@
                 pill.className = 'shelf-pill';
                 pill.innerHTML = `♠ ${loc} <span class="delete-pill" data-index="${index}">×</span>`;
                 
-                pill.addEventListener('click', () => {
+                pill.addEventListener('click', (e) => {
+                    e.preventDefault();
                     endLoc.value = loc;
-                    directSandboxBypassRoute();
+                    transitForm.submit();
                 });
 
                 pill.querySelector('.delete-pill').addEventListener('click', (e) => removeSpot(index, e));
                 savedShelf.appendChild(pill);
             });
-        }
-
-        function directSandboxBypassRoute() {
-            let start = startLoc.value.trim();
-            let end = endLoc.value.trim();
-            
-            if (!start || !end) {
-                statusBox.style.color = "var(--text-secondary)";
-                statusBox.textContent = "Please enter both departure and destination stations.";
-                statusBox.classList.remove('hidden');
-                return;
-            }
-
-            statusBox.classList.add('hidden');
-
-            // Formulate clean, browser-safe redirection matrix to cross sandbox parameters safely
-            const tflPortalUrl = `https://tfl.gov.uk/plan-a-journey/results?From=${encodeURIComponent(start)}&To=${encodeURIComponent(end)}`;
-            
-            // Launch the live route engine safely inside mobile Safari environment
-            window.open(tflPortalUrl, '_blank');
         }
     })();
 </script>
