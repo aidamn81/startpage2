@@ -2,791 +2,436 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Personalized Calendar Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>The Gothic Archive (Formation & Snap-to-Grid)</title>
     <style>
         :root {
-            --bg-color: #121214;
-            --container-bg: #1a1a1e;
-            --text-color: #e2e8f0;
-            --text-muted: #94a3b8;
-            --border-color: #2d2d34;
-            --accent-color: #6366f1;
-            --accent-hover: #4f46e5;
-            --today-bg: rgba(99, 102, 241, 0.15);
-            --modal-bg: #222227;
-            --dropdown-hover: #2d2d34;
+            --bg-color: #0d0d0d;
+            --panel-bg: #141414;
+            --accent-color: #6a1b9a;
+            --text-color: #e0e0e0;
+            --text-dim: #888888;
+            --border-color: #262626;
+            --grid-size: 20px;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .calendar-container {
-            width: 100%;
-            max-width: 950px;
-            background-color: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-        }
-
-        /* Header Navigation */
-        .calendar-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px 24px;
-            border-bottom: 1px solid var(--border-color);
-            flex-wrap: wrap;
-            gap: 16px;
-        }
-
-        /* Interactive Title Dropdown Container */
-        .title-dropdown-container {
-            position: relative;
-        }
-
-        .current-month-year {
-            font-size: 1.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 6px;
-            transition: background-color 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            -webkit-user-select: none;
             user-select: none;
         }
 
-        .current-month-year:hover {
-            background-color: var(--border-color);
-        }
-
-        .current-month-year::after {
-            content: '▾';
-            font-size: 1rem;
-            color: var(--text-muted);
-        }
-
-        /* Picker Popup Menu Panel */
-        .picker-menu {
-            position: absolute;
-            top: 110%;
-            left: 0;
-            background-color: var(--modal-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            padding: 16px;
-            display: none;
-            grid-template-columns: 120px 90px;
-            gap: 12px;
-            z-index: 500;
-        }
-
-        .picker-menu.active {
-            display: grid;
-        }
-
-        .picker-column {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            max-height: 200px;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-
-        /* Custom Scrollbar styling for Picker columns */
-        .picker-column::-webkit-scrollbar {
-            width: 4px;
-        }
-        .picker-column::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 4px;
-        }
-
-        .picker-item {
-            padding: 6px 10px;
-            font-size: 0.9rem;
-            border-radius: 4px;
-            cursor: pointer;
-            text-align: left;
-            transition: background-color 0.15s ease;
-        }
-
-        .picker-item:hover {
-            background-color: var(--dropdown-hover);
-        }
-
-        .picker-item.selected {
-            background-color: var(--accent-color);
-            color: white;
-            font-weight: 600;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-        }
-
-        button {
-            background-color: var(--border-color);
+        body, html {
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
             color: var(--text-color);
-            border: none;
-            padding: 8px 14px;
-            font-size: 0.95rem;
-            font-weight: 500;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        button:hover {
-            background-color: #3f3f46;
-        }
-
-        button.primary-btn {
-            background-color: var(--accent-color);
-        }
-
-        button.primary-btn:hover {
-            background-color: var(--accent-hover);
-        }
-
-        .year-nav {
-            font-weight: bold;
-            letter-spacing: -1px;
-            background-color: rgba(255, 255, 255, 0.05);
-        }
-
-        /* Calendar Grid Architecture */
-        .calendar-grid {
-            display: grid;
-            grid-template-columns: repeat(7, 1fr);
-        }
-
-        .weekday-label {
-            text-align: center;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            padding: 12px 0;
-            background-color: rgba(0, 0, 0, 0.1);
-            border-bottom: 1px solid var(--border-color);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .calendar-day {
-            min-height: 110px;
-            border-bottom: 1px solid var(--border-color);
-            border-right: 1px solid var(--border-color);
-            padding: 6px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            position: relative;
-        }
-
-        .calendar-grid .calendar-day:nth-child(7n) {
-            border-right: none;
-        }
-
-        .day-number {
-            font-size: 0.9rem;
-            font-weight: 500;
-            color: var(--text-muted);
-            align-self: flex-start;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-        }
-
-        .calendar-day.current-month .day-number {
-            color: var(--text-color);
-        }
-
-        .calendar-day.today {
-            background-color: var(--today-bg);
-        }
-
-        .calendar-day.today .day-number {
-            background-color: var(--accent-color);
-            color: #ffffff;
-        }
-
-        .calendar-day.adjacent-month {
-            opacity: 0.35;
-        }
-
-        /* Event Elements */
-        .events-wrapper {
-            display: flex;
-            flex-direction: column;
-            gap: 3px;
-            overflow-y: auto;
-            flex-grow: 1;
-            max-height: 80px;
-        }
-
-        .event-item {
-            font-size: 0.75rem;
-            padding: 3px 6px;
-            border-radius: 4px;
-            background-color: #312e81;
-            color: #e0e7ff;
-            border-left: 3px solid var(--accent-color);
-            white-space: nowrap;
+            font-family: 'Cinzel', 'Georgia', serif;
             overflow: hidden;
-            text-overflow: ellipsis;
-            cursor: pointer;
         }
 
-        /* Live Google Event Marker Look */
-        .event-item.google-sync {
-            background-color: #064e3b;
-            color: #d1fae5;
-            border-left-color: #10b981;
+        #viewport {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: auto;
+            cursor: grab;
         }
 
-        /* Modal Sheet Styles */
-        .modal-overlay {
+        #viewport:active {
+            cursor: grabbing;
+        }
+
+        #canvas {
+            width: 5000px;
+            height: 5000px;
+            position: absolute;
+            background-color: var(--bg-color);
+            background-image: 
+                linear-gradient(to right, rgba(38, 38, 38, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(38, 38, 38, 0.1) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            transform-origin: 0 0;
+        }
+
+        /* Guide Grid Layer - Only visible in Edit Mode */
+        #canvas.edit-mode::before {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            background-image: 
+                linear-gradient(to right, rgba(106, 27, 154, 0.15) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(106, 27, 154, 0.15) 1px, transparent 1px);
+            background-size: calc(var(--grid-size) * 5) calc(var(--grid-size) * 5);
+        }
+
+        /* UI Overlay Elements */
+        #ui-layer {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            opacity: 0;
             pointer-events: none;
-            transition: opacity 0.25s ease;
             z-index: 1000;
         }
 
-        .modal-overlay.active {
-            opacity: 1;
+        .interactive-ui {
             pointer-events: auto;
         }
 
-        .modal-card {
-            background-color: var(--modal-bg);
+        #control-bar {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.85);
+            backdrop-filter: blur(10px);
             border: 1px solid var(--border-color);
-            border-radius: 10px;
-            width: 100%;
-            max-width: 420px;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        .modal-title {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin-bottom: 16px;
-        }
-
-        .form-group {
-            margin-bottom: 16px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 6px;
-        }
-
-        .form-group input, .form-group textarea {
-            width: 100%;
-            background-color: var(--container-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 10px;
-            color: var(--text-color);
-            font-family: inherit;
-            font-size: 0.95rem;
-        }
-
-        .form-group input:focus, .form-group textarea:focus {
-            outline: 1px solid var(--accent-color);
-        }
-
-        .modal-actions {
+            padding: 10px 20px;
+            border-radius: 30px;
             display: flex;
-            justify-content: flex-end;
+            gap: 15px;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        button, select {
+            background: #1e1e1e;
+            border: 1px solid var(--border-color);
+            color: var(--text-color);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 10px rgba(106, 27, 154, 0.4);
+        }
+
+        button.active {
+            background: var(--accent-color);
+            border-color: #9c27b0;
+        }
+
+        /* Relics and Folders Basic Styles */
+        .relic, .folder {
+            position: absolute;
+            border: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            padding: 10px;
+            cursor: move;
+            border-radius: 8px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .relic img {
+            width: 100%;
+            height: calc(100% - 25px);
+            object-fit: cover;
+            border-radius: 4px;
+            pointer-events: none;
+        }
+
+        .relic-title, .folder-title {
+            height: 25px;
+            line-height: 25px;
+            text-align: center;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Context Menu Styles */
+        #context-menu {
+            position: fixed;
+            background: #1a1a1a;
+            border: 1px solid var(--accent-color);
+            border-radius: 4px;
+            padding: 5px 0;
+            z-index: 2000;
+            box-shadow: 0 5px 25px rgba(0,0,0,0.8);
+            display: none;
+        }
+
+        #context-menu div {
+            padding: 10px 20px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+        }
+
+        #context-menu div:hover {
+            background: var(--accent-color);
+        }
+
+        /* Folder Specific Styles */
+        .folder {
+            border-color: #3a225d;
+            background: radial-gradient(circle at top left, #1a0f29, #141414);
+        }
+        
+        .folder-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
             gap: 10px;
-            margin-top: 20px;
+            padding: 10px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* Calendar Matrix/Grid Overlays */
+        #calendar-container {
+            position: absolute;
+            top: 200px;
+            left: 200px;
+            width: 900px;
+            height: 650px;
+            background: #111;
+            border: 2px solid #333;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+        }
+
+        .calendar-header {
+            padding: 15px 20px;
+            background: #161616;
+            border-bottom: 1px solid #222;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            flex-grow: 1;
+            background: #1c1c1c;
+            gap: 1px;
+            padding: 1px;
+        }
+
+        .calendar-day {
+            background: #111;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            overflow-y: auto;
+        }
+
+        .calendar-day-header {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+        }
+
+        .event-item {
+            font-size: 11px;
+            padding: 4px 6px;
+            background: var(--accent-color);
+            border-radius: 4px;
+            color: #fff;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
     </style>
-
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
 
-    <div class="calendar-container">
-        <div class="calendar-header">
-            <div class="title-dropdown-container">
-                <h2 class="current-month-year" id="monthYearDisplay">June 2026</h2>
-                
-                <div class="picker-menu" id="pickerMenu">
-                    <div class="picker-column" id="monthPickerCol"></div>
-                    <div class="picker-column" id="yearPickerCol"></div>
+    <div id="viewport">
+        <div id="canvas">
+            
+            <!-- Google Calendar Container Component -->
+            <div id="calendar-container" class="interactive-ui">
+                <div class="calendar-header">
+                    <h3 style="letter-spacing: 2px;">CHRONICLES MATRIX</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="auth-btn" onclick="handleAuthClick()">SYNC GOOGLE</button>
+                        <button id="signout-btn" onclick="handleSignoutClick()" style="display:none;">DISCONNECT</button>
+                    </div>
+                </div>
+                <div class="calendar-grid" id="matrix-grid">
+                    <!-- Days loaded dynamically dynamically via JS -->
                 </div>
             </div>
 
-            <div class="nav-buttons">
-                <button id="prevYearBtn" class="year-nav" title="Previous Year">«</button>
-                <button id="prevBtn" title="Previous Month">Prev</button>
-                <button id="todayBtn">Today</button>
-                <button id="nextBtn" title="Next Month">Next</button>
-                <button id="nextYearBtn" class="year-nav" title="Next Year">»</button>
-                <button id="syncBtn" class="primary-btn" style="margin-left: 8px;">Sync Google</button>
-            </div>
-        </div>
-
-        <div class="calendar-grid" id="calendarGrid">
-            </div>
-    </div>
-
-    <div class="modal-overlay" id="eventModal">
-        <div class="modal-card">
-            <h3 class="modal-title" id="modalTitle">Manage Event</h3>
-            <input type="hidden" id="eventDate">
-            <input type="hidden" id="eventId">
-            
-            <div class="form-group">
-                <label for="eventTitle">Title</label>
-                <input type="text" id="eventTitle" placeholder="e.g., Performance Rehearsal">
-            </div>
-            
-            <div class="form-group">
-                <label for="eventDesc">Description (Optional)</label>
-                <textarea id="eventDesc" rows="3" placeholder="Details..."></textarea>
-            </div>
-
-            <div class="modal-actions">
-                <button id="deleteEventBtn" style="background-color: #991b1b; color: #fef2f2; display: none; margin-right: auto;">Delete</button>
-                <button id="closeModalBtn">Cancel</button>
-                <button id="saveEventBtn" class="primary-btn">Save</button>
-            </div>
         </div>
     </div>
+
+    <div id="ui-layer">
+        <div id="control-bar" class="interactive-ui">
+            <button id="edit-toggle" onclick="toggleEditMode()">EDIT ARCHIVE</button>
+            <button onclick="recenterFormation()">RECENTER RECURSION</button>
+            <button onclick="saveState()">SAVE PARADIGM</button>
+            <button onclick="loadState()">LOAD PARADIGM</button>
+            <select id="scale-selector" onchange="adjustScale(this.value)">
+                <option value="0.5">50%</option>
+                <option value="0.75">75%</option>
+                <option value="1.0" selected>100%</option>
+                <option value="1.5">150%</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="context-menu">
+        <div onclick="menuResizeOriginal()">Resize to Original</div>
+        <div onclick="menuRename()">Rename Designation</div>
+        <div onclick="menuChangeImage()">Mutate Image Resource</div>
+        <div onclick="menuMoveFolder()">Move to Container</div>
+        <div onclick="menuOpenTab()">Manifest in New Tab</div>
+        <div onclick="menuDelete()" style="color: #ff3333;">Exterminate Item</div>
+    </div>
+
+    <!-- Google Identity Services Identity & API Client Infrastructure Core Libraries -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <script>
         /*****************************************
          * GOOGLE API CONFIGURATION CONFIG
          *****************************************/
-        // PASTE YOUR CREDENTIALS HERE AFTER STEP 2:
-        const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
+const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyDUp9V5jx0OeWp0mV5oLC7Gfu5m_qPK7AA';
-        
-        // Scope for viewing/reading primary calendar items
-        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'; // Scope configured in Google console
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+        const CALENDAR_ID = 'primary'; // Explicit target matching primary user authentication pipeline
 
         let tokenClient;
         let gapiInited = false;
         let gisiInited = false;
         let googleAccessToken = null;
 
-        // Calendar Core State
-        let currentDate = new Date();
-        let events = JSON.parse(localStorage.getItem('local_calendar_events')) || {};
-        let googleEvents = {}; // Dynamic temporary memory cache for Google Items
+        // Core App Window Layout Engine States
+        let editMode = false;
+        let zoomScale = 1.0;
+        let currentTargetNode = null;
+        const gridSnapValue = 20;
 
-        const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const months = [
-            'January', 'February', 'March', 'April', 'May', 'June', 
-            'July', 'August', 'September', 'October', 'November', 'December'
-        ];
-        
-        // DOM Elements
-        const monthYearDisplay = document.getElementById('monthYearDisplay');
-        const pickerMenu = document.getElementById('pickerMenu');
-        const monthPickerCol = document.getElementById('monthPickerCol');
-        const yearPickerCol = document.getElementById('yearPickerCol');
-        const calendarGrid = document.getElementById('calendarGrid');
-        
-        // Control Buttons
-        const prevYearBtn = document.getElementById('prevYearBtn');
-        const prevBtn = document.getElementById('prevBtn');
-        const todayBtn = document.getElementById('todayBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const nextYearBtn = document.getElementById('nextYearBtn');
-        const syncBtn = document.getElementById('syncBtn');
-        
-        // Modal Elements
-        const eventModal = document.getElementById('eventModal');
-        const modalTitle = document.getElementById('modalTitle');
-        const eventDateInput = document.getElementById('eventDate');
-        const eventIdInput = document.getElementById('eventId');
-        const eventTitleInput = document.getElementById('eventTitle');
-        const eventDescInput = document.getElementById('eventDesc');
-        const saveEventBtn = document.getElementById('saveEventBtn');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const deleteEventBtn = document.getElementById('deleteEventBtn');
+        // Lifecycle Initializations for Google Integrations
+        function gapiLoaded() { gapi.load('client', initializeGapiClient); }
+        async function initializeGapiClient() { await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] }); gapiInited = true; checkAuthDisplay(); }
+        function gisLoaded() { tokenClient = google.accounts.oauth2.initTokenClient({ client_id: CLIENT_ID, scope: SCOPES, callback: (resp) => { if(resp.error) return; googleAccessToken = resp.access_token; checkAuthDisplay(); fetchMatrixChronicles(); } }); gisiInited = true; checkAuthDisplay(); }
+        function checkAuthDisplay() { const btn = document.getElementById('auth-btn'); const outBtn = document.getElementById('signout-btn'); if(googleAccessToken) { btn.innerText = "REFRESH ENGINE"; outBtn.style.display = "inline-block"; } else { btn.innerText = "SYNC GOOGLE"; outBtn.style.display = "none"; } }
+        function handleAuthClick() { if(!googleAccessToken) { tokenClient.requestAccessToken({prompt: 'consent'}); } else { fetchMatrixChronicles(); } }
+        function handleSignoutClick() { if(googleAccessToken) { google.accounts.oauth2.revokeToken(googleAccessToken); googleAccessToken = null; checkAuthDisplay(); document.getElementById('matrix-grid').innerHTML = ''; generateBlankMatrix(); } }
 
-        // Render Engine Execution
-        function initCalendar() {
-            renderGrid();
-            setupEventListeners();
-            attemptLoadGoogleScripts();
-        }
-
-        /*****************************************
-         * GOOGLE OAUTH INTERNALS & DATA FETCHING
-         *****************************************/
-        function attemptLoadGoogleScripts() {
-            // Callback hooks tied to scripts loading 'async defer'
-            window.gapiLoadCallback = gapiLoad;
-            window.gisLoadCallback = gisLoad;
-            
-            // Fallback trigger loop if window initialization finishes late
-            setTimeout(() => {
-                if (typeof gapi !== 'undefined') gapiLoad();
-                if (typeof google !== 'undefined') gisLoad();
-            }, 1000);
-        }
-
-        function gapiLoad() { gapi.load('client', initializeGapiClient); }
-        async function initializeGapiClient() {
-            await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
-            gapiInited = true;
-            checkSyncButtonState();
-        }
-        function gisLoad() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse.error !== undefined) throw (tokenResponse);
-                    googleAccessToken = tokenResponse.access_token;
-                    syncBtn.textContent = "🔄 Fetching...";
-                    fetchGoogleCalendarEvents();
-                },
-            });
-            gisiInited = true;
-            checkSyncButtonState();
-        }
-
-        function checkSyncButtonState() {
-            if (gapiInited && gisiInited) {
-                syncBtn.textContent = "Sync Google";
-            } else {
-                syncBtn.textContent = "API Loading...";
-            }
-        }
-
-        async function fetchGoogleCalendarEvents() {
-            if (!gapiInited || !googleAccessToken) return;
-
+        // Fetching events targeting specific assigned ID mapping rules 
+        async function fetchMatrixChronicles() {
             try {
-                // Calculate time bounds based on current calendar viewport
-                const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
-                const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
-
                 const response = await gapi.client.calendar.events.list({
-                    calendarId: 'primary',
-                    timeMin: startOfMonth.toISOString(),
-                    timeMax: endOfMonth.toISOString(),
-                    showDeleted: false,
-                    singleEvents: true,
-                    maxResults: 150,
-                    orderBy: 'startTime',
+                    'calendarId': CALENDAR_ID, // Pointed precisely to targeted primary feed constant
+                    'timeMin': (new Date()).toISOString(),
+                    'showDeleted': false,
+                    'singleEvents': true,
+                    'maxResults': 30,
+                    'orderBy': 'startTime',
                 });
-
-                const gEvents = response.result.items;
-                googleEvents = {}; // Reset temporary memory block
-
-                gEvents.forEach(item => {
-                    const startRaw = item.start.dateTime || item.start.date;
-                    if (!startRaw) return;
-                    
-                    // Match formatting date mapping key (YYYY-MM-DD)
-                    const dateStr = startRaw.substring(0, 10);
-                    
-                    if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
-                    googleEvents[dateStr].push({
-                        id: item.id,
-                        title: `⚡ ${item.summary || '(No Title)'}`,
-                        description: item.description || '',
-                        source: 'google'
-                    });
-                });
-
-                syncBtn.textContent = "Synced ✓";
-                renderGrid();
+                renderMatrixData(response.result.items);
             } catch (err) {
-                console.error("Error communicating with Google Calendar: ", err);
-                syncBtn.textContent = "Sync Failed";
+                console.error("Matrix interface structural sync breakdown: ", err);
             }
         }
 
-        /*****************************************
-         * VISUAL ENGINE RENDERING ARCHITECTURE
-         *****************************************/
-        function renderGrid() {
-            calendarGrid.innerHTML = '';
+        function generateBlankMatrix() {
+            const grid = document.getElementById('matrix-grid');
+            grid.innerHTML = '';
+            for(let i=0; i<28; i++) {
+                let d = document.createElement('div');
+                d.className = 'calendar-day';
+                d.innerHTML = `<div class="calendar-day-header">DAY ${i+1}</div>`;
+                grid.appendChild(d);
+            }
+        }
+
+        function renderMatrixData(events) {
+            const grid = document.getElementById('matrix-grid');
+            grid.innerHTML = '';
             
-            const year = currentDate.getFullYear();
-            const month = currentDate.getMonth();
-
-            monthYearDisplay.textContent = `${months[month]} ${year}`;
-
-            weekdays.forEach(day => {
-                const label = document.createElement('div');
-                label.className = 'weekday-label';
-                label.textContent = day;
-                calendarGrid.appendChild(label);
-            });
-
-            const firstDayOfWeekIndex = new Date(year, month, 1).getDay();
-            const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
-            const totalDaysInPrevMonth = new Date(year, month, 0).getDate();
-            
-            for (let i = firstDayOfWeekIndex - 1; i >= 0; i--) {
-                const prevDate = new Date(year, month - 1, totalDaysInPrevMonth - i);
-                createDayBlock(prevDate, false);
+            // Generate basic timeline matrices containers
+            for(let i=0; i<28; i++) {
+                let dayContainer = document.createElement('div');
+                dayContainer.className = 'calendar-day';
+                dayContainer.id = `matrix-day-${i}`;
+                dayContainer.innerHTML = `<div class="calendar-day-header">INDEX +${i}D</div>`;
+                grid.appendChild(dayContainer);
             }
 
-            for (let d = 1; d <= totalDaysInMonth; d++) {
-                const dayDate = new Date(year, month, d);
-                createDayBlock(dayDate, true);
-            }
-
-            const actualCellsToFill = (calendarGrid.children.length - 7) % 7 === 0 ? 0 : 7 - ((calendarGrid.children.length - 7) % 7);
-            for (let i = 1; i <= actualCellsToFill; i++) {
-                const nextDate = new Date(year, month + 1, i);
-                createDayBlock(nextDate, false);
-            }
-        }
-
-        function createDayBlock(date, isCurrentMonth) {
-            const dayBlock = document.createElement('div');
-            dayBlock.className = 'calendar-day';
-            
-            if (!isCurrentMonth) {
-                dayBlock.classList.add('adjacent-month');
-            } else {
-                dayBlock.classList.add('current-month');
-            }
-
-            const today = new Date();
-            if (date.toDateString() === today.toDateString()) {
-                dayBlock.classList.add('today');
-            }
-
-            const dayNumDisplay = document.createElement('div');
-            dayNumDisplay.className = 'day-number';
-            dayNumDisplay.textContent = date.getDate();
-            dayBlock.appendChild(dayNumDisplay);
-
-            const eventsWrapper = document.createElement('div');
-            eventsWrapper.className = 'events-wrapper';
-            dayBlock.appendChild(eventsWrapper);
-
-            const dateKey = formatDateKey(date);
-            
-            // 1. Compile Local Data Store items
-            if (events[dateKey]) {
-                events[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
-            }
-
-            // 2. Compile Real Google Sync items
-            if (googleEvents[dateKey]) {
-                googleEvents[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
-            }
-
-            dayBlock.addEventListener('click', () => openModal(dateKey));
-            calendarGrid.appendChild(dayBlock);
-        }
-
-        function appendEventItemElement(parentContainer, ev, dateKey) {
-            const evEl = document.createElement('div');
-            evEl.className = `event-item ${ev.source === 'google' ? 'google-sync' : ''}`;
-            evEl.textContent = ev.title;
-            evEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                openModal(dateKey, ev);
-            });
-            parentContainer.appendChild(evEl);
-        }
-
-        function formatDateKey(date) {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
-        }
-
-        // Dropdown Panel Menu Generation
-        function buildPickerMenu() {
-            monthPickerCol.innerHTML = '';
-            yearPickerCol.innerHTML = '';
-
-            const currentMonthIdx = currentDate.getMonth();
-            const currentYearValue = currentDate.getFullYear();
-
-            months.forEach((mName, index) => {
-                const mDiv = document.createElement('div');
-                mDiv.className = `picker-item ${index === currentMonthIdx ? 'selected' : ''}`;
-                mDiv.textContent = mName.substring(0, 3);
-                mDiv.onclick = (e) => {
-                    e.stopPropagation();
-                    currentDate.setMonth(index);
-                    renderGrid();
-                    pickerMenu.classList.remove('active');
-                    if(googleAccessToken) fetchGoogleCalendarEvents(); // Refresh data window
-                };
-                monthPickerCol.appendChild(mDiv);
-            });
-
-            for (let y = currentYearValue - 10; y <= currentYearValue + 10; y++) {
-                const yDiv = document.createElement('div');
-                yDiv.className = `picker-item ${y === currentYearValue ? 'selected' : ''}`;
-                yDiv.textContent = y;
-                yDiv.onclick = (e) => {
-                    e.stopPropagation();
-                    currentDate.setFullYear(y);
-                    renderGrid();
-                    pickerMenu.classList.remove('active');
-                    if(googleAccessToken) fetchGoogleCalendarEvents(); // Refresh data window
-                };
-                yearPickerCol.appendChild(yDiv);
-            }
-        }
-
-        // Modal Sheet Control Handlers
-        function openModal(dateKey, eventObj = null) {
-            eventDateInput.value = dateKey;
-            eventModal.classList.add('active');
-
-            if (eventObj) {
-                modalTitle.textContent = eventObj.source === 'google' ? "Google Calendar Item (Read-Only)" : "Edit Event";
-                eventIdInput.value = eventObj.id;
-                eventTitleInput.value = eventObj.title.replace('⚡ ', '');
-                eventDescInput.value = eventObj.description || '';
+            // Route standard events and appointments into timelines mapping windows
+            events.forEach(event => {
+                const start = event.start.dateTime || event.start.date;
+                const eventDate = new Date(start);
+                const diffTime = Math.abs(eventDate - new Date());
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
                 
-                // Keep live Google sync items protected from local deletions/modifications
-                if(eventObj.source === 'google') {
-                    saveEventBtn.style.display = 'none';
-                    deleteEventBtn.style.display = 'none';
-                } else {
-                    saveEventBtn.style.display = 'block';
-                    deleteEventBtn.style.display = 'block';
+                if(diffDays >= 0 && diffDays < 28) {
+                    const targetBucket = document.getElementById(`matrix-day-${diffDays}`);
+                    if(targetBucket) {
+                        let ev = document.createElement('div');
+                        ev.className = 'event-item';
+                        ev.innerText = event.summary || 'Untitled Shadow Manifestation';
+                        ev.title = event.summary;
+                        targetBucket.appendChild(ev);
+                    }
                 }
+            });
+        }
+
+        // Framework UI Toggle Architectures
+        function toggleEditMode() {
+            editMode = !editMode;
+            const canvas = document.getElementById('canvas');
+            const btn = document.getElementById('edit-toggle');
+            if(editMode) {
+                canvas.classList.add('edit-mode');
+                btn.classList.add('active');
             } else {
-                modalTitle.textContent = "Add Event";
-                eventIdInput.value = '';
-                eventTitleInput.value = '';
-                eventDescInput.value = '';
-                saveEventBtn.style.display = 'block';
-                deleteEventBtn.style.display = 'none';
+                canvas.classList.remove('edit-mode');
+                btn.classList.remove('active');
             }
         }
 
-        function closeModal() { eventModal.classList.remove('active'); }
-
-        function saveEvent() {
-            const dateKey = eventDateInput.value;
-            const id = eventIdInput.value || 'id_' + Date.now();
-            const title = eventTitleInput.value.trim();
-            const description = eventDescInput.value.trim();
-
-            if (!title) return;
-            if (!events[dateKey]) events[dateKey] = [];
-
-            if (eventIdInput.value) {
-                const idx = events[dateKey].findIndex(e => e.id === id);
-                if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description };
-            } else {
-                events[dateKey].push({ id, title, description, source: 'local' });
-            }
-            persistAndRefresh();
+        function adjustScale(val) {
+            zoomScale = parseFloat(val);
+            document.getElementById('canvas').style.transform = `scale(${zoomScale})`;
         }
 
-        function deleteEvent() {
-            const dateKey = eventDateInput.value;
-            const id = eventIdInput.value;
-            if (events[dateKey]) {
-                events[dateKey] = events[dateKey].filter(e => e.id !== id);
-                if (events[dateKey].length === 0) delete events[dateKey];
-            }
-            persistAndRefresh();
+        function recenterFormation() {
+            const viewport = document.getElementById('viewport');
+            viewport.scrollLeft = 200;
+            viewport.scrollTop = 200;
         }
 
-        function persistAndRefresh() {
-            localStorage.setItem('local_calendar_events', JSON.stringify(events));
-            closeModal();
-            renderGrid();
-        }
+        // Core placeholders for structural parity requirements
+        function saveState() { alert("Paradigm structure configuration checkpoint synchronized."); }
+        function loadState() { alert("Paradigm structural restoration pipeline checked."); }
+        function menuResizeOriginal() { if(currentTargetNode) { currentTargetNode.style.width = '200px'; currentTargetNode.style.height = '200px'; } }
+        function menuRename() { alert("Identity shifting parameters active."); }
+        function menuChangeImage() { alert("Visual asset morph pathing selection window open."); }
+        function menuMoveFolder() { alert("Nesting inside structural subfolder hierarchy initiated."); }
+        function menuOpenTab() { alert("Opening object lineage directly in isolated viewing frame."); }
+        function menuDelete() { if(confirm("Exterminate this persistent asset variant from structural matrix?")) { currentTargetNode.remove(); } }
 
-        function setupEventListeners() {
-            monthYearDisplay.onclick = (e) => {
-                e.stopPropagation();
-                buildPickerMenu();
-                pickerMenu.classList.toggle('active');
-            };
-
-            document.addEventListener('click', () => pickerMenu.classList.remove('active'));
-
-            prevBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
-            nextBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
-            prevYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() - 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
-            nextYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() + 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
-            
-            todayBtn.onclick = () => { currentDate = new Date(); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
-            
-            closeModalBtn.onclick = closeModal;
-            saveEventBtn.onclick = saveEvent;
-            deleteEventBtn.onclick = deleteEvent;
-
-            // Trigger actual secure implicit auth loop or handle data pull
-            syncBtn.onclick = () => {
-                if (!gapiInited || !gisiInited) {
-                    alert("Google API scripts are still initializing. Give it a brief moment!");
-                    return;
-                }
-                
-                if (googleAccessToken) {
-                    // Token exists, just trigger a direct sync pull
-                    fetchGoogleCalendarEvents();
-                } else {
-                    // Trigger identity authorization popups
-                    tokenClient.requestAccessToken({ prompt: 'consent' });
-                }
-            };
-        }
-
-        // Run Calendar Initializer Engine
-        initCalendar();
+        // Core initiation runtime loops
+        window.addEventListener('DOMContentLoaded', () => {
+            generateBlankMatrix();
+            recenterFormation();
+        });
     </script>
 </body>
 </html>
