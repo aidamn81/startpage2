@@ -406,7 +406,6 @@
         const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyDUp9V5jx0OeWp0mV5oLC7Gfu5m_qPK7AA';
         
-        // Scope for viewing/reading primary calendar items
         const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
 
@@ -415,10 +414,10 @@
         let gisiInited = false;
         let googleAccessToken = null;
 
-        // Calendar Core State
+        // Calendar Core State (Now loading pre-existing cached Google events directly)
         let currentDate = new Date();
         let events = JSON.parse(localStorage.getItem('local_calendar_events')) || {};
-        let googleEvents = {}; 
+        let googleEvents = JSON.parse(localStorage.getItem('cached_google_events')) || {}; 
 
         const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const months = [
@@ -426,14 +425,12 @@
             'July', 'August', 'September', 'October', 'November', 'December'
         ];
         
-        // DOM Elements
         const monthYearDisplay = document.getElementById('monthYearDisplay');
         const pickerMenu = document.getElementById('pickerMenu');
         const monthPickerCol = document.getElementById('monthPickerCol');
         const yearPickerCol = document.getElementById('yearPickerCol');
         const calendarGrid = document.getElementById('calendarGrid');
         
-        // Control Buttons
         const prevYearBtn = document.getElementById('prevYearBtn');
         const prevBtn = document.getElementById('prevBtn');
         const todayBtn = document.getElementById('todayBtn');
@@ -441,7 +438,6 @@
         const nextYearBtn = document.getElementById('nextYearBtn');
         const syncBtn = document.getElementById('syncBtn');
         
-        // Modal Elements
         const eventModal = document.getElementById('eventModal');
         const modalTitle = document.getElementById('modalTitle');
         const eventDateInput = document.getElementById('eventDate');
@@ -452,16 +448,12 @@
         const closeModalBtn = document.getElementById('closeModalBtn');
         const deleteEventBtn = document.getElementById('deleteEventBtn');
 
-        // Render Engine Execution
         function initCalendar() {
             renderGrid();
             setupEventListeners();
             attemptLoadGoogleScripts();
         }
 
-        /*****************************************
-         * GOOGLE OAUTH INTERNALS & DATA FETCHING
-         *****************************************/
         function attemptLoadGoogleScripts() {
             window.gapiLoadCallback = gapiLoad;
             window.gisLoadCallback = gisLoad;
@@ -508,7 +500,6 @@
                 const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
                 const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
 
-                // Forcing explicit calendar destination target to pull your main account timeline
                 const response = await gapi.client.calendar.events.list({
                     calendarId: 'primary',
                     timeMin: startOfMonth.toISOString(),
@@ -537,6 +528,8 @@
                     });
                 });
 
+                // Commit the loaded google events to local storage so they remain on screen natively
+                localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
                 syncBtn.textContent = "Synced ✓";
                 renderGrid();
             } catch (err) {
@@ -545,12 +538,8 @@
             }
         }
 
-        /*****************************************
-         * VISUAL ENGINE RENDERING ARCHITECTURE
-         *****************************************/
         function renderGrid() {
             calendarGrid.innerHTML = '';
-            
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
