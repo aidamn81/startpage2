@@ -266,6 +266,7 @@
             cursor: pointer;
         }
 
+        /* Live Google Event Marker Look */
         .event-item.google-sync {
             background-color: #064e3b;
             color: #d1fae5;
@@ -343,6 +344,9 @@
             margin-top: 20px;
         }
     </style>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
 
@@ -396,9 +400,26 @@
     </div>
 
     <script>
+        /*****************************************
+         * GOOGLE API CONFIGURATION CONFIG
+         *****************************************/
+        // PASTE YOUR CREDENTIALS HERE AFTER STEP 2:
+        const CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com'; 
+        const API_KEY = 'YOUR_GOOGLE_API_KEY';
+        
+        // Scope for viewing/reading primary calendar items
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+
+        let tokenClient;
+        let gapiInited = false;
+        let gisiInited = false;
+        let googleAccessToken = null;
+
         // Calendar Core State
         let currentDate = new Date();
         let events = JSON.parse(localStorage.getItem('local_calendar_events')) || {};
+        let googleEvents = {}; // Dynamic temporary memory cache for Google Items
 
         const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const months = [
@@ -436,18 +457,109 @@
         function initCalendar() {
             renderGrid();
             setupEventListeners();
+            attemptLoadGoogleScripts();
         }
 
+        /*****************************************
+         * GOOGLE OAUTH INTERNALS & DATA FETCHING
+         *****************************************/
+        function attemptLoadGoogleScripts() {
+            // Callback hooks tied to scripts loading 'async defer'
+            window.gapiLoadCallback = gapiLoad;
+            window.gisLoadCallback = gisLoad;
+            
+            // Fallback trigger loop if window initialization finishes late
+            setTimeout(() => {
+                if (typeof gapi !== 'undefined') gapiLoad();
+                if (typeof google !== 'undefined') gisLoad();
+            }, 1000);
+        }
+
+        function gapiLoad() { gapi.load('client', initializeGapiClient); }
+        async function initializeGapiClient() {
+            await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
+            gapiInited = true;
+            checkSyncButtonState();
+        }
+        function gisLoad() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: (tokenResponse) => {
+                    if (tokenResponse.error !== undefined) throw (tokenResponse);
+                    googleAccessToken = tokenResponse.access_token;
+                    syncBtn.textContent = "🔄 Fetching...";
+                    fetchGoogleCalendarEvents();
+                },
+            });
+            gisiInited = true;
+            checkSyncButtonState();
+        }
+
+        function checkSyncButtonState() {
+            if (gapiInited && gisiInited) {
+                syncBtn.textContent = "Sync Google";
+            } else {
+                syncBtn.textContent = "API Loading...";
+            }
+        }
+
+        async function fetchGoogleCalendarEvents() {
+            if (!gapiInited || !googleAccessToken) return;
+
+            try {
+                // Calculate time bounds based on current calendar viewport
+                const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
+                const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
+
+                const response = await gapi.client.calendar.events.list({
+                    calendarId: 'primary',
+                    timeMin: startOfMonth.toISOString(),
+                    timeMax: endOfMonth.toISOString(),
+                    showDeleted: false,
+                    singleEvents: true,
+                    maxResults: 150,
+                    orderBy: 'startTime',
+                });
+
+                const gEvents = response.result.items;
+                googleEvents = {}; // Reset temporary memory block
+
+                gEvents.forEach(item => {
+                    const startRaw = item.start.dateTime || item.start.date;
+                    if (!startRaw) return;
+                    
+                    // Match formatting date mapping key (YYYY-MM-DD)
+                    const dateStr = startRaw.substring(0, 10);
+                    
+                    if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
+                    googleEvents[dateStr].push({
+                        id: item.id,
+                        title: `⚡ ${item.summary || '(No Title)'}`,
+                        description: item.description || '',
+                        source: 'google'
+                    });
+                });
+
+                syncBtn.textContent = "Synced ✓";
+                renderGrid();
+            } catch (err) {
+                console.error("Error communicating with Google Calendar: ", err);
+                syncBtn.textContent = "Sync Failed";
+            }
+        }
+
+        /*****************************************
+         * VISUAL ENGINE RENDERING ARCHITECTURE
+         *****************************************/
         function renderGrid() {
             calendarGrid.innerHTML = '';
             
             const year = currentDate.getFullYear();
             const month = currentDate.getMonth();
 
-            // 1. Set Month/Year Title text dynamically
             monthYearDisplay.textContent = `${months[month]} ${year}`;
 
-            // 2. Render Day Labels
             weekdays.forEach(day => {
                 const label = document.createElement('div');
                 label.className = 'weekday-label';
@@ -455,26 +567,21 @@
                 calendarGrid.appendChild(label);
             });
 
-            // 3. Time Frame Calculations (Crucial step: setting date index to 1 avoids shifting artifacts)
             const firstDayOfWeekIndex = new Date(year, month, 1).getDay();
             const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
             const totalDaysInPrevMonth = new Date(year, month, 0).getDate();
             
-            // 4. Fill Previous Month's Trailing Grid Blocks
             for (let i = firstDayOfWeekIndex - 1; i >= 0; i--) {
                 const prevDate = new Date(year, month - 1, totalDaysInPrevMonth - i);
                 createDayBlock(prevDate, false);
             }
 
-            // 5. Fill Current Month Grid Blocks
             for (let d = 1; d <= totalDaysInMonth; d++) {
                 const dayDate = new Date(year, month, d);
                 createDayBlock(dayDate, true);
             }
 
-            // 6. Fill Next Month's Leading Grid Blocks to maintain structural symmetry
             const actualCellsToFill = (calendarGrid.children.length - 7) % 7 === 0 ? 0 : 7 - ((calendarGrid.children.length - 7) % 7);
-            
             for (let i = 1; i <= actualCellsToFill; i++) {
                 const nextDate = new Date(year, month + 1, i);
                 createDayBlock(nextDate, false);
@@ -506,24 +613,30 @@
             dayBlock.appendChild(eventsWrapper);
 
             const dateKey = formatDateKey(date);
+            
+            // 1. Compile Local Data Store items
             if (events[dateKey]) {
-                events[dateKey].forEach(ev => {
-                    const evEl = document.createElement('div');
-                    evEl.className = `event-item ${ev.source === 'google' ? 'google-sync' : ''}`;
-                    evEl.textContent = ev.title;
-                    evEl.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        openModal(dateKey, ev);
-                    });
-                    eventsWrapper.appendChild(evEl);
-                });
+                events[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
             }
 
-            dayBlock.addEventListener('click', () => {
-                openModal(dateKey);
-            });
+            // 2. Compile Real Google Sync items
+            if (googleEvents[dateKey]) {
+                googleEvents[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
+            }
 
+            dayBlock.addEventListener('click', () => openModal(dateKey));
             calendarGrid.appendChild(dayBlock);
+        }
+
+        function appendEventItemElement(parentContainer, ev, dateKey) {
+            const evEl = document.createElement('div');
+            evEl.className = `event-item ${ev.source === 'google' ? 'google-sync' : ''}`;
+            evEl.textContent = ev.title;
+            evEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openModal(dateKey, ev);
+            });
+            parentContainer.appendChild(evEl);
         }
 
         function formatDateKey(date) {
@@ -541,22 +654,20 @@
             const currentMonthIdx = currentDate.getMonth();
             const currentYearValue = currentDate.getFullYear();
 
-            // Populate Months Column
             months.forEach((mName, index) => {
                 const mDiv = document.createElement('div');
                 mDiv.className = `picker-item ${index === currentMonthIdx ? 'selected' : ''}`;
                 mDiv.textContent = mName.substring(0, 3);
                 mDiv.onclick = (e) => {
                     e.stopPropagation();
-                    // Keep existing day selection safe by setting target parameters systematically
                     currentDate.setMonth(index);
                     renderGrid();
                     pickerMenu.classList.remove('active');
+                    if(googleAccessToken) fetchGoogleCalendarEvents(); // Refresh data window
                 };
                 monthPickerCol.appendChild(mDiv);
             });
 
-            // Populate Years Column dynamically (-10 years to +10 years range)
             for (let y = currentYearValue - 10; y <= currentYearValue + 10; y++) {
                 const yDiv = document.createElement('div');
                 yDiv.className = `picker-item ${y === currentYearValue ? 'selected' : ''}`;
@@ -566,34 +677,42 @@
                     currentDate.setFullYear(y);
                     renderGrid();
                     pickerMenu.classList.remove('active');
+                    if(googleAccessToken) fetchGoogleCalendarEvents(); // Refresh data window
                 };
                 yearPickerCol.appendChild(yDiv);
             }
         }
 
-        // Modal Management
+        // Modal Sheet Control Handlers
         function openModal(dateKey, eventObj = null) {
             eventDateInput.value = dateKey;
             eventModal.classList.add('active');
 
             if (eventObj) {
-                modalTitle.textContent = "Edit Event";
+                modalTitle.textContent = eventObj.source === 'google' ? "Google Calendar Item (Read-Only)" : "Edit Event";
                 eventIdInput.value = eventObj.id;
-                eventTitleInput.value = eventObj.title;
+                eventTitleInput.value = eventObj.title.replace('⚡ ', '');
                 eventDescInput.value = eventObj.description || '';
-                deleteEventBtn.style.display = 'block';
+                
+                // Keep live Google sync items protected from local deletions/modifications
+                if(eventObj.source === 'google') {
+                    saveEventBtn.style.display = 'none';
+                    deleteEventBtn.style.display = 'none';
+                } else {
+                    saveEventBtn.style.display = 'block';
+                    deleteEventBtn.style.display = 'block';
+                }
             } else {
                 modalTitle.textContent = "Add Event";
                 eventIdInput.value = '';
                 eventTitleInput.value = '';
                 eventDescInput.value = '';
+                saveEventBtn.style.display = 'block';
                 deleteEventBtn.style.display = 'none';
             }
         }
 
-        function closeModal() {
-            eventModal.classList.remove('active');
-        }
+        function closeModal() { eventModal.classList.remove('active'); }
 
         function saveEvent() {
             const dateKey = eventDateInput.value;
@@ -602,32 +721,24 @@
             const description = eventDescInput.value.trim();
 
             if (!title) return;
-
-            if (!events[dateKey]) {
-                events[dateKey] = [];
-            }
+            if (!events[dateKey]) events[dateKey] = [];
 
             if (eventIdInput.value) {
                 const idx = events[dateKey].findIndex(e => e.id === id);
-                if (idx !== -1) {
-                    events[dateKey][idx] = { ...events[dateKey][idx], title, description };
-                }
+                if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description };
             } else {
                 events[dateKey].push({ id, title, description, source: 'local' });
             }
-
             persistAndRefresh();
         }
 
         function deleteEvent() {
             const dateKey = eventDateInput.value;
             const id = eventIdInput.value;
-
             if (events[dateKey]) {
                 events[dateKey] = events[dateKey].filter(e => e.id !== id);
                 if (events[dateKey].length === 0) delete events[dateKey];
             }
-
             persistAndRefresh();
         }
 
@@ -637,71 +748,44 @@
             renderGrid();
         }
 
-        // Hooking up Navigation & Selection Interactions
         function setupEventListeners() {
-            // Title Header Toggle Click
             monthYearDisplay.onclick = (e) => {
                 e.stopPropagation();
                 buildPickerMenu();
                 pickerMenu.classList.toggle('active');
             };
 
-            // Close dynamic picker if clicking anywhere else outside of it
-            document.addEventListener('click', () => {
-                pickerMenu.classList.remove('active');
-            });
+            document.addEventListener('click', () => pickerMenu.classList.remove('active'));
 
-            // Month Increments
-            prevBtn.onclick = () => { 
-                currentDate.setMonth(currentDate.getMonth() - 1); 
-                renderGrid(); 
-            };
-            nextBtn.onclick = () => { 
-                currentDate.setMonth(currentDate.getMonth() + 1); 
-                renderGrid(); 
-            };
+            prevBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() - 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
+            nextBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
+            prevYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() - 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
+            nextYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() + 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
             
-            // Year Increments
-            prevYearBtn.onclick = () => { 
-                currentDate.setFullYear(currentDate.getFullYear() - 1); 
-                renderGrid(); 
-            };
-            nextYearBtn.onclick = () => { 
-                currentDate.setFullYear(currentDate.getFullYear() + 1); 
-                renderGrid(); 
-            };
-            
-            todayBtn.onclick = () => { 
-                currentDate = new Date(); 
-                renderGrid(); 
-            };
+            todayBtn.onclick = () => { currentDate = new Date(); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
             
             closeModalBtn.onclick = closeModal;
             saveEventBtn.onclick = saveEvent;
             deleteEventBtn.onclick = deleteEvent;
 
+            // Trigger actual secure implicit auth loop or handle data pull
             syncBtn.onclick = () => {
-                mockGoogleSyncFetch();
+                if (!gapiInited || !gisiInited) {
+                    alert("Google API scripts are still initializing. Give it a brief moment!");
+                    return;
+                }
+                
+                if (googleAccessToken) {
+                    // Token exists, just trigger a direct sync pull
+                    fetchGoogleCalendarEvents();
+                } else {
+                    // Trigger identity authorization popups
+                    tokenClient.requestAccessToken({ prompt: 'consent' });
+                }
             };
         }
 
-        function mockGoogleSyncFetch() {
-            alert("This will hook into the Google Calendar API stream. Placing an event on your view now!");
-            
-            const targetDate = formatDateKey(currentDate);
-            if (!events[targetDate]) events[targetDate] = [];
-            
-            events[targetDate].push({
-                id: 'g_mock_' + Date.now(),
-                title: '⚡ Sync: Google Event',
-                description: 'Fetched directly from primary calendar.',
-                source: 'google'
-            });
-
-            persistAndRefresh();
-        }
-
-        // Run Engine
+        // Run Calendar Initializer Engine
         initCalendar();
     </script>
 </body>
