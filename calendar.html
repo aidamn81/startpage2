@@ -6,15 +6,15 @@
     <title>Personalized Calendar Engine</title>
     <style>
         :root {
-            --bg-color: #000000; /* Pure Black Page Base */
-            --container-bg: #16161a; /* Solid high-contrast calendar surface */
+            --bg-color: #000000; /* Locked Pure Black Site Base */
+            --container-bg: #16161a; /* Base solid color for calendar backing */
             --text-color: #f1f5f9;
             --text-muted: #94a3b8;
             --border-color: #2d2d34;
             --accent-color: #6366f1;
             --accent-hover: #4f46e5;
             --today-bg: rgba(99, 102, 241, 0.18);
-            --modal-bg: rgba(30, 30, 36, 0.9); /* Transparent for blurred context */
+            --modal-bg: rgba(30, 30, 36, 0.95);
             --dropdown-hover: #2d2d34;
         }
 
@@ -26,36 +26,35 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: var(--bg-color);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background-color: var(--bg-color) !important; /* Forces site background to remain plain black */
             color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: flex-start;
             min-height: 100vh;
             padding: 12px;
-            transition: background-image 0.3s ease;
         }
 
-        /* Fully Fluid Adaptive Container */
+        /* Fully Fluid Adaptive Container with Custom Background Mechanics */
         .calendar-container {
             position: relative;
             width: 100%;
             max-width: 1200px;
             background-color: var(--container-bg);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
             border: 1px solid var(--border-color);
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9);
             margin: 0 auto;
             display: flex;
             flex-direction: column;
+            transition: background-image 0.3s ease;
         }
 
-        /* Header Navigation */
+        /* Semi-transparent overlay shields over the headers and grids to preserve visibility when text overlaps images */
         .calendar-header {
             display: flex;
             justify-content: space-between;
@@ -64,10 +63,12 @@
             border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
             gap: 12px;
-            background-color: #1a1a20;
+            background-color: rgba(26, 26, 32, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 10;
         }
 
-        /* Interactive Title Dropdown Container */
         .title-dropdown-container {
             position: relative;
         }
@@ -203,11 +204,11 @@
             display: none;
         }
 
-        /* Grid Architecture - Responsive Height Scaling */
+        /* Grid Architecture - Responsive Height Scaling with Alpha Blended Backdrops */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            background-color: #0c0c0e;
+            background-color: rgba(12, 12, 14, 0.4);
             width: 100%;
         }
 
@@ -217,14 +218,15 @@
             font-size: 0.75rem;
             color: var(--text-muted);
             padding: 10px 0;
-            background-color: #111115;
+            background-color: rgba(17, 17, 21, 0.85);
             border-bottom: 1px solid var(--border-color);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            z-index: 5;
         }
 
         .calendar-day {
-            min-height: clamp(85px, 11vw, 140px); /* Scale proportionally between screen limits */
+            min-height: clamp(85px, 11vw, 140px);
             border-bottom: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
             padding: 6px;
@@ -232,8 +234,10 @@
             flex-direction: column;
             gap: 4px;
             position: relative;
-            background-color: #16161a;
+            background-color: rgba(22, 22, 26, 0.75);
             overflow: hidden;
+            backdrop-filter: blur(2px);
+            -webkit-backdrop-filter: blur(2px);
         }
 
         .calendar-grid .calendar-day:nth-child(7n) {
@@ -251,6 +255,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 50%;
+            z-index: 2;
         }
 
         .calendar-day.current-month .day-number {
@@ -258,7 +263,8 @@
         }
 
         .calendar-day.today {
-            background-color: var(--today-bg);
+            background-color: rgba(99, 102, 241, 0.25);
+            border: 1px solid var(--accent-color);
         }
 
         .calendar-day.today .day-number {
@@ -267,11 +273,11 @@
         }
 
         .calendar-day.adjacent-month {
-            background-color: #0f0f12;
-            opacity: 0.25;
+            background-color: rgba(15, 15, 18, 0.85);
+            opacity: 0.35;
         }
 
-        /* Event Elements Layout with Safe Scrolled Wrapping */
+        /* Event Elements Layout */
         .events-wrapper {
             display: flex;
             flex-direction: column;
@@ -281,9 +287,7 @@
             padding: 2px;
             max-height: calc(100% - 24px);
             border-radius: 4px;
-            background-color: rgba(0, 0, 0, 0.15);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            z-index: 2;
         }
 
         .events-wrapper::-webkit-scrollbar {
@@ -298,8 +302,8 @@
             font-size: 0.72rem;
             padding: 3px 5px;
             border-radius: 4px;
-            background-color: rgba(49, 46, 129, 0.75);
-            color: #e0e7ff;
+            background-color: rgba(99, 102, 241, 0.3);
+            color: #f1f5f9;
             border-left: 3px solid var(--accent-color);
             white-space: nowrap;
             overflow: hidden;
@@ -307,19 +311,35 @@
             cursor: pointer;
             font-weight: 500;
             line-height: 1.2;
+            transition: transform 0.1s ease;
         }
 
-        .event-item.google-sync {
-            background-color: rgba(6, 78, 59, 0.75);
-            color: #d1fae5;
-            border-left-color: #10b981;
+        .event-item:hover {
+            transform: translateX(2px);
         }
 
-        .event-item.google-task {
-            background-color: rgba(120, 53, 15, 0.75);
-            color: #fef3c7;
-            border-left-color: #f59e0b;
+        /* Custom Color Picker Input Form adjustments */
+        .color-picker-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
+
+        .color-swatch-input {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 40px !important;
+            height: 36px !important;
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+        }
+
+        .color-swatch-input::-webkit-color-swatch-wrapper { padding: 0; }
+        .color-swatch-input::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: 6px; }
 
         /* Modal Sheet Styles */
         .modal-overlay {
@@ -328,7 +348,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0, 0, 0, 0.75);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -349,11 +369,11 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             width: 100%;
-            max-width: 420px;
+            max-width: 445px;
             padding: 20px;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
         .modal-title {
@@ -391,11 +411,24 @@
         .modal-actions {
             display: flex;
             justify-content: flex-end;
-            gap: 10px;
-            margin-top: 18px;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
         }
 
-        /* Adaptivity Media Queries */
+        /* Push status sync button formatting styles */
+        .cloud-sync-btn {
+            background-color: #064e3b;
+            color: #d1fae5;
+            border: 1px solid #059669;
+            font-weight: 600;
+        }
+        .cloud-sync-btn:hover {
+            background-color: #047857;
+        }
+
+        /* Adaptivity Breakpoints */
         @media (max-width: 900px) {
             .calendar-container { max-width: 100%; }
             .current-month-year { font-size: 1.2rem; }
@@ -411,12 +444,14 @@
             .calendar-day { min-height: 75px; padding: 3px; gap: 2px; }
             .day-number { font-size: 0.75rem; width: 18px; height: 18px; }
             .event-item { font-size: 0.65rem; padding: 2px 3px; border-left-width: 2px; }
+            .modal-actions { justify-content: space-between; width: 100%; }
+            .modal-actions button { flex-grow: 1; }
         }
     </style>
 </head>
 <body>
 
-    <div class="calendar-container">
+    <div class="calendar-container" id="calendarContainer">
         <div class="calendar-header">
             <div class="title-dropdown-container">
                 <h2 class="current-month-year" id="monthYearDisplay">June 2026</h2>
@@ -428,7 +463,7 @@
             </div>
 
             <div class="nav-buttons">
-                <label for="bgImageInput" class="file-upload-label" title="Upload Custom Background">🖼️ Bg</label>
+                <label for="bgImageInput" class="file-upload-label" title="Upload Background to Calendar Box">🖼️ Box Bg</label>
                 <input type="file" id="bgImageInput" class="bg-input-hidden" accept="image/*">
 
                 <button id="prevYearBtn" class="year-nav" title="Previous Year">«</button>
@@ -451,28 +486,37 @@
             <input type="hidden" id="eventSource">
             
             <div class="form-group" id="destinationSelectorGroup">
-                <label for="eventDestination">Save Item To</label>
+                <label for="eventDestination">Save Target Location</label>
                 <select id="eventDestination">
-                    <option value="google">Google Calendar (Event)</option>
-                    <option value="google_task">Google Tasks (Task List)</option>
-                    <option value="local">Local Memory Only (Offline)</option>
+                    <option value="google">Google Calendar (Cloud Event)</option>
+                    <option value="google_task">Google Tasks (Cloud Task List)</option>
+                    <option value="local">Local Private Memory (Offline)</option>
                 </select>
             </div>
 
             <div class="form-group">
                 <label for="eventTitle">Title</label>
-                <input type="text" id="eventTitle" placeholder="e.g., Performance Rehearsal">
+                <input type="text" id="eventTitle" placeholder="e.g., Show Setup Rehearsal">
             </div>
             
             <div class="form-group">
                 <label for="eventDesc">Description (Optional)</label>
-                <textarea id="eventDesc" rows="3" placeholder="Details..."></textarea>
+                <textarea id="eventDesc" rows="2" placeholder="Details..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="eventColor">Highlight Custom Color</label>
+                <div class="color-picker-group">
+                    <input type="color" id="eventColor" class="color-swatch-input" value="#6366f1">
+                    <span id="colorHexLabel" style="font-size: 0.85rem; color: var(--text-muted);">#6366f1</span>
+                </div>
             </div>
 
             <div class="modal-actions">
                 <button id="deleteEventBtn" style="background-color: #991b1b; color: #fef2f2; display: none; margin-right: auto;">Delete</button>
+                <button id="modalCloudSyncBtn" class="cloud-sync-btn" style="display: none;">Sync to GC Now</button>
                 <button id="closeModalBtn">Cancel</button>
-                <button id="saveEventBtn" class="primary-btn">Save</button>
+                <button id="saveEventBtn" class="primary-btn">Save Local</button>
             </div>
         </div>
     </div>
@@ -481,9 +525,6 @@
     <script src="https://apis.google.com/js/api.js" async defer></script>
 
     <script>
-        /*****************************************
-         * GOOGLE API CONFIGURATION CONFIG
-         *****************************************/
         const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyDUp9V5jx0OeWp0mV5oLC7Gfu5m_qPK7AA';
         
@@ -506,6 +547,7 @@
             'July', 'August', 'September', 'October', 'November', 'December'
         ];
         
+        const calendarContainer = document.getElementById('calendarContainer');
         const monthYearDisplay = document.getElementById('monthYearDisplay');
         const pickerMenu = document.getElementById('pickerMenu');
         const monthPickerCol = document.getElementById('monthPickerCol');
@@ -529,9 +571,13 @@
         const destinationSelectorGroup = document.getElementById('destinationSelectorGroup');
         const eventTitleInput = document.getElementById('eventTitle');
         const eventDescInput = document.getElementById('eventDesc');
+        const eventColorInput = document.getElementById('eventColor');
+        const colorHexLabel = document.getElementById('colorHexLabel');
+        
         const saveEventBtn = document.getElementById('saveEventBtn');
         const closeModalBtn = document.getElementById('closeModalBtn');
         const deleteEventBtn = document.getElementById('deleteEventBtn');
+        const modalCloudSyncBtn = document.getElementById('modalCloudSyncBtn');
 
         function initCalendar() {
             loadSavedBackground();
@@ -541,9 +587,9 @@
         }
 
         function loadSavedBackground() {
-            const storedBg = localStorage.getItem('calendar_custom_bg');
+            const storedBg = localStorage.getItem('calendar_container_custom_bg');
             if (storedBg) {
-                document.body.style.backgroundImage = `url('${storedBg}')`;
+                calendarContainer.style.backgroundImage = `url('${storedBg}')`;
             }
         }
 
@@ -554,8 +600,8 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 const imgBase64 = event.target.result;
-                localStorage.setItem('calendar_custom_bg', imgBase64);
-                document.body.style.backgroundImage = `url('${imgBase64}')`;
+                localStorage.setItem('calendar_container_custom_bg', imgBase64);
+                calendarContainer.style.backgroundImage = `url('${imgBase64}')`;
             };
             reader.readAsDataURL(file);
         }
@@ -566,16 +612,12 @@
 
             const scriptCheckInterval = setInterval(() => {
                 attemptCount++;
-                const gapiAvailable = typeof gapi !== 'undefined' && typeof gapi.load === 'function';
-                const gisAvailable = typeof google !== 'undefined' && typeof google.accounts !== 'undefined';
-
-                if (gapiAvailable && gisAvailable) {
+                if (typeof gapi !== 'undefined' && typeof gapi.load === 'function' && typeof google !== 'undefined' && typeof google.accounts !== 'undefined') {
                     clearInterval(scriptCheckInterval);
                     gapiLoad();
                     gisLoad();
                 } else if (attemptCount >= maxAttempts) {
                     clearInterval(scriptCheckInterval);
-                    console.warn("Google libraries failed to bind within the initialization window.");
                     syncBtn.textContent = "Offline Mode";
                 }
             }, 250);
@@ -584,16 +626,12 @@
         function gapiLoad() { gapi.load('client', initializeGapiClient); }
         async function initializeGapiClient() {
             try {
-                await gapi.client.init({ 
-                    apiKey: API_KEY,
-                    clientId: CLIENT_ID
-                });
+                await gapi.client.init({ apiKey: API_KEY, clientId: CLIENT_ID });
                 await gapi.client.load(DISCOVERY_DOC_CALENDAR);
                 await gapi.client.load(DISCOVERY_DOC_TASKS);
                 gapiInited = true;
                 checkSyncButtonState();
             } catch(e) {
-                console.error("CRITICAL GAPI INIT FAILURE DETAILS:", e);
                 syncBtn.textContent = "Config Error";
             }
         }
@@ -613,7 +651,7 @@
                 gisiInited = true;
                 checkSyncButtonState();
             } catch(e) {
-                console.error("GIS framework instantiation exception:", e);
+                console.error(e);
             }
         }
 
@@ -627,13 +665,11 @@
 
         async function fetchGoogleCalendarEvents() {
             if (!gapiInited || !googleAccessToken) return;
-
             try {
                 const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
                 const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
 
                 googleEvents = {}; 
-
                 const calendarListResponse = await gapi.client.calendar.calendarList.list();
                 const calendarList = calendarListResponse.result.items || [];
 
@@ -641,10 +677,9 @@
                 calendarList.forEach(cal => {
                     if (!cal.id) return;
                     const nameLower = (cal.summary || '').toLowerCase();
-                    if (nameLower.includes('holiday') || cal.id.includes('holiday@group.v.calendar.google.com')) {
-                        return; 
+                    if (!nameLower.includes('holiday') && !cal.id.includes('holiday@group.v.calendar.google.com')) {
+                        targetCalendarIds.add(cal.id);
                     }
-                    targetCalendarIds.add(cal.id);
                 });
 
                 for (const calId of targetCalendarIds) {
@@ -655,76 +690,62 @@
                             timeMax: endOfMonth.toISOString(),
                             showDeleted: false,
                             singleEvents: true,
-                            maxResults: 100,
-                            orderBy: 'startTime',
+                            maxResults: 150,
                         });
 
-                        const gEvents = response.result.items || [];
-
-                        gEvents.forEach(item => {
+                        (response.result.items || []).forEach(item => {
                             const startRaw = item.start.dateTime || item.start.date;
                             if (!startRaw) return;
-                            
                             const dateStr = startRaw.substring(0, 10);
                             if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
                             
-                            const isDuplicate = googleEvents[dateStr].some(existing => existing.id === item.id);
-                            if (!isDuplicate) {
+                            if (!googleEvents[dateStr].some(e => e.id === item.id)) {
                                 googleEvents[dateStr].push({
                                     id: item.id,
                                     title: `⚡ ${item.summary || '(No Title)'}`,
                                     description: item.description || '',
                                     source: 'google',
-                                    calendarId: calId
+                                    calendarId: calId,
+                                    color: item.description && item.description.includes('__color:') ? item.description.split('__color:')[1].split('__')[0] : '#059669'
                                 });
                             }
                         });
-                    } catch (innerErr) {
-                        console.warn(`Skipped sub-feed extraction: ${calId}`, innerErr);
-                    }
+                    } catch (innerErr) {}
                 }
 
                 try {
-                    const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 1 });
-                    const taskLists = taskListsResponse.result.items || [];
-
-                    for (const list of taskLists) {
+                    const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 5 });
+                    for (const list of (taskListsResponse.result.items || [])) {
                         const tasksResponse = await gapi.client.tasks.tasks.list({
                             tasklist: list.id,
                             showCompleted: true,
                             dueMin: startOfMonth.toISOString(),
                             dueMax: endOfMonth.toISOString(),
-                            maxResults: 100
                         });
 
-                        const gTasks = tasksResponse.result.items || [];
-                        gTasks.forEach(task => {
+                        (tasksResponse.result.items || []).forEach(task => {
                             if (!task.due) return;
-                            
                             const dateStr = task.due.substring(0, 10);
                             if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
 
-                            const isDuplicate = googleEvents[dateStr].some(existing => existing.id === task.id);
-                            if (!isDuplicate) {
+                            if (!googleEvents[dateStr].some(e => e.id === task.id)) {
                                 googleEvents[dateStr].push({
                                     id: task.id,
                                     title: `📋 ${task.title || '(No Task Name)'}`,
                                     description: task.notes || '',
                                     source: 'google_task',
-                                    taskListId: list.id
+                                    taskListId: list.id,
+                                    color: task.notes && task.notes.includes('__color:') ? task.notes.split('__color:')[1].split('__')[0] : '#d97706'
                                 });
                             }
                         });
                     }
-                } catch (taskErr) {
-                    console.error("Tasks database extraction stalled:", taskErr);
-                }
+                } catch (taskErr) {}
 
                 localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
                 syncBtn.textContent = "Synced ✓";
                 renderGrid();
             } catch (err) {
-                console.error("Master Google batch request exception: ", err);
                 syncBtn.textContent = "Sync Failed";
             }
         }
@@ -748,36 +769,22 @@
             const totalDaysInPrevMonth = new Date(year, month, 0).getDate();
             
             for (let i = firstDayOfWeekIndex - 1; i >= 0; i--) {
-                const prevDate = new Date(year, month - 1, totalDaysInPrevMonth - i);
-                createDayBlock(prevDate, false);
+                createDayBlock(new Date(year, month - 1, totalDaysInPrevMonth - i), false);
             }
-
             for (let d = 1; d <= totalDaysInMonth; d++) {
-                const dayDate = new Date(year, month, d);
-                createDayBlock(dayDate, true);
+                createDayBlock(new Date(year, month, d), true);
             }
-
             const actualCellsToFill = (calendarGrid.children.length - 7) % 7 === 0 ? 0 : 7 - ((calendarGrid.children.length - 7) % 7);
             for (let i = 1; i <= actualCellsToFill; i++) {
-                const nextDate = new Date(year, month + 1, i);
-                createDayBlock(nextDate, false);
+                createDayBlock(new Date(year, month + 1, i), false);
             }
         }
 
         function createDayBlock(date, isCurrentMonth) {
             const dayBlock = document.createElement('div');
-            dayBlock.className = 'calendar-day';
+            dayBlock.className = `calendar-day ${isCurrentMonth ? 'current-month' : 'adjacent-month'}`;
             
-            if (!isCurrentMonth) {
-                dayBlock.classList.add('adjacent-month');
-            } else {
-                dayBlock.classList.add('current-month');
-            }
-
-            const today = new Date();
-            if (date.toDateString() === today.toDateString()) {
-                dayBlock.classList.add('today');
-            }
+            if (date.toDateString() === new Date().toDateString()) dayBlock.classList.add('today');
 
             const dayNumDisplay = document.createElement('div');
             dayNumDisplay.className = 'day-number';
@@ -789,14 +796,8 @@
             dayBlock.appendChild(eventsWrapper);
 
             const dateKey = formatDateKey(date);
-            
-            if (events[dateKey]) {
-                events[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
-            }
-
-            if (googleEvents[dateKey]) {
-                googleEvents[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
-            }
+            if (events[dateKey]) events[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
+            if (googleEvents[dateKey]) googleEvents[dateKey].forEach(ev => appendEventItemElement(eventsWrapper, ev, dateKey));
 
             dayBlock.addEventListener('click', () => openModal(dateKey));
             calendarGrid.appendChild(dayBlock);
@@ -804,12 +805,14 @@
 
         function appendEventItemElement(parentContainer, ev, dateKey) {
             const evEl = document.createElement('div');
-            let customClass = '';
-            if (ev.source === 'google') customClass = 'google-sync';
-            if (ev.source === 'google_task') customClass = 'google-task';
-            
-            evEl.className = `event-item ${customClass}`;
+            evEl.className = 'event-item';
             evEl.textContent = ev.title;
+            
+            /* Apply dynamic custom highlight coloring parameters */
+            const itemColor = ev.color || '#6366f1';
+            evEl.style.borderLeftColor = itemColor;
+            evEl.style.backgroundColor = convertHexToRgba(itemColor, 0.25);
+
             evEl.addEventListener('click', (e) => {
                 e.stopPropagation();
                 openModal(dateKey, ev);
@@ -817,17 +820,23 @@
             parentContainer.appendChild(evEl);
         }
 
+        function convertHexToRgba(hex, alpha) {
+            let c;
+            if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                c= hex.substring(1).split('');
+                if(c.length== 3){ c= [c[0], c[0], c[1], c[1], c[2], c[2]]; }
+                c= '0x'+c.join('');
+                return 'rgba('+[(c>>16)&255, (c>>8)&255, c&255].join(',')+','+alpha+')';
+            }
+            return 'rgba(99,102,241,'+alpha+')';
+        }
+
         function formatDateKey(date) {
-            const y = date.getFullYear();
-            const m = String(date.getMonth() + 1).padStart(2, '0');
-            const d = String(date.getDate()).padStart(2, '0');
-            return `${y}-${m}-${d}`;
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
 
         function buildPickerMenu() {
-            monthPickerCol.innerHTML = '';
-            yearPickerCol.innerHTML = '';
-
+            monthPickerCol.innerHTML = ''; yearPickerCol.innerHTML = '';
             const currentMonthIdx = currentDate.getMonth();
             const currentYearValue = currentDate.getFullYear();
 
@@ -836,11 +845,8 @@
                 mDiv.className = `picker-item ${index === currentMonthIdx ? 'selected' : ''}`;
                 mDiv.textContent = mName.substring(0, 3);
                 mDiv.onclick = (e) => {
-                    e.stopPropagation();
-                    currentDate.setMonth(index);
-                    renderGrid();
-                    pickerMenu.classList.remove('active');
-                    if(googleAccessToken) fetchGoogleCalendarEvents(); 
+                    e.stopPropagation(); currentDate.setMonth(index); renderGrid();
+                    pickerMenu.classList.remove('active'); if(googleAccessToken) fetchGoogleCalendarEvents(); 
                 };
                 monthPickerCol.appendChild(mDiv);
             });
@@ -850,11 +856,8 @@
                 yDiv.className = `picker-item ${y === currentYearValue ? 'selected' : ''}`;
                 yDiv.textContent = y;
                 yDiv.onclick = (e) => {
-                    e.stopPropagation();
-                    currentDate.setFullYear(y);
-                    renderGrid();
-                    pickerMenu.classList.remove('active');
-                    if(googleAccessToken) fetchGoogleCalendarEvents(); 
+                    e.stopPropagation(); currentDate.setFullYear(y); renderGrid();
+                    pickerMenu.classList.remove('active'); if(googleAccessToken) fetchGoogleCalendarEvents(); 
                 };
                 yearPickerCol.appendChild(yDiv);
             }
@@ -863,136 +866,139 @@
         function openModal(dateKey, eventObj = null) {
             eventDateInput.value = dateKey;
             eventModal.classList.add('active');
+            modalCloudSyncBtn.textContent = "Sync to GC Now";
 
             if (eventObj) {
-                if (eventObj.source === 'google') {
-                    modalTitle.textContent = "Edit Google Event";
-                } else if (eventObj.source === 'google_task') {
-                    modalTitle.textContent = "Edit Google Task";
-                } else {
-                    modalTitle.textContent = "Edit Event";
-                }
-                
+                modalTitle.textContent = eventObj.source.includes('google') ? "Edit Google Item" : "Edit Local Event";
                 eventIdInput.value = eventObj.id;
                 eventSourceInput.value = eventObj.source;
                 eventTitleInput.value = eventObj.title.replace('⚡ ', '').replace('📋 ', '');
-                eventDescInput.value = eventObj.description || '';
-                destinationSelectorGroup.style.display = 'none'; 
                 
-                saveEventBtn.style.display = 'block';
+                // Strip color tags out from technical descriptions if present
+                eventDescInput.value = eventObj.description ? eventObj.description.split('__color:')[0] : '';
+                
+                const customColor = eventObj.color || '#6366f1';
+                eventColorInput.value = customColor;
+                colorHexLabel.textContent = customColor;
+
+                destinationSelectorGroup.style.display = 'none'; 
+                saveEventBtn.textContent = "Save Changes";
                 deleteEventBtn.style.display = 'block';
+                modalCloudSyncBtn.style.display = googleAccessToken ? 'block' : 'none';
             } else {
-                modalTitle.textContent = "Add Event / Task";
+                modalTitle.textContent = "Add New Item";
                 eventIdInput.value = '';
                 eventSourceInput.value = 'local';
                 eventTitleInput.value = '';
                 eventDescInput.value = '';
+                
+                eventColorInput.value = '#6366f1';
+                colorHexLabel.textContent = '#6366f1';
+
                 destinationSelectorGroup.style.display = googleAccessToken ? 'block' : 'none';
+                eventDestinationSelect.value = googleAccessToken ? 'google' : 'local';
                 
-                /* DETECT AUTHENTICATION STATUS AND DEFAULTS TO CLOUD DIRECTLY */
-                if (googleAccessToken) {
-                    eventDestinationSelect.value = 'google';
-                } else {
-                    eventDestinationSelect.value = 'local';
-                }
-                
-                saveEventBtn.style.display = 'block';
+                saveEventBtn.textContent = "Save Local";
                 deleteEventBtn.style.display = 'none';
+                modalCloudSyncBtn.style.display = googleAccessToken ? 'block' : 'none';
             }
         }
 
         function closeModal() { eventModal.classList.remove('active'); }
 
-        async function saveEvent() {
+        async function triggerImmediateCloudSync() {
             const dateKey = eventDateInput.value;
             const id = eventIdInput.value;
             const title = eventTitleInput.value.trim();
             const description = eventDescInput.value.trim();
             const source = eventSourceInput.value;
             const targetDestination = eventDestinationSelect.value;
+            const selectedColor = eventColorInput.value;
 
-            if (!title) return;
+            if (!title) { alert("Title is required before executing syncing routing."); return; }
+            if (!googleAccessToken) { alert("Please complete Google authentication via main page header first."); return; }
 
-            saveEventBtn.textContent = "Saving...";
+            modalCloudSyncBtn.textContent = "Pushing...";
 
-            if (source === 'google' || (id === '' && targetDestination === 'google')) {
+            const finalDescription = `${description} __color:${selectedColor}__`;
+
+            if (source === 'google' || (id === '' && (targetDestination === 'google'))) {
                 const resourceObj = {
                     summary: title,
-                    description: description,
+                    description: finalDescription,
                     start: { date: dateKey },
                     end: { date: dateKey }
                 };
-
                 try {
-                    if (id) {
+                    if (id && source === 'google') {
                         let foundCalId = 'primary';
                         if (googleEvents[dateKey]) {
                             const match = googleEvents[dateKey].find(e => e.id === id);
                             if (match && match.calendarId) foundCalId = match.calendarId;
                         }
-                        await gapi.client.calendar.events.update({
-                            calendarId: foundCalId,
-                            eventId: id,
-                            resource: resourceObj,
-                        });
+                        await gapi.client.calendar.events.update({ calendarId: foundCalId, eventId: id, resource: resourceObj });
                     } else {
-                        await gapi.client.calendar.events.insert({
-                            calendarId: 'primary',
-                            resource: resourceObj,
-                        });
+                        await gapi.client.calendar.events.insert({ calendarId: 'primary', resource: resourceObj });
                     }
-                    await fetchGoogleCalendarEvents();
+                    modalCloudSyncBtn.textContent = "Synced to Cloud ✓";
+                    setTimeout(async () => { await fetchGoogleCalendarEvents(); closeModal(); }, 600);
                 } catch (err) {
-                    console.error("Cloud push operation failed:", err);
+                    modalCloudSyncBtn.textContent = "Sync Failed";
                 }
-            } 
-            else if (source === 'google_task' || (id === '' && targetDestination === 'google_task')) {
+            } else if (source === 'google_task' || (id === '' && targetDestination === 'google_task')) {
                 try {
                     const listsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 1 });
                     const defaultListId = listsResponse.result.items[0].id;
-                    const rfcTimestamp = new Date(dateKey).toISOString();
+                    const taskResource = { title: title, notes: finalDescription, due: new Date(dateKey).toISOString() };
 
-                    const taskResource = {
-                        title: title,
-                        notes: description,
-                        due: rfcTimestamp
-                    };
-
-                    if (id) {
+                    if (id && source === 'google_task') {
                         let foundListId = defaultListId;
                         if (googleEvents[dateKey]) {
                             const match = googleEvents[dateKey].find(e => e.id === id);
                             if (match && match.taskListId) foundListId = match.taskListId;
                         }
-                        await gapi.client.tasks.tasks.update({
-                            tasklist: foundListId,
-                            task: id,
-                            resource: { id: id, ...taskResource }
-                        });
+                        await gapi.client.tasks.tasks.update({ tasklist: foundListId, task: id, resource: { id: id, ...taskResource } });
                     } else {
-                        await gapi.client.tasks.tasks.insert({
-                            tasklist: defaultListId,
-                            resource: taskResource
-                        });
+                        await gapi.client.tasks.tasks.insert({ tasklist: defaultListId, resource: taskResource });
                     }
-                    await fetchGoogleCalendarEvents();
+                    modalCloudSyncBtn.textContent = "Synced to Cloud ✓";
+                    setTimeout(async () => { await fetchGoogleCalendarEvents(); closeModal(); }, 600);
                 } catch (taskErr) {
-                    console.error("Tasks workspace submission failure:", taskErr);
+                    modalCloudSyncBtn.textContent = "Sync Failed";
                 }
-            } 
-            else {
-                if (!events[dateKey]) events[dateKey] = [];
+            } else {
+                // If it was local, flip its metadata flag and route it straight into Google database pipelines
+                eventSourceInput.value = 'google';
+                eventDestinationSelect.value = 'google';
+                await triggerImmediateCloudSync();
+            }
+        }
 
-                if (id) {
-                    const idx = events[dateKey].findIndex(e => e.id === id);
-                    if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description };
-                } else {
-                    events[dateKey].push({ id: 'id_' + Date.now(), title, description, source: 'local' });
-                }
-                localStorage.setItem('local_calendar_events', JSON.stringify(events));
+        function saveEvent() {
+            const dateKey = eventDateInput.value;
+            const id = eventIdInput.value;
+            const title = eventTitleInput.value.trim();
+            const description = eventDescInput.value.trim();
+            const source = eventSourceInput.value;
+            const selectedColor = eventColorInput.value;
+
+            if (!title) return;
+
+            if (source.includes('google')) {
+                triggerImmediateCloudSync();
+                return;
             }
 
-            saveEventBtn.textContent = "Save";
+            if (!events[dateKey]) events[dateKey] = [];
+
+            if (id) {
+                const idx = events[dateKey].findIndex(e => e.id === id);
+                if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description, color: selectedColor };
+            } else {
+                events[dateKey].push({ id: 'id_' + Date.now(), title, description, source: 'local', color: selectedColor });
+            }
+
+            localStorage.setItem('local_calendar_events', JSON.stringify(events));
             closeModal();
             renderGrid();
         }
@@ -1014,9 +1020,7 @@
                 try {
                     await gapi.client.calendar.events.delete({ calendarId: foundCalId, eventId: id });
                     await fetchGoogleCalendarEvents();
-                } catch (err) {
-                    console.error("Cloud item deletion failure:", err);
-                }
+                } catch (err) {}
             } else if (source === 'google_task') {
                 let foundListId = 'primary';
                 if (googleEvents[dateKey]) {
@@ -1026,9 +1030,7 @@
                 try {
                     await gapi.client.tasks.tasks.delete({ tasklist: foundListId, task: id });
                     await fetchGoogleCalendarEvents();
-                } catch (err) {
-                    console.error("Tasks record erasure failure:", err);
-                }
+                } catch (err) {}
             } else {
                 if (events[dateKey]) {
                     events[dateKey] = events[dateKey].filter(e => e.id !== id);
@@ -1044,11 +1046,13 @@
 
         function setupEventListeners() {
             bgImageInput.addEventListener('change', handleBackgroundUpload);
+            
+            eventColorInput.addEventListener('input', (e) => {
+                colorHexLabel.textContent = e.target.value;
+            });
 
             monthYearDisplay.onclick = (e) => {
-                e.stopPropagation();
-                buildPickerMenu();
-                pickerMenu.classList.toggle('active');
+                e.stopPropagation(); buildPickerMenu(); pickerMenu.classList.toggle('active');
             };
 
             document.addEventListener('click', () => pickerMenu.classList.remove('active'));
@@ -1057,23 +1061,16 @@
             nextBtn.onclick = () => { currentDate.setMonth(currentDate.getMonth() + 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
             prevYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() - 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
             nextYearBtn.onclick = () => { currentDate.setFullYear(currentDate.getFullYear() + 1); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
-            
             todayBtn.onclick = () => { currentDate = new Date(); renderGrid(); if(googleAccessToken) fetchGoogleCalendarEvents(); };
             
             closeModalBtn.onclick = closeModal;
             saveEventBtn.onclick = saveEvent;
             deleteEventBtn.onclick = deleteEvent;
+            modalCloudSyncBtn.onclick = triggerImmediateCloudSync;
 
             syncBtn.onclick = () => {
-                if (!gapiInited || !gisiInited) {
-                    alert("Initialization error active. Check your API token details.");
-                    return;
-                }
-                if (googleAccessToken) {
-                    fetchGoogleCalendarEvents();
-                } else {
-                    tokenClient.requestAccessToken({ prompt: 'consent' });
-                }
+                if (!gapiInited || !gisiInited) { alert("Initialization error. Check network state."); return; }
+                if (googleAccessToken) { fetchGoogleCalendarEvents(); } else { tokenClient.requestAccessToken({ prompt: 'consent' }); }
             };
         }
 
