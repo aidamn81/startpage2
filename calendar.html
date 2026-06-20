@@ -488,9 +488,17 @@
             <div class="form-group" id="destinationSelectorGroup">
                 <label for="eventDestination">Save Target Location</label>
                 <select id="eventDestination">
-                    <option value="google">Google Calendar (Cloud Event)</option>
-                    <option value="google_task">Google Tasks (Cloud Task List)</option>
+                    <option value="google">Google Calendar (Cloud Engine)</option>
                     <option value="local">Local Private Memory (Offline)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="eventType">Entry Classification Type</label>
+                <select id="eventType">
+                    <option value="event">Event</option>
+                    <option value="task">Task</option>
+                    <option value="gig">Gig 🎤</option>
                 </select>
             </div>
 
@@ -516,7 +524,7 @@
                 <button id="deleteEventBtn" style="background-color: #991b1b; color: #fef2f2; display: none; margin-right: auto;">Delete</button>
                 <button id="modalCloudSyncBtn" class="cloud-sync-btn" style="display: none;">Sync to GC Now</button>
                 <button id="closeModalBtn">Cancel</button>
-                <button id="saveEventBtn" class="primary-btn">Save Local</button>
+                <button id="saveEventBtn" class="primary-btn">Save</button>
             </div>
         </div>
     </div>
@@ -569,6 +577,7 @@
         const eventSourceInput = document.getElementById('eventSource');
         const eventDestinationSelect = document.getElementById('eventDestination');
         const destinationSelectorGroup = document.getElementById('destinationSelectorGroup');
+        const eventTypeSelect = document.getElementById('eventType');
         const eventTitleInput = document.getElementById('eventTitle');
         const eventDescInput = document.getElementById('eventDesc');
         const eventColorInput = document.getElementById('eventColor');
@@ -699,48 +708,26 @@
                             const dateStr = startRaw.substring(0, 10);
                             if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
                             
+                            let desc = item.description || '';
+                            let parsedType = 'event';
+                            if (desc.includes('__type:')) {
+                                parsedType = desc.split('__type:')[1].split('__')[0];
+                            }
+
                             if (!googleEvents[dateStr].some(e => e.id === item.id)) {
                                 googleEvents[dateStr].push({
                                     id: item.id,
-                                    title: `⚡ ${item.summary || '(No Title)'}`,
-                                    description: item.description || '',
+                                    title: item.summary || '(No Title)',
+                                    description: desc,
                                     source: 'google',
                                     calendarId: calId,
-                                    color: item.description && item.description.includes('__color:') ? item.description.split('__color:')[1].split('__')[0] : '#059669'
+                                    type: parsedType,
+                                    color: desc.includes('__color:') ? desc.split('__color:')[1].split('__')[0] : (parsedType === 'gig' ? '#eab308' : '#6366f1')
                                 });
                             }
                         });
                     } catch (innerErr) {}
                 }
-
-                try {
-                    const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 5 });
-                    for (const list of (taskListsResponse.result.items || [])) {
-                        const tasksResponse = await gapi.client.tasks.tasks.list({
-                            tasklist: list.id,
-                            showCompleted: true,
-                            dueMin: startOfMonth.toISOString(),
-                            dueMax: endOfMonth.toISOString(),
-                        });
-
-                        (tasksResponse.result.items || []).forEach(task => {
-                            if (!task.due) return;
-                            const dateStr = task.due.substring(0, 10);
-                            if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
-
-                            if (!googleEvents[dateStr].some(e => e.id === task.id)) {
-                                googleEvents[dateStr].push({
-                                    id: task.id,
-                                    title: `📋 ${task.title || '(No Task Name)'}`,
-                                    description: task.notes || '',
-                                    source: 'google_task',
-                                    taskListId: list.id,
-                                    color: task.notes && task.notes.includes('__color:') ? task.notes.split('__color:')[1].split('__')[0] : '#d97706'
-                                });
-                            }
-                        });
-                    }
-                } catch (taskErr) {}
 
                 localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
                 syncBtn.textContent = "Synced ✓";
@@ -806,10 +793,14 @@
         function appendEventItemElement(parentContainer, ev, dateKey) {
             const evEl = document.createElement('div');
             evEl.className = 'event-item';
-            evEl.textContent = ev.title;
             
-            /* Apply dynamic custom highlight coloring parameters */
-            const itemColor = ev.color || '#6366f1';
+            let prefix = '⚡ ';
+            if (ev.type === 'task') prefix = '📋 ';
+            if (ev.type === 'gig') prefix = '🎤 ';
+            
+            evEl.textContent = `${prefix}${ev.title}`;
+            
+            const itemColor = ev.color || (ev.type === 'gig' ? '#eab308' : '#6366f1');
             evEl.style.borderLeftColor = itemColor;
             evEl.style.backgroundColor = convertHexToRgba(itemColor, 0.25);
 
@@ -863,6 +854,14 @@
             }
         }
 
+        function updateModalButtonLabels() {
+            if (eventDestinationSelect.value === 'google') {
+                saveEventBtn.textContent = "Save to Google";
+            } else {
+                saveEventBtn.textContent = "Save Local";
+            }
+        }
+
         function openModal(dateKey, eventObj = null) {
             eventDateInput.value = dateKey;
             eventModal.classList.add('active');
@@ -872,25 +871,26 @@
                 modalTitle.textContent = eventObj.source.includes('google') ? "Edit Google Item" : "Edit Local Event";
                 eventIdInput.value = eventObj.id;
                 eventSourceInput.value = eventObj.source;
-                eventTitleInput.value = eventObj.title.replace('⚡ ', '').replace('📋 ', '');
+                eventTitleInput.value = eventObj.title;
                 
-                // Strip color tags out from technical descriptions if present
-                eventDescInput.value = eventObj.description ? eventObj.description.split('__color:')[0] : '';
+                eventDescInput.value = eventObj.description ? eventObj.description.split('__type:')[0].trim() : '';
+                eventTypeSelect.value = eventObj.type || 'event';
                 
-                const customColor = eventObj.color || '#6366f1';
+                const customColor = eventObj.color || (eventObj.type === 'gig' ? '#eab308' : '#6366f1');
                 eventColorInput.value = customColor;
                 colorHexLabel.textContent = customColor;
 
                 destinationSelectorGroup.style.display = 'none'; 
-                saveEventBtn.textContent = "Save Changes";
                 deleteEventBtn.style.display = 'block';
                 modalCloudSyncBtn.style.display = googleAccessToken ? 'block' : 'none';
+                saveEventBtn.textContent = "Save Changes";
             } else {
                 modalTitle.textContent = "Add New Item";
                 eventIdInput.value = '';
                 eventSourceInput.value = 'local';
                 eventTitleInput.value = '';
                 eventDescInput.value = '';
+                eventTypeSelect.value = 'event';
                 
                 eventColorInput.value = '#6366f1';
                 colorHexLabel.textContent = '#6366f1';
@@ -898,9 +898,9 @@
                 destinationSelectorGroup.style.display = googleAccessToken ? 'block' : 'none';
                 eventDestinationSelect.value = googleAccessToken ? 'google' : 'local';
                 
-                saveEventBtn.textContent = "Save Local";
                 deleteEventBtn.style.display = 'none';
                 modalCloudSyncBtn.style.display = googleAccessToken ? 'block' : 'none';
+                updateModalButtonLabels();
             }
         }
 
@@ -913,6 +913,7 @@
             const description = eventDescInput.value.trim();
             const source = eventSourceInput.value;
             const targetDestination = eventDestinationSelect.value;
+            const selectedType = eventTypeSelect.value;
             const selectedColor = eventColorInput.value;
 
             if (!title) { alert("Title is required before executing syncing routing."); return; }
@@ -920,7 +921,7 @@
 
             modalCloudSyncBtn.textContent = "Pushing...";
 
-            const finalDescription = `${description} __color:${selectedColor}__`;
+            const finalDescription = `${description} __type:${selectedType}__color:${selectedColor}__`;
 
             if (source === 'google' || (id === '' && (targetDestination === 'google'))) {
                 const resourceObj = {
@@ -945,29 +946,7 @@
                 } catch (err) {
                     modalCloudSyncBtn.textContent = "Sync Failed";
                 }
-            } else if (source === 'google_task' || (id === '' && targetDestination === 'google_task')) {
-                try {
-                    const listsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 1 });
-                    const defaultListId = listsResponse.result.items[0].id;
-                    const taskResource = { title: title, notes: finalDescription, due: new Date(dateKey).toISOString() };
-
-                    if (id && source === 'google_task') {
-                        let foundListId = defaultListId;
-                        if (googleEvents[dateKey]) {
-                            const match = googleEvents[dateKey].find(e => e.id === id);
-                            if (match && match.taskListId) foundListId = match.taskListId;
-                        }
-                        await gapi.client.tasks.tasks.update({ tasklist: foundListId, task: id, resource: { id: id, ...taskResource } });
-                    } else {
-                        await gapi.client.tasks.tasks.insert({ tasklist: defaultListId, resource: taskResource });
-                    }
-                    modalCloudSyncBtn.textContent = "Synced to Cloud ✓";
-                    setTimeout(async () => { await fetchGoogleCalendarEvents(); closeModal(); }, 600);
-                } catch (taskErr) {
-                    modalCloudSyncBtn.textContent = "Sync Failed";
-                }
             } else {
-                // If it was local, flip its metadata flag and route it straight into Google database pipelines
                 eventSourceInput.value = 'google';
                 eventDestinationSelect.value = 'google';
                 await triggerImmediateCloudSync();
@@ -980,11 +959,13 @@
             const title = eventTitleInput.value.trim();
             const description = eventDescInput.value.trim();
             const source = eventSourceInput.value;
+            const targetDestination = eventDestinationSelect.value;
+            const selectedType = eventTypeSelect.value;
             const selectedColor = eventColorInput.value;
 
             if (!title) return;
 
-            if (source.includes('google')) {
+            if (source === 'google' || (id === '' && targetDestination === 'google')) {
                 triggerImmediateCloudSync();
                 return;
             }
@@ -993,9 +974,9 @@
 
             if (id) {
                 const idx = events[dateKey].findIndex(e => e.id === id);
-                if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description, color: selectedColor };
+                if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description, type: selectedType, color: selectedColor };
             } else {
-                events[dateKey].push({ id: 'id_' + Date.now(), title, description, source: 'local', color: selectedColor });
+                events[dateKey].push({ id: 'id_' + Date.now(), title, description, source: 'local', type: selectedType, color: selectedColor });
             }
 
             localStorage.setItem('local_calendar_events', JSON.stringify(events));
@@ -1021,16 +1002,6 @@
                     await gapi.client.calendar.events.delete({ calendarId: foundCalId, eventId: id });
                     await fetchGoogleCalendarEvents();
                 } catch (err) {}
-            } else if (source === 'google_task') {
-                let foundListId = 'primary';
-                if (googleEvents[dateKey]) {
-                    const match = googleEvents[dateKey].find(e => e.id === id);
-                    if (match && match.taskListId) foundListId = match.taskListId;
-                }
-                try {
-                    await gapi.client.tasks.tasks.delete({ tasklist: foundListId, task: id });
-                    await fetchGoogleCalendarEvents();
-                } catch (err) {}
             } else {
                 if (events[dateKey]) {
                     events[dateKey] = events[dateKey].filter(e => e.id !== id);
@@ -1050,6 +1021,15 @@
             eventColorInput.addEventListener('input', (e) => {
                 colorHexLabel.textContent = e.target.value;
             });
+
+            eventTypeSelect.addEventListener('change', (e) => {
+                if (e.target.value === 'gig') {
+                    eventColorInput.value = '#eab308';
+                    colorHexLabel.textContent = '#eab308';
+                }
+            });
+
+            eventDestinationSelect.addEventListener('change', updateModalButtonLabels);
 
             monthYearDisplay.onclick = (e) => {
                 e.stopPropagation(); buildPickerMenu(); pickerMenu.classList.toggle('active');
