@@ -6,15 +6,15 @@
     <title>Personalized Calendar Engine</title>
     <style>
         :root {
-            --bg-color: #121214;
-            --container-bg: rgba(26, 26, 30, 0.85); /* Slightly transparent to let ambient bg glow through */
-            --text-color: #e2e8f0;
+            --bg-color: #000000; /* Pure Black Page Base */
+            --container-bg: #16161a; /* Solid high-contrast calendar surface */
+            --text-color: #f1f5f9;
             --text-muted: #94a3b8;
             --border-color: #2d2d34;
             --accent-color: #6366f1;
             --accent-hover: #4f46e5;
-            --today-bg: rgba(99, 102, 241, 0.2);
-            --modal-bg: #222227;
+            --today-bg: rgba(99, 102, 241, 0.25);
+            --modal-bg: rgba(30, 30, 36, 0.85); /* Transparent for blurred context */
             --dropdown-hover: #2d2d34;
         }
 
@@ -37,35 +37,18 @@
             align-items: center;
             min-height: 100vh;
             padding: 20px;
-            position: relative;
             transition: background-image 0.3s ease;
-        }
-
-        /* Ambient protection overlay layer to keep calendar text high-contrast and readable over loud images */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(18, 18, 20, 0.75); /* Dark screen overlay */
-            backdrop-filter: blur(8px); /* Modern frosted glass effect */
-            -webkit-backdrop-filter: blur(8px);
-            z-index: 1;
         }
 
         .calendar-container {
             position: relative;
-            z-index: 2; /* Sits cleanly above the backdrop filter */
             width: 100%;
             max-width: 950px;
             background-color: var(--container-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
         }
 
         /* Header Navigation */
@@ -77,6 +60,7 @@
             border-bottom: 1px solid var(--border-color);
             flex-wrap: wrap;
             gap: 16px;
+            background-color: #1a1a20;
         }
 
         /* Interactive Title Dropdown Container */
@@ -115,12 +99,14 @@
             background-color: var(--modal-bg);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
             padding: 16px;
             display: none;
             grid-template-columns: 120px 90px;
             gap: 12px;
             z-index: 500;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
         }
 
         .picker-menu.active {
@@ -171,9 +157,9 @@
         }
 
         button, .file-upload-label {
-            background-color: var(--border-color);
+            background-color: #27272a;
             color: var(--text-color);
-            border: none;
+            border: 1px solid #3f3f46;
             padding: 8px 14px;
             font-size: 0.95rem;
             font-weight: 500;
@@ -188,6 +174,7 @@
 
         button:hover, .file-upload-label:hover {
             background-color: #3f3f46;
+            border-color: #52525b;
         }
 
         button:active, .file-upload-label:active {
@@ -196,6 +183,7 @@
 
         button.primary-btn {
             background-color: var(--accent-color);
+            border-color: #4f46e5;
         }
 
         button.primary-btn:hover {
@@ -205,10 +193,8 @@
         .year-nav {
             font-weight: bold;
             letter-spacing: -1px;
-            background-color: rgba(255, 255, 255, 0.05);
         }
 
-        /* Hidden raw file selector input layout */
         .bg-input-hidden {
             display: none;
         }
@@ -217,7 +203,7 @@
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
-            background-color: rgba(0, 0, 0, 0.15);
+            background-color: #0c0c0e;
         }
 
         .weekday-label {
@@ -225,15 +211,15 @@
             font-weight: 600;
             font-size: 0.85rem;
             color: var(--text-muted);
-            padding: 12px 0;
-            background-color: rgba(0, 0, 0, 0.25);
+            padding: 14px 0;
+            background-color: #111115;
             border-bottom: 1px solid var(--border-color);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .calendar-day {
-            min-height: 110px;
+            min-height: 115px;
             border-bottom: 1px solid var(--border-color);
             border-right: 1px solid var(--border-color);
             padding: 6px;
@@ -241,7 +227,7 @@
             flex-direction: column;
             gap: 4px;
             position: relative;
-            background-color: rgba(20, 20, 25, 0.2);
+            background-color: #16161a;
         }
 
         .calendar-grid .calendar-day:nth-child(7n) {
@@ -250,7 +236,7 @@
 
         .day-number {
             font-size: 0.9rem;
-            font-weight: 500;
+            font-weight: 600;
             color: var(--text-muted);
             align-self: flex-start;
             width: 24px;
@@ -263,7 +249,6 @@
 
         .calendar-day.current-month .day-number {
             color: var(--text-color);
-            font-weight: 600;
         }
 
         .calendar-day.today {
@@ -276,24 +261,30 @@
         }
 
         .calendar-day.adjacent-month {
-            opacity: 0.3;
+            background-color: #0f0f12;
+            opacity: 0.35;
         }
 
-        /* Event Elements */
+        /* Event Elements Layout with Blurring Context */
         .events-wrapper {
             display: flex;
             flex-direction: column;
             gap: 3px;
             overflow-y: auto;
             flex-grow: 1;
-            max-height: 80px;
+            max-height: 85px;
+            border-radius: 4px;
+            background-color: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(4px); /* Blur inside the local content row wrappers */
+            -webkit-backdrop-filter: blur(4px);
+            padding: 2px;
         }
 
         .event-item {
             font-size: 0.75rem;
-            padding: 3px 6px;
+            padding: 4px 6px;
             border-radius: 4px;
-            background-color: #312e81;
+            background-color: rgba(49, 46, 129, 0.75);
             color: #e0e7ff;
             border-left: 3px solid var(--accent-color);
             white-space: nowrap;
@@ -304,13 +295,13 @@
         }
 
         .event-item.google-sync {
-            background-color: #064e3b;
+            background-color: rgba(6, 78, 59, 0.75);
             color: #d1fae5;
             border-left-color: #10b981;
         }
 
         .event-item.google-task {
-            background-color: #78350f;
+            background-color: rgba(120, 53, 15, 0.75);
             color: #fef3c7;
             border-left-color: #f59e0b;
         }
@@ -322,7 +313,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
+            background-color: rgba(0, 0, 0, 0.6);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -339,12 +330,14 @@
 
         .modal-card {
             background-color: var(--modal-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
             width: 100%;
             max-width: 420px;
             padding: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(16px); /* Blurs content beneath the popup module */
+            -webkit-backdrop-filter: blur(16px);
         }
 
         .modal-title {
@@ -366,7 +359,7 @@
 
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
-            background-color: #1a1a1e;
+            background-color: #121214;
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 10px;
@@ -401,7 +394,7 @@
             </div>
 
             <div class="nav-buttons">
-                <label for="bgImageInput" class="file-upload-label" title="Upload Custom Background Plate">🖼️ Background</label>
+                <label for="bgImageInput" class="file-upload-label" title="Upload Custom Background">🖼️ Background</label>
                 <input type="file" id="bgImageInput" class="bg-input-hidden" accept="image/*">
 
                 <button id="prevYearBtn" class="year-nav" title="Previous Year">«</button>
@@ -496,7 +489,7 @@
         const eventModal = document.getElementById('eventModal');
         const modalTitle = document.getElementById('modalTitle');
         const eventDateInput = document.getElementById('eventDate');
-        const idText = eventIdInput = document.getElementById('eventId');
+        const eventIdInput = document.getElementById('eventId');
         const eventSourceInput = document.getElementById('eventSource');
         const eventDestinationSelect = document.getElementById('eventDestination');
         const destinationSelectorGroup = document.getElementById('destinationSelectorGroup');
@@ -513,7 +506,6 @@
             verifyGoogleScriptsPresence();
         }
 
-        // Background Image persistence engine
         function loadSavedBackground() {
             const storedBg = localStorage.getItem('calendar_custom_bg');
             if (storedBg) {
@@ -528,14 +520,12 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 const imgBase64 = event.target.result;
-                // Save string data across visits natively
                 localStorage.setItem('calendar_custom_bg', imgBase64);
                 document.body.style.backgroundImage = `url('${imgBase64}')`;
             };
             reader.readAsDataURL(file);
         }
 
-        // Resolves the stuck "API Loading" issue by pooling check cycles until objects are ready
         function verifyGoogleScriptsPresence() {
             let attemptCount = 0;
             const maxAttempts = 30;
@@ -551,7 +541,7 @@
                     gisLoad();
                 } else if (attemptCount >= maxAttempts) {
                     clearInterval(scriptCheckInterval);
-                    console.warn("Google Script initialization timed out. Verify your scripts are loading cleanly.");
+                    console.warn("Google libraries failed to bind within the initialization window.");
                     syncBtn.textContent = "Offline Mode";
                 }
             }, 250);
@@ -566,7 +556,7 @@
                 gapiInited = true;
                 checkSyncButtonState();
             } catch(e) {
-                console.error("GAPI Client Initialization crashed: ", e);
+                console.error("GAPI Client initialization failure payload:", e);
                 syncBtn.textContent = "Config Error";
             }
         }
@@ -586,7 +576,7 @@
                 gisiInited = true;
                 checkSyncButtonState();
             } catch(e) {
-                console.error("GIS Credential setup aborted: ", e);
+                console.error("GIS framework instantiation exception:", e);
             }
         }
 
@@ -653,7 +643,7 @@
                             }
                         });
                     } catch (innerErr) {
-                        console.warn(`Skipped profile sync for sub-feed: ${calId}`, innerErr);
+                        console.warn(`Skipped sub-feed extraction: ${calId}`, innerErr);
                     }
                 }
 
@@ -690,14 +680,14 @@
                         });
                     }
                 } catch (taskErr) {
-                    console.error("Could not complete Tasks sync loop:", taskErr);
+                    console.error("Tasks database extraction stalled:", taskErr);
                 }
 
                 localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
                 syncBtn.textContent = "Synced ✓";
                 renderGrid();
             } catch (err) {
-                console.error("Master Google sync execution failed: ", err);
+                console.error("Master Google batch request exception: ", err);
                 syncBtn.textContent = "Sync Failed";
             }
         }
@@ -910,7 +900,7 @@
                     }
                     await fetchGoogleCalendarEvents();
                 } catch (err) {
-                    console.error("Cloud push failed:", err);
+                    console.error("Cloud push operation failed:", err);
                 }
             } 
             else if (source === 'google_task' || (id === '' && targetDestination === 'google_task')) {
@@ -944,7 +934,7 @@
                     }
                     await fetchGoogleCalendarEvents();
                 } catch (taskErr) {
-                    console.error("Tasks API write operation aborted:", taskErr);
+                    console.error("Tasks workspace submission failure:", taskErr);
                 }
             } 
             else {
@@ -982,7 +972,7 @@
                     await gapi.client.calendar.events.delete({ calendarId: foundCalId, eventId: id });
                     await fetchGoogleCalendarEvents();
                 } catch (err) {
-                    console.error("Cloud deletion failed:", err);
+                    console.error("Cloud item deletion failure:", err);
                 }
             } else if (source === 'google_task') {
                 let foundListId = 'primary';
@@ -994,7 +984,7 @@
                     await gapi.client.tasks.tasks.delete({ tasklist: foundListId, task: id });
                     await fetchGoogleCalendarEvents();
                 } catch (err) {
-                    console.error("Tasks cloud deletion failed:", err);
+                    console.error("Tasks record erasure failure:", err);
                 }
             } else {
                 if (events[dateKey]) {
@@ -1033,7 +1023,7 @@
 
             syncBtn.onclick = () => {
                 if (!gapiInited || !gisiInited) {
-                    alert("Google API scripts are initializing. Click sync again in 2 seconds!");
+                    alert("Initialization error active. Check your API token details.");
                     return;
                 }
                 if (googleAccessToken) {
@@ -1044,7 +1034,6 @@
             };
         }
 
-        // Window load listener ensures all external assets are bound securely
         window.addEventListener('load', initCalendar);
     </script>
 </body>
