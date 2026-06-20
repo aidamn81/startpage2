@@ -7,13 +7,13 @@
     <style>
         :root {
             --bg-color: #121214;
-            --container-bg: #1a1a1e;
+            --container-bg: rgba(26, 26, 30, 0.85); /* Slightly transparent to let ambient bg glow through */
             --text-color: #e2e8f0;
             --text-muted: #94a3b8;
             --border-color: #2d2d34;
             --accent-color: #6366f1;
             --accent-hover: #4f46e5;
-            --today-bg: rgba(99, 102, 241, 0.15);
+            --today-bg: rgba(99, 102, 241, 0.2);
             --modal-bg: #222227;
             --dropdown-hover: #2d2d34;
         }
@@ -27,22 +27,45 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             background-color: var(--bg-color);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
             color: var(--text-color);
             display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
             padding: 20px;
+            position: relative;
+            transition: background-image 0.3s ease;
+        }
+
+        /* Ambient protection overlay layer to keep calendar text high-contrast and readable over loud images */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(18, 18, 20, 0.75); /* Dark screen overlay */
+            backdrop-filter: blur(8px); /* Modern frosted glass effect */
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 1;
         }
 
         .calendar-container {
+            position: relative;
+            z-index: 2; /* Sits cleanly above the backdrop filter */
             width: 100%;
             max-width: 950px;
             background-color: var(--container-bg);
             border: 1px solid var(--border-color);
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
         }
 
         /* Header Navigation */
@@ -113,7 +136,6 @@
             padding-right: 4px;
         }
 
-        /* Custom Scrollbar styling for Picker columns */
         .picker-column::-webkit-scrollbar {
             width: 4px;
         }
@@ -145,9 +167,10 @@
             display: flex;
             gap: 6px;
             align-items: center;
+            flex-wrap: wrap;
         }
 
-        button {
+        button, .file-upload-label {
             background-color: var(--border-color);
             color: var(--text-color);
             border: none;
@@ -156,14 +179,19 @@
             font-weight: 500;
             border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s ease;
-            display: flex;
+            transition: background 0.2s ease, transform 0.1s ease;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+            user-select: none;
         }
 
-        button:hover {
+        button:hover, .file-upload-label:hover {
             background-color: #3f3f46;
+        }
+
+        button:active, .file-upload-label:active {
+            transform: scale(0.98);
         }
 
         button.primary-btn {
@@ -180,10 +208,16 @@
             background-color: rgba(255, 255, 255, 0.05);
         }
 
+        /* Hidden raw file selector input layout */
+        .bg-input-hidden {
+            display: none;
+        }
+
         /* Calendar Grid Architecture */
         .calendar-grid {
             display: grid;
             grid-template-columns: repeat(7, 1fr);
+            background-color: rgba(0, 0, 0, 0.15);
         }
 
         .weekday-label {
@@ -192,7 +226,7 @@
             font-size: 0.85rem;
             color: var(--text-muted);
             padding: 12px 0;
-            background-color: rgba(0, 0, 0, 0.1);
+            background-color: rgba(0, 0, 0, 0.25);
             border-bottom: 1px solid var(--border-color);
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -207,6 +241,7 @@
             flex-direction: column;
             gap: 4px;
             position: relative;
+            background-color: rgba(20, 20, 25, 0.2);
         }
 
         .calendar-grid .calendar-day:nth-child(7n) {
@@ -228,6 +263,7 @@
 
         .calendar-day.current-month .day-number {
             color: var(--text-color);
+            font-weight: 600;
         }
 
         .calendar-day.today {
@@ -240,7 +276,7 @@
         }
 
         .calendar-day.adjacent-month {
-            opacity: 0.35;
+            opacity: 0.3;
         }
 
         /* Event Elements */
@@ -264,16 +300,15 @@
             overflow: hidden;
             text-overflow: ellipsis;
             cursor: pointer;
+            font-weight: 500;
         }
 
-        /* Live Google Event Marker Look */
         .event-item.google-sync {
             background-color: #064e3b;
             color: #d1fae5;
             border-left-color: #10b981;
         }
 
-        /* Google Task Marker Look */
         .event-item.google-task {
             background-color: #78350f;
             color: #fef3c7;
@@ -287,7 +322,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
+            background-color: rgba(0, 0, 0, 0.7);
             display: flex;
             justify-content: center;
             align-items: center;
@@ -309,7 +344,7 @@
             width: 100%;
             max-width: 420px;
             padding: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
         }
 
         .modal-title {
@@ -331,7 +366,7 @@
 
         .form-group input, .form-group textarea, .form-group select {
             width: 100%;
-            background-color: var(--container-bg);
+            background-color: #1a1a1e;
             border: 1px solid var(--border-color);
             border-radius: 6px;
             padding: 10px;
@@ -351,9 +386,6 @@
             margin-top: 20px;
         }
     </style>
-
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
 
@@ -369,6 +401,9 @@
             </div>
 
             <div class="nav-buttons">
+                <label for="bgImageInput" class="file-upload-label" title="Upload Custom Background Plate">🖼️ Background</label>
+                <input type="file" id="bgImageInput" class="bg-input-hidden" accept="image/*">
+
                 <button id="prevYearBtn" class="year-nav" title="Previous Year">«</button>
                 <button id="prevBtn" title="Previous Month">Prev</button>
                 <button id="todayBtn">Today</button>
@@ -378,8 +413,7 @@
             </div>
         </div>
 
-        <div class="calendar-grid" id="calendarGrid">
-        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
     </div>
 
     <div class="modal-overlay" id="eventModal">
@@ -416,6 +450,9 @@
         </div>
     </div>
 
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
     <script>
         /*****************************************
          * GOOGLE API CONFIGURATION CONFIG
@@ -423,9 +460,7 @@
         const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyDUp9V5jx0OeWp0mV5oLC7Gfu5m_qPK7AA';
         
-        // Combined scope space to gain write access to both Calendar AND Tasks engines
         const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
-        
         const DISCOVERY_DOC_CALENDAR = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
         const DISCOVERY_DOC_TASKS = 'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest';
 
@@ -449,6 +484,7 @@
         const monthPickerCol = document.getElementById('monthPickerCol');
         const yearPickerCol = document.getElementById('yearPickerCol');
         const calendarGrid = document.getElementById('calendarGrid');
+        const bgImageInput = document.getElementById('bgImageInput');
         
         const prevYearBtn = document.getElementById('prevYearBtn');
         const prevBtn = document.getElementById('prevBtn');
@@ -460,7 +496,7 @@
         const eventModal = document.getElementById('eventModal');
         const modalTitle = document.getElementById('modalTitle');
         const eventDateInput = document.getElementById('eventDate');
-        const eventIdInput = document.getElementById('eventId');
+        const idText = eventIdInput = document.getElementById('eventId');
         const eventSourceInput = document.getElementById('eventSource');
         const eventDestinationSelect = document.getElementById('eventDestination');
         const destinationSelectorGroup = document.getElementById('destinationSelectorGroup');
@@ -471,42 +507,87 @@
         const deleteEventBtn = document.getElementById('deleteEventBtn');
 
         function initCalendar() {
+            loadSavedBackground();
             renderGrid();
             setupEventListeners();
-            attemptLoadGoogleScripts();
+            verifyGoogleScriptsPresence();
         }
 
-        function attemptLoadGoogleScripts() {
-            window.gapiLoadCallback = gapiLoad;
-            window.gisLoadCallback = gisLoad;
-            
-            setTimeout(() => {
-                if (typeof gapi !== 'undefined') gapiLoad();
-                if (typeof google !== 'undefined') gisLoad();
-            }, 1000);
+        // Background Image persistence engine
+        function loadSavedBackground() {
+            const storedBg = localStorage.getItem('calendar_custom_bg');
+            if (storedBg) {
+                document.body.style.backgroundImage = `url('${storedBg}')`;
+            }
+        }
+
+        function handleBackgroundUpload(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const imgBase64 = event.target.result;
+                // Save string data across visits natively
+                localStorage.setItem('calendar_custom_bg', imgBase64);
+                document.body.style.backgroundImage = `url('${imgBase64}')`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Resolves the stuck "API Loading" issue by pooling check cycles until objects are ready
+        function verifyGoogleScriptsPresence() {
+            let attemptCount = 0;
+            const maxAttempts = 30;
+
+            const scriptCheckInterval = setInterval(() => {
+                attemptCount++;
+                const gapiAvailable = typeof gapi !== 'undefined' && typeof gapi.load === 'function';
+                const gisAvailable = typeof google !== 'undefined' && typeof google.accounts !== 'undefined';
+
+                if (gapiAvailable && gisAvailable) {
+                    clearInterval(scriptCheckInterval);
+                    gapiLoad();
+                    gisLoad();
+                } else if (attemptCount >= maxAttempts) {
+                    clearInterval(scriptCheckInterval);
+                    console.warn("Google Script initialization timed out. Verify your scripts are loading cleanly.");
+                    syncBtn.textContent = "Offline Mode";
+                }
+            }, 250);
         }
 
         function gapiLoad() { gapi.load('client', initializeGapiClient); }
         async function initializeGapiClient() {
-            await gapi.client.init({ apiKey: API_KEY });
-            await gapi.client.load(DISCOVERY_DOC_CALENDAR);
-            await gapi.client.load(DISCOVERY_DOC_TASKS);
-            gapiInited = true;
-            checkSyncButtonState();
+            try {
+                await gapi.client.init({ apiKey: API_KEY });
+                await gapi.client.load(DISCOVERY_DOC_CALENDAR);
+                await gapi.client.load(DISCOVERY_DOC_TASKS);
+                gapiInited = true;
+                checkSyncButtonState();
+            } catch(e) {
+                console.error("GAPI Client Initialization crashed: ", e);
+                syncBtn.textContent = "Config Error";
+            }
         }
+        
         function gisLoad() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse.error !== undefined) throw (tokenResponse);
-                    googleAccessToken = tokenResponse.access_token;
-                    syncBtn.textContent = "🔄 Fetching...";
-                    fetchGoogleCalendarEvents();
-                },
-            });
-            gisiInited = true;
-            checkSyncButtonState();
+            try {
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    callback: (tokenResponse) => {
+                        if (tokenResponse.error !== undefined) throw (tokenResponse);
+                        googleAccessToken = tokenResponse.access_token;
+                        syncBtn.textContent = "🔄 Fetching...";
+                        fetchGoogleCalendarEvents();
+                    },
+                });
+                gisiInited = true;
+                checkSyncButtonState();
+            } catch(e) {
+                console.error("GIS Credential setup aborted: ", e);
+            }
         }
 
         function checkSyncButtonState() {
@@ -526,15 +607,12 @@
 
                 googleEvents = {}; 
 
-                // 1. Fetch Calendar Items
                 const calendarListResponse = await gapi.client.calendar.calendarList.list();
                 const calendarList = calendarListResponse.result.items || [];
 
                 const targetCalendarIds = new Set(['primary']);
                 calendarList.forEach(cal => {
                     if (!cal.id) return;
-                    
-                    // CRITICAL FILTER: Instantly ignore any calendar marked as a Holiday feed
                     const nameLower = (cal.summary || '').toLowerCase();
                     if (nameLower.includes('holiday') || cal.id.includes('holiday@group.v.calendar.google.com')) {
                         return; 
@@ -579,7 +657,6 @@
                     }
                 }
 
-                // 2. Fetch Google Tasks Items
                 try {
                     const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 10 });
                     const taskLists = taskListsResponse.result.items || [];
@@ -597,7 +674,6 @@
                         gTasks.forEach(task => {
                             if (!task.due) return;
                             
-                            // Format task timestamp (RFC 3339) down to standard calendar date key
                             const dateStr = task.due.substring(0, 10);
                             if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
 
@@ -614,7 +690,7 @@
                         });
                     }
                 } catch (taskErr) {
-                    console.error("Could not complete Tasks database download loop:", taskErr);
+                    console.error("Could not complete Tasks sync loop:", taskErr);
                 }
 
                 localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
@@ -701,7 +777,6 @@
 
         function appendEventItemElement(parentContainer, ev, dateKey) {
             const evEl = document.createElement('div');
-            
             let customClass = '';
             if (ev.source === 'google') customClass = 'google-sync';
             if (ev.source === 'google_task') customClass = 'google-task';
@@ -797,7 +872,7 @@
 
         async function saveEvent() {
             const dateKey = eventDateInput.value;
-            const id = idText = eventIdInput.value;
+            const id = eventIdInput.value;
             const title = eventTitleInput.value.trim();
             const description = eventDescInput.value.trim();
             const source = eventSourceInput.value;
@@ -807,7 +882,6 @@
 
             saveEventBtn.textContent = "Saving...";
 
-            // Case A: Push to Google Events
             if (source === 'google' || (id === '' && targetDestination === 'google')) {
                 const resourceObj = {
                     summary: title,
@@ -839,14 +913,10 @@
                     console.error("Cloud push failed:", err);
                 }
             } 
-            // Case B: Push to Google Tasks Workspace
             else if (source === 'google_task' || (id === '' && targetDestination === 'google_task')) {
                 try {
-                    // Pull master list identifier to store the task item cleanly
                     const listsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 1 });
                     const defaultListId = listsResponse.result.items[0].id;
-                    
-                    // Tasks API dates expect fully padded UTC timestamp format strings
                     const rfcTimestamp = new Date(dateKey).toISOString();
 
                     const taskResource = {
@@ -877,7 +947,6 @@
                     console.error("Tasks API write operation aborted:", taskErr);
                 }
             } 
-            // Case C: Offline Storage Target
             else {
                 if (!events[dateKey]) events[dateKey] = [];
 
@@ -941,6 +1010,8 @@
         }
 
         function setupEventListeners() {
+            bgImageInput.addEventListener('change', handleBackgroundUpload);
+
             monthYearDisplay.onclick = (e) => {
                 e.stopPropagation();
                 buildPickerMenu();
@@ -962,7 +1033,7 @@
 
             syncBtn.onclick = () => {
                 if (!gapiInited || !gisiInited) {
-                    alert("Google API scripts are still initializing. Give it a brief moment!");
+                    alert("Google API scripts are initializing. Click sync again in 2 seconds!");
                     return;
                 }
                 if (googleAccessToken) {
@@ -973,7 +1044,8 @@
             };
         }
 
-        initCalendar();
+        // Window load listener ensures all external assets are bound securely
+        window.addEventListener('load', initCalendar);
     </script>
 </body>
 </html>
