@@ -305,6 +305,9 @@
             background-color: rgba(99, 102, 241, 0.3);
             color: #f1f5f9;
             border-left: 3px solid var(--accent-color);
+            display: flex;
+            align-items: center;
+            gap: 5px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -316,6 +319,22 @@
 
         .event-item:hover {
             transform: translateX(2px);
+        }
+
+        /* Tiny Git Thumbnail styling design rules */
+        .gig-thumbnail {
+            width: 14px;
+            height: 14px;
+            object-fit: cover;
+            border-radius: 3px;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .event-text-span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         /* Custom Color Picker Input Form adjustments */
@@ -794,11 +813,30 @@
             const evEl = document.createElement('div');
             evEl.className = 'event-item';
             
-            let prefix = '⚡ ';
-            if (ev.type === 'task') prefix = '📋 ';
-            if (ev.type === 'gig') prefix = '🎤 ';
+            // If the item type is a gig, attach the custom thumbnail image from GitHub
+            if (ev.type === 'gig') {
+                const thumbImg = document.createElement('img');
+                thumbImg.className = 'gig-thumbnail';
+                thumbImg.src = 'heel.jpg'; // Relative fallback or direct reference
+                thumbImg.alt = 'Gig';
+                // Direct implementation check for error loading relative paths
+                thumbImg.onerror = function() {
+                    this.style.display = 'none';
+                };
+                evEl.appendChild(thumbImg);
+            } else {
+                // Keep text prefixes for non-gig types
+                let prefix = '⚡ ';
+                if (ev.type === 'task') prefix = '📋 ';
+                const prefixSpan = document.createElement('span');
+                prefixSpan.textContent = prefix;
+                evEl.appendChild(prefixSpan);
+            }
             
-            evEl.textContent = `${prefix}${ev.title}`;
+            const textSpan = document.createElement('span');
+            textSpan.className = 'event-text-span';
+            textSpan.textContent = ev.title;
+            evEl.appendChild(textSpan);
             
             const itemColor = ev.color || (ev.type === 'gig' ? '#eab308' : '#6366f1');
             evEl.style.borderLeftColor = itemColor;
