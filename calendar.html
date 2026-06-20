@@ -273,6 +273,13 @@
             border-left-color: #10b981;
         }
 
+        /* Google Task Marker Look */
+        .event-item.google-task {
+            background-color: #78350f;
+            color: #fef3c7;
+            border-left-color: #f59e0b;
+        }
+
         /* Modal Sheet Styles */
         .modal-overlay {
             position: fixed;
@@ -377,16 +384,17 @@
 
     <div class="modal-overlay" id="eventModal">
         <div class="modal-card">
-            <h3 class="modal-title" id="modalTitle">Manage Event</h3>
+            <h3 class="modal-title" id="modalTitle">Manage Item</h3>
             <input type="hidden" id="eventDate">
             <input type="hidden" id="eventId">
             <input type="hidden" id="eventSource">
             
             <div class="form-group" id="destinationSelectorGroup">
-                <label for="eventDestination">Save Event To</label>
+                <label for="eventDestination">Save Item To</label>
                 <select id="eventDestination">
                     <option value="local">Local Memory Only (Offline)</option>
-                    <option value="google">Google Calendar (Cloud Sync)</option>
+                    <option value="google">Google Calendar (Event)</option>
+                    <option value="google_task">Google Tasks (Task List)</option>
                 </select>
             </div>
 
@@ -415,9 +423,11 @@
         const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyDUp9V5jx0OeWp0mV5oLC7Gfu5m_qPK7AA';
         
-        // Upgraded scope string to allow write access back to the server
-        const SCOPES = 'https://www.googleapis.com/auth/calendar';
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+        // Combined scope space to gain write access to both Calendar AND Tasks engines
+        const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/tasks';
+        
+        const DISCOVERY_DOC_CALENDAR = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+        const DISCOVERY_DOC_TASKS = 'https://www.googleapis.com/discovery/v1/apis/tasks/v1/rest';
 
         let tokenClient;
         let gapiInited = false;
@@ -478,7 +488,9 @@
 
         function gapiLoad() { gapi.load('client', initializeGapiClient); }
         async function initializeGapiClient() {
-            await gapi.client.init({ apiKey: API_KEY, discoveryDocs: [DISCOVERY_DOC] });
+            await gapi.client.init({ apiKey: API_KEY });
+            await gapi.client.load(DISCOVERY_DOC_CALENDAR);
+            await gapi.client.load(DISCOVERY_DOC_TASKS);
             gapiInited = true;
             checkSyncButtonState();
         }
@@ -512,14 +524,22 @@
                 const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
                 const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
 
+                googleEvents = {}; 
+
+                // 1. Fetch Calendar Items
                 const calendarListResponse = await gapi.client.calendar.calendarList.list();
                 const calendarList = calendarListResponse.result.items || [];
 
-                googleEvents = {}; 
-
                 const targetCalendarIds = new Set(['primary']);
                 calendarList.forEach(cal => {
-                    if (cal.id) targetCalendarIds.add(cal.id);
+                    if (!cal.id) return;
+                    
+                    // CRITICAL FILTER: Instantly ignore any calendar marked as a Holiday feed
+                    const nameLower = (cal.summary || '').toLowerCase();
+                    if (nameLower.includes('holiday') || cal.id.includes('holiday@group.v.calendar.google.com')) {
+                        return; 
+                    }
+                    targetCalendarIds.add(cal.id);
                 });
 
                 for (const calId of targetCalendarIds) {
@@ -541,7 +561,6 @@
                             if (!startRaw) return;
                             
                             const dateStr = startRaw.substring(0, 10);
-                            
                             if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
                             
                             const isDuplicate = googleEvents[dateStr].some(existing => existing.id === item.id);
@@ -551,20 +570,58 @@
                                     title: `⚡ ${item.summary || '(No Title)'}`,
                                     description: item.description || '',
                                     source: 'google',
-                                    calendarId: calId // Keep reference for edit/deletions
+                                    calendarId: calId
                                 });
                             }
                         });
                     } catch (innerErr) {
-                        console.warn(`Skipped sub-calendar feed query: ${calId}`, innerErr);
+                        console.warn(`Skipped profile sync for sub-feed: ${calId}`, innerErr);
                     }
+                }
+
+                // 2. Fetch Google Tasks Items
+                try {
+                    const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 10 });
+                    const taskLists = taskListsResponse.result.items || [];
+
+                    for (const list of taskLists) {
+                        const tasksResponse = await gapi.client.tasks.tasks.list({
+                            tasklist: list.id,
+                            showCompleted: true,
+                            dueMin: startOfMonth.toISOString(),
+                            dueMax: endOfMonth.toISOString(),
+                            maxResults: 100
+                        });
+
+                        const gTasks = tasksResponse.result.items || [];
+                        gTasks.forEach(task => {
+                            if (!task.due) return;
+                            
+                            // Format task timestamp (RFC 3339) down to standard calendar date key
+                            const dateStr = task.due.substring(0, 10);
+                            if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
+
+                            const isDuplicate = googleEvents[dateStr].some(existing => existing.id === task.id);
+                            if (!isDuplicate) {
+                                googleEvents[dateStr].push({
+                                    id: task.id,
+                                    title: `📋 ${task.title || '(No Task Name)'}`,
+                                    description: task.notes || '',
+                                    source: 'google_task',
+                                    taskListId: list.id
+                                });
+                            }
+                        });
+                    }
+                } catch (taskErr) {
+                    console.error("Could not complete Tasks database download loop:", taskErr);
                 }
 
                 localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
                 syncBtn.textContent = "Synced ✓";
                 renderGrid();
             } catch (err) {
-                console.error("Error communicating with Google Calendar lists: ", err);
+                console.error("Master Google sync execution failed: ", err);
                 syncBtn.textContent = "Sync Failed";
             }
         }
@@ -644,7 +701,12 @@
 
         function appendEventItemElement(parentContainer, ev, dateKey) {
             const evEl = document.createElement('div');
-            evEl.className = `event-item ${ev.source === 'google' ? 'google-sync' : ''}`;
+            
+            let customClass = '';
+            if (ev.source === 'google') customClass = 'google-sync';
+            if (ev.source === 'google_task') customClass = 'google-task';
+            
+            evEl.className = `event-item ${customClass}`;
             evEl.textContent = ev.title;
             evEl.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -701,12 +763,19 @@
             eventModal.classList.add('active');
 
             if (eventObj) {
-                modalTitle.textContent = eventObj.source === 'google' ? "Edit Google Calendar Item" : "Edit Event";
+                if (eventObj.source === 'google') {
+                    modalTitle.textContent = "Edit Google Event";
+                } else if (eventObj.source === 'google_task') {
+                    modalTitle.textContent = "Edit Google Task";
+                } else {
+                    modalTitle.textContent = "Edit Event";
+                }
+                
                 eventIdInput.value = eventObj.id;
                 eventSourceInput.value = eventObj.source;
-                eventTitleInput.value = eventObj.title.replace('⚡ ', '');
+                eventTitleInput.value = eventObj.title.replace('⚡ ', '').replace('📋 ', '');
                 eventDescInput.value = eventObj.description || '';
-                destinationSelectorGroup.style.display = 'none'; // Lock workspace selection on edit
+                destinationSelectorGroup.style.display = 'none'; 
                 
                 saveEventBtn.style.display = 'block';
                 deleteEventBtn.style.display = 'block';
@@ -728,7 +797,7 @@
 
         async function saveEvent() {
             const dateKey = eventDateInput.value;
-            const id = eventIdInput.value;
+            const id = idText = eventIdInput.value;
             const title = eventTitleInput.value.trim();
             const description = eventDescInput.value.trim();
             const source = eventSourceInput.value;
@@ -738,14 +807,8 @@
 
             saveEventBtn.textContent = "Saving...";
 
-            // Case A: Work with Google Live Endpoints
+            // Case A: Push to Google Events
             if (source === 'google' || (id === '' && targetDestination === 'google')) {
-                if (!googleAccessToken) {
-                    alert("Please authorize your Google Sync connection first!");
-                    saveEventBtn.textContent = "Save";
-                    return;
-                }
-
                 const resourceObj = {
                     summary: title,
                     description: description,
@@ -755,13 +818,11 @@
 
                 try {
                     if (id) {
-                        // Find calendar context identifier or default back to master list
                         let foundCalId = 'primary';
                         if (googleEvents[dateKey]) {
                             const match = googleEvents[dateKey].find(e => e.id === id);
                             if (match && match.calendarId) foundCalId = match.calendarId;
                         }
-
                         await gapi.client.calendar.events.update({
                             calendarId: foundCalId,
                             eventId: id,
@@ -776,10 +837,48 @@
                     await fetchGoogleCalendarEvents();
                 } catch (err) {
                     console.error("Cloud push failed:", err);
-                    alert("Failed to write event updates to Google Calendar.");
                 }
-            } else {
-                // Case B: Handle Offline Local Sync
+            } 
+            // Case B: Push to Google Tasks Workspace
+            else if (source === 'google_task' || (id === '' && targetDestination === 'google_task')) {
+                try {
+                    // Pull master list identifier to store the task item cleanly
+                    const listsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 1 });
+                    const defaultListId = listsResponse.result.items[0].id;
+                    
+                    // Tasks API dates expect fully padded UTC timestamp format strings
+                    const rfcTimestamp = new Date(dateKey).toISOString();
+
+                    const taskResource = {
+                        title: title,
+                        notes: description,
+                        due: rfcTimestamp
+                    };
+
+                    if (id) {
+                        let foundListId = defaultListId;
+                        if (googleEvents[dateKey]) {
+                            const match = googleEvents[dateKey].find(e => e.id === id);
+                            if (match && match.taskListId) foundListId = match.taskListId;
+                        }
+                        await gapi.client.tasks.tasks.update({
+                            tasklist: foundListId,
+                            task: id,
+                            resource: { id: id, ...taskResource }
+                        });
+                    } else {
+                        await gapi.client.tasks.tasks.insert({
+                            tasklist: defaultListId,
+                            resource: taskResource
+                        });
+                    }
+                    await fetchGoogleCalendarEvents();
+                } catch (taskErr) {
+                    console.error("Tasks API write operation aborted:", taskErr);
+                }
+            } 
+            // Case C: Offline Storage Target
+            else {
                 if (!events[dateKey]) events[dateKey] = [];
 
                 if (id) {
@@ -810,16 +909,23 @@
                     const match = googleEvents[dateKey].find(e => e.id === id);
                     if (match && match.calendarId) foundCalId = match.calendarId;
                 }
-
                 try {
-                    await gapi.client.calendar.events.delete({
-                        calendarId: foundCalId,
-                        eventId: id,
-                    });
+                    await gapi.client.calendar.events.delete({ calendarId: foundCalId, eventId: id });
                     await fetchGoogleCalendarEvents();
                 } catch (err) {
                     console.error("Cloud deletion failed:", err);
-                    alert("Could not remove event item from Google servers.");
+                }
+            } else if (source === 'google_task') {
+                let foundListId = 'primary';
+                if (googleEvents[dateKey]) {
+                    const match = googleEvents[dateKey].find(e => e.id === id);
+                    if (match && match.taskListId) foundListId = match.taskListId;
+                }
+                try {
+                    await gapi.client.tasks.tasks.delete({ tasklist: foundListId, task: id });
+                    await fetchGoogleCalendarEvents();
+                } catch (err) {
+                    console.error("Tasks cloud deletion failed:", err);
                 }
             } else {
                 if (events[dateKey]) {
