@@ -275,7 +275,7 @@
             max-height: 85px;
             border-radius: 4px;
             background-color: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(4px); /* Blur inside the local content row wrappers */
+            backdrop-filter: blur(4px); /* Isolated blur strictly behind added items */
             -webkit-backdrop-filter: blur(4px);
             padding: 2px;
         }
@@ -336,7 +336,7 @@
             max-width: 420px;
             padding: 24px;
             box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(16px); /* Blurs content beneath the popup module */
+            backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
         }
 
@@ -394,6 +394,7 @@
             </div>
 
             <div class="nav-buttons">
+                <!-- Background Image Slot Selector -->
                 <label for="bgImageInput" class="file-upload-label" title="Upload Custom Background">🖼️ Background</label>
                 <input type="file" id="bgImageInput" class="bg-input-hidden" accept="image/*">
 
@@ -556,7 +557,7 @@
                 gapiInited = true;
                 checkSyncButtonState();
             } catch(e) {
-                console.error("GAPI Client initialization failure payload:", e);
+                console.error("CRITICAL GAPI INIT FAILURE DETAILS:", e);
                 syncBtn.textContent = "Config Error";
             }
         }
@@ -648,7 +649,7 @@
                 }
 
                 try {
-                    const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 10 });
+                    const taskListsResponse = await gapi.client.tasks.tasklists.list({ maxResults: 1 });
                     const taskLists = taskListsResponse.result.items || [];
 
                     for (const list of taskLists) {
