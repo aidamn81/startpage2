@@ -394,6 +394,7 @@
             </div>
 
             <div class="nav-buttons">
+                <!-- Background Image Slot Selector -->
                 <label for="bgImageInput" class="file-upload-label" title="Upload Custom Background">🖼️ Background</label>
                 <input type="file" id="bgImageInput" class="bg-input-hidden" accept="image/*">
 
@@ -550,7 +551,11 @@
         function gapiLoad() { gapi.load('client', initializeGapiClient); }
         async function initializeGapiClient() {
             try {
-                await gapi.client.init({ apiKey: API_KEY });
+                /* REWIRED TO INCLUDE BOTH IDENTITY HOOKS ON INITIALIZATION PASS */
+                await gapi.client.init({ 
+                    apiKey: API_KEY,
+                    clientId: CLIENT_ID
+                });
                 await gapi.client.load(DISCOVERY_DOC_CALENDAR);
                 await gapi.client.load(DISCOVERY_DOC_TASKS);
                 gapiInited = true;
