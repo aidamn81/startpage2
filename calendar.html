@@ -322,7 +322,7 @@
             margin-bottom: 6px;
         }
 
-        .form-group input, .form-group textarea {
+        .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             background-color: var(--container-bg);
             border: 1px solid var(--border-color);
@@ -333,7 +333,7 @@
             font-size: 0.95rem;
         }
 
-        .form-group input:focus, .form-group textarea:focus {
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
             outline: 1px solid var(--accent-color);
         }
 
@@ -380,7 +380,16 @@
             <h3 class="modal-title" id="modalTitle">Manage Event</h3>
             <input type="hidden" id="eventDate">
             <input type="hidden" id="eventId">
+            <input type="hidden" id="eventSource">
             
+            <div class="form-group" id="destinationSelectorGroup">
+                <label for="eventDestination">Save Event To</label>
+                <select id="eventDestination">
+                    <option value="local">Local Memory Only (Offline)</option>
+                    <option value="google">Google Calendar (Cloud Sync)</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label for="eventTitle">Title</label>
                 <input type="text" id="eventTitle" placeholder="e.g., Performance Rehearsal">
@@ -406,7 +415,8 @@
         const CLIENT_ID = '742531361262-9a9u4aafopc14qa5jccste4j3htagvec.apps.googleusercontent.com'; 
         const API_KEY = 'AIzaSyDUp9V5jx0OeWp0mV5oLC7Gfu5m_qPK7AA';
         
-        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+        // Upgraded scope string to allow write access back to the server
+        const SCOPES = 'https://www.googleapis.com/auth/calendar';
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
 
         let tokenClient;
@@ -414,7 +424,6 @@
         let gisiInited = false;
         let googleAccessToken = null;
 
-        // Calendar Core State (Now loading pre-existing cached Google events directly)
         let currentDate = new Date();
         let events = JSON.parse(localStorage.getItem('local_calendar_events')) || {};
         let googleEvents = JSON.parse(localStorage.getItem('cached_google_events')) || {}; 
@@ -442,6 +451,9 @@
         const modalTitle = document.getElementById('modalTitle');
         const eventDateInput = document.getElementById('eventDate');
         const eventIdInput = document.getElementById('eventId');
+        const eventSourceInput = document.getElementById('eventSource');
+        const eventDestinationSelect = document.getElementById('eventDestination');
+        const destinationSelectorGroup = document.getElementById('destinationSelectorGroup');
         const eventTitleInput = document.getElementById('eventTitle');
         const eventDescInput = document.getElementById('eventDesc');
         const saveEventBtn = document.getElementById('saveEventBtn');
@@ -500,40 +512,59 @@
                 const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1);
                 const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
 
-                const response = await gapi.client.calendar.events.list({
-                    calendarId: 'primary',
-                    timeMin: startOfMonth.toISOString(),
-                    timeMax: endOfMonth.toISOString(),
-                    showDeleted: false,
-                    singleEvents: true,
-                    maxResults: 150,
-                    orderBy: 'startTime',
-                });
+                const calendarListResponse = await gapi.client.calendar.calendarList.list();
+                const calendarList = calendarListResponse.result.items || [];
 
-                const gEvents = response.result.items;
                 googleEvents = {}; 
 
-                gEvents.forEach(item => {
-                    const startRaw = item.start.dateTime || item.start.date;
-                    if (!startRaw) return;
-                    
-                    const dateStr = startRaw.substring(0, 10);
-                    
-                    if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
-                    googleEvents[dateStr].push({
-                        id: item.id,
-                        title: `⚡ ${item.summary || '(No Title)'}`,
-                        description: item.description || '',
-                        source: 'google'
-                    });
+                const targetCalendarIds = new Set(['primary']);
+                calendarList.forEach(cal => {
+                    if (cal.id) targetCalendarIds.add(cal.id);
                 });
 
-                // Commit the loaded google events to local storage so they remain on screen natively
+                for (const calId of targetCalendarIds) {
+                    try {
+                        const response = await gapi.client.calendar.events.list({
+                            calendarId: calId,
+                            timeMin: startOfMonth.toISOString(),
+                            timeMax: endOfMonth.toISOString(),
+                            showDeleted: false,
+                            singleEvents: true,
+                            maxResults: 100,
+                            orderBy: 'startTime',
+                        });
+
+                        const gEvents = response.result.items || [];
+
+                        gEvents.forEach(item => {
+                            const startRaw = item.start.dateTime || item.start.date;
+                            if (!startRaw) return;
+                            
+                            const dateStr = startRaw.substring(0, 10);
+                            
+                            if (!googleEvents[dateStr]) googleEvents[dateStr] = [];
+                            
+                            const isDuplicate = googleEvents[dateStr].some(existing => existing.id === item.id);
+                            if (!isDuplicate) {
+                                googleEvents[dateStr].push({
+                                    id: item.id,
+                                    title: `⚡ ${item.summary || '(No Title)'}`,
+                                    description: item.description || '',
+                                    source: 'google',
+                                    calendarId: calId // Keep reference for edit/deletions
+                                });
+                            }
+                        });
+                    } catch (innerErr) {
+                        console.warn(`Skipped sub-calendar feed query: ${calId}`, innerErr);
+                    }
+                }
+
                 localStorage.setItem('cached_google_events', JSON.stringify(googleEvents));
                 syncBtn.textContent = "Synced ✓";
                 renderGrid();
             } catch (err) {
-                console.error("Error communicating with Google Calendar: ", err);
+                console.error("Error communicating with Google Calendar lists: ", err);
                 syncBtn.textContent = "Sync Failed";
             }
         }
@@ -670,23 +701,24 @@
             eventModal.classList.add('active');
 
             if (eventObj) {
-                modalTitle.textContent = eventObj.source === 'google' ? "Google Calendar Item (Read-Only)" : "Edit Event";
+                modalTitle.textContent = eventObj.source === 'google' ? "Edit Google Calendar Item" : "Edit Event";
                 eventIdInput.value = eventObj.id;
+                eventSourceInput.value = eventObj.source;
                 eventTitleInput.value = eventObj.title.replace('⚡ ', '');
                 eventDescInput.value = eventObj.description || '';
+                destinationSelectorGroup.style.display = 'none'; // Lock workspace selection on edit
                 
-                if(eventObj.source === 'google') {
-                    saveEventBtn.style.display = 'none';
-                    deleteEventBtn.style.display = 'none';
-                } else {
-                    saveEventBtn.style.display = 'block';
-                    deleteEventBtn.style.display = 'block';
-                }
+                saveEventBtn.style.display = 'block';
+                deleteEventBtn.style.display = 'block';
             } else {
-                modalTitle.textContent = "Add Event";
+                modalTitle.textContent = "Add Event / Task";
                 eventIdInput.value = '';
+                eventSourceInput.value = 'local';
                 eventTitleInput.value = '';
                 eventDescInput.value = '';
+                destinationSelectorGroup.style.display = googleAccessToken ? 'block' : 'none';
+                eventDestinationSelect.value = 'local';
+                
                 saveEventBtn.style.display = 'block';
                 deleteEventBtn.style.display = 'none';
             }
@@ -694,36 +726,110 @@
 
         function closeModal() { eventModal.classList.remove('active'); }
 
-        function saveEvent() {
-            const dateKey = eventDateInput.value;
-            const id = eventIdInput.value || 'id_' + Date.now();
-            const title = eventTitleInput.value.trim();
-            const description = eventDescInput.value.trim();
-
-            if (!title) return;
-            if (!events[dateKey]) events[dateKey] = [];
-
-            if (eventIdInput.value) {
-                const idx = events[dateKey].findIndex(e => e.id === id);
-                if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description };
-            } else {
-                events[dateKey].push({ id, title, description, source: 'local' });
-            }
-            persistAndRefresh();
-        }
-
-        function deleteEvent() {
+        async function saveEvent() {
             const dateKey = eventDateInput.value;
             const id = eventIdInput.value;
-            if (events[dateKey]) {
-                events[dateKey] = events[dateKey].filter(e => e.id !== id);
-                if (events[dateKey].length === 0) delete events[dateKey];
+            const title = eventTitleInput.value.trim();
+            const description = eventDescInput.value.trim();
+            const source = eventSourceInput.value;
+            const targetDestination = eventDestinationSelect.value;
+
+            if (!title) return;
+
+            saveEventBtn.textContent = "Saving...";
+
+            // Case A: Work with Google Live Endpoints
+            if (source === 'google' || (id === '' && targetDestination === 'google')) {
+                if (!googleAccessToken) {
+                    alert("Please authorize your Google Sync connection first!");
+                    saveEventBtn.textContent = "Save";
+                    return;
+                }
+
+                const resourceObj = {
+                    summary: title,
+                    description: description,
+                    start: { date: dateKey },
+                    end: { date: dateKey }
+                };
+
+                try {
+                    if (id) {
+                        // Find calendar context identifier or default back to master list
+                        let foundCalId = 'primary';
+                        if (googleEvents[dateKey]) {
+                            const match = googleEvents[dateKey].find(e => e.id === id);
+                            if (match && match.calendarId) foundCalId = match.calendarId;
+                        }
+
+                        await gapi.client.calendar.events.update({
+                            calendarId: foundCalId,
+                            eventId: id,
+                            resource: resourceObj,
+                        });
+                    } else {
+                        await gapi.client.calendar.events.insert({
+                            calendarId: 'primary',
+                            resource: resourceObj,
+                        });
+                    }
+                    await fetchGoogleCalendarEvents();
+                } catch (err) {
+                    console.error("Cloud push failed:", err);
+                    alert("Failed to write event updates to Google Calendar.");
+                }
+            } else {
+                // Case B: Handle Offline Local Sync
+                if (!events[dateKey]) events[dateKey] = [];
+
+                if (id) {
+                    const idx = events[dateKey].findIndex(e => e.id === id);
+                    if (idx !== -1) events[dateKey][idx] = { ...events[dateKey][idx], title, description };
+                } else {
+                    events[dateKey].push({ id: 'id_' + Date.now(), title, description, source: 'local' });
+                }
+                localStorage.setItem('local_calendar_events', JSON.stringify(events));
             }
-            persistAndRefresh();
+
+            saveEventBtn.textContent = "Save";
+            closeModal();
+            renderGrid();
         }
 
-        function persistAndRefresh() {
-            localStorage.setItem('local_calendar_events', JSON.stringify(events));
+        async function deleteEvent() {
+            const dateKey = eventDateInput.value;
+            const id = eventIdInput.value;
+            const source = eventSourceInput.value;
+
+            if (!confirm("Are you sure you want to completely delete this item?")) return;
+            deleteEventBtn.textContent = "Deleting...";
+
+            if (source === 'google') {
+                let foundCalId = 'primary';
+                if (googleEvents[dateKey]) {
+                    const match = googleEvents[dateKey].find(e => e.id === id);
+                    if (match && match.calendarId) foundCalId = match.calendarId;
+                }
+
+                try {
+                    await gapi.client.calendar.events.delete({
+                        calendarId: foundCalId,
+                        eventId: id,
+                    });
+                    await fetchGoogleCalendarEvents();
+                } catch (err) {
+                    console.error("Cloud deletion failed:", err);
+                    alert("Could not remove event item from Google servers.");
+                }
+            } else {
+                if (events[dateKey]) {
+                    events[dateKey] = events[dateKey].filter(e => e.id !== id);
+                    if (events[dateKey].length === 0) delete events[dateKey];
+                }
+                localStorage.setItem('local_calendar_events', JSON.stringify(events));
+            }
+
+            deleteEventBtn.textContent = "Delete";
             closeModal();
             renderGrid();
         }
