@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Gothic Archive — Entry Protocol</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Archive Gate">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --obsidian: #050505; 
+            --crimson: #7a0000; 
+            --gold: #8c7340; 
+            --text: #a19a89; 
+        }
+        
+        html, body { 
+            width: 100%; 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+            background-color: var(--obsidian); 
+            color: var(--text); 
+            font-family: 'Playfair Display', serif; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            -webkit-user-select: none; 
+            user-select: none; 
+            touch-action: manipulation; 
+        }
+        
+        body { 
+            background-image: linear-gradient(rgba(0,0,0,0.98), rgba(0,0,0,0.98)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); 
+            background-attachment: fixed; 
+        }
+
+        .login-vault {
+            background: #0a0a0a;
+            border: 1px solid var(--gold);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 320px;
+            padding: 30px 24px;
+            box-sizing: border-box;
+            box-shadow: 0 15px 45px rgba(0, 0, 0, 0.95);
+            text-align: center;
+        }
+
+        .vault-header {
+            font-family: 'Cinzel', serif;
+            font-size: 0.95rem;
+            color: #fff;
+            letter-spacing: 2px;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+        }
+
+        .vault-header span {
+            display: block;
+            font-size: 0.6rem;
+            color: var(--gold);
+            margin-top: 6px;
+            letter-spacing: 1px;
+        }
+
+        .pass-input {
+            width: 100%;
+            background: #111;
+            border: 1px solid #252525;
+            color: #fff;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            letter-spacing: 4px;
+            text-align: center;
+            box-sizing: border-box;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .pass-input:focus {
+            border-color: var(--crimson);
+            box-shadow: 0 0 8px rgba(122, 0, 0, 0.4);
+        }
+
+        .ritual-submit {
+            width: 100%;
+            background: linear-gradient(to bottom, #5a0000, var(--crimson));
+            border: 1px solid var(--gold);
+            color: #fff;
+            padding: 12px;
+            font-family: 'Cinzel', serif;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-radius: 4px;
+            text-transform: uppercase;
+            transition: all 0.2s;
+        }
+
+        .ritual-submit:hover {
+            background: var(--crimson);
+            box-shadow: 0 0 12px rgba(122, 0, 0, 0.6);
+        }
+
+        .feedback-sigil {
+            font-family: 'Cinzel', serif;
+            font-size: 0.6rem;
+            color: var(--crimson);
+            margin-top: 14px;
+            letter-spacing: 1px;
+            visibility: hidden;
+            min-height: 12px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-vault">
+        <div class="vault-header">
+            Gothic Archive
+            <span>Provide the Key to Access the Core Vault</span>
+        </div>
+        
+        <form id="gateform" onsubmit="verifyKey(event)">
+            <input type="password" id="vault-key" class="pass-input" placeholder="••••••" autocomplete="current-password" required inputmode="numeric" pattern="[0-9]*">
+            <button type="submit" class="ritual-submit">Unlock Archive</button>
+        </form>
+        
+        <div id="error-msg" class="feedback-sigil">INVALID PASSKEY PASSED</div>
+    </div>
+
+    <script>
+        // Immediate focus on page spin-up
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('vault-key').focus();
+        });
+
+        function verifyKey(event) {
+            event.preventDefault();
+            const inputField = document.getElementById('vault-key');
+            const errorDisplay = document.getElementById('error-msg');
+            
+            // Explicit passkey authentication mapping
+            if (inputField.value === "198111") {
+                errorDisplay.style.visibility = "hidden";
+                // Transitioning seamlessly into the newly renamed main hub
+                window.location.href = "main.html";
+            } else {
+                errorDisplay.style.visibility = "visible";
+                inputField.value = "";
+                inputField.focus();
+                
+                // Shake effect fallback for wrong keys
+                const vault = document.querySelector('.login-vault');
+                vault.style.transform = "translateX(-6px)";
+                setTimeout(() => vault.style.transform = "translateX(6px)", 50);
+                setTimeout(() => vault.style.transform = "translateX(-3px)", 100);
+                setTimeout(() => vault.style.transform = "translateX(3px)", 150);
+                setTimeout(() => vault.style.transform = "translateX(0)", 200);
+            }
+        }
+    </script>
+</body>
+</html>
