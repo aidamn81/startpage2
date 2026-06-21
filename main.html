@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -30,23 +30,41 @@
         }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); background-attachment: fixed; }
         
-        /* Navigation: Responsive Flex Wrap */
+        /* Navigation: Clean Responsive Layout Matrix */
         #top-nav { 
-            position: fixed; top: 0; right: 0; left: 0; padding: 10px; 
-            display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; 
-            z-index: 4000; padding-top: env(safe-area-inset-top, 10px);
+            position: fixed; 
+            top: 0; 
+            right: 0; 
+            left: 0; 
+            padding: 12px; 
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: flex-end; 
+            align-items: center;
+            gap: 8px; 
+            z-index: 4000; 
+            padding-top: env(safe-area-inset-top, 12px);
+            background: rgba(5, 5, 5, 0.85);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(140, 115, 64, 0.15);
         }
         .nav-link { 
             background: transparent; border: 1px solid var(--gold); color: var(--gold); 
-            padding: 5px 8px; font-family: 'Cinzel'; font-size: 0.6rem; border-radius: 4px; 
+            padding: 6px 10px; font-family: 'Cinzel'; font-size: 0.65rem; border-radius: 4px; 
             cursor: pointer; text-decoration: none; text-transform: uppercase; 
             display: inline-flex; align-items: center; justify-content: center;
             white-space: nowrap;
+            transition: background 0.2s, color 0.2s;
+        }
+        .nav-link:hover {
+            background: rgba(122, 0, 0, 0.2);
+            color: #fff;
         }
 
         #status-display { position: fixed; bottom: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.7rem; z-index: 3000; pointer-events: none; }
         
-        #archive-grid { position: relative; width: 100%; min-height: 100vh; padding-top: 80px; padding-bottom: 50px; box-sizing: border-box; }
+        #archive-grid { position: relative; width: 100%; min-height: 100vh; padding-top: 110px; padding-bottom: 50px; box-sizing: border-box; }
         
         .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
         .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); width: 100%; aspect-ratio: 1/1; }
@@ -65,6 +83,23 @@
         
         #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 160px; }
         .menu-item { padding: 8px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
+
+        /* Media Query Optimization for Mobile Screens */
+        @media (max-width: 600px) {
+            #top-nav {
+                justify-content: center;
+                padding: 8px;
+                gap: 5px;
+            }
+            .nav-link {
+                padding: 5px 7px;
+                font-size: 0.58rem;
+                flex-grow: 1;
+            }
+            #archive-grid {
+                padding-top: 150px;
+            }
+        }
     </style>
 </head>
 <body onclick="closeModals(); closeMenu();">
@@ -164,165 +199,6 @@
             alert(`${pct}% of ${amt} is: ${delta.toFixed(2)}\n\nMinus deduction: ${(amt - delta).toFixed(2)}\nPlus addition: ${(amt + delta).toFixed(2)}`);
             closeModals();
         }
-    </script>
-</body>
-</html>
-!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>The Gothic Archive</title>
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Gothic Archive">
-    <meta name="mobile-web-app-capable" content="yes">
-
-    <link rel="apple-touch-icon" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="icon" type="image/png" sizes="192x192" href="https://r.jina.ai/i/656121408801402998a44b9ef40f80bc">
-    <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Gothic%20Archive%22,%22short_name%22:%22Archive%22,%22icons%22:[{%22src%22:%22https://r.jina.ai/i/656121408801402998a44b9ef40f80bc%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22}],%22start_url%22:%22.%22,%22display%22:%22standalone%22,%22background_color%22:%22%23050505%22}">
-
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Playfair+Display&display=swap" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
-    <style>
-        :root { --obsidian: #050505; --crimson: #7a0000; --gold: #8c7340; --text: #a19a89; --base-size: 85px; }
-        
-        html, body { 
-            width: 100%; min-height: 100%; margin: 0; padding: 0; background-color: var(--obsidian); 
-            color: var(--text); font-family: 'Playfair Display', serif; overflow-x: hidden;
-            -webkit-user-select: none; user-select: none; touch-action: manipulation; 
-        }
-        body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); background-attachment: fixed; }
-        
-        /* Navigation: Responsive Flex Wrap */
-        #top-nav { 
-            position: fixed; top: 0; right: 0; left: 0; padding: 10px; 
-            display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; 
-            z-index: 4000; padding-top: env(safe-area-inset-top, 10px);
-        }
-        .nav-link { 
-            background: transparent; border: 1px solid var(--gold); color: var(--gold); 
-            padding: 5px 8px; font-family: 'Cinzel'; font-size: 0.6rem; border-radius: 4px; 
-            cursor: pointer; text-decoration: none; text-transform: uppercase; 
-            display: inline-flex; align-items: center; justify-content: center;
-            white-space: nowrap;
-        }
-
-        #status-display { position: fixed; bottom: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.7rem; z-index: 3000; pointer-events: none; }
-        
-        #archive-grid { position: relative; width: 100%; min-height: 100vh; padding-top: 80px; padding-bottom: 50px; box-sizing: border-box; }
-        
-        .relic-wrapper { position: absolute; display: flex; flex-direction: column; align-items: center; cursor: pointer; z-index: 10; touch-action: none; width: var(--base-size); }
-        .relic-frame, .folder-frame { border-radius: 15%; overflow: hidden; background: #111; border: 1.5px solid var(--crimson); position: relative; box-shadow: 0 4px 8px rgba(0,0,0,0.6); width: 100%; aspect-ratio: 1/1; }
-        .relic-frame img, .folder-frame img { width: 100%; height: 100%; object-fit: cover; }
-        .relic-name { margin-top: 5px; font-family: 'Cinzel'; font-size: 0.5rem; color: #fff; text-align: center; width: 120%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        
-        .resize-handle { position: absolute; bottom: -4px; right: -4px; width: 24px; height: 24px; background: var(--gold); border-radius: 50%; z-index: 50; display: none; border: 2px solid #000; cursor: se-resize; }
-        body.is-editing .resize-handle { display: block; }
-        .dragging { opacity: 0.6; z-index: 5000 !important; }
-        
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
-        .modal-content { background: #0a0a0a; border: 1px solid var(--gold); border-radius: 8px; width: 90%; max-width: 300px; padding: 20px; position: relative; }
-        .close-ritual { position: absolute; top: 10px; right: 10px; color: var(--gold); font-family: 'Cinzel'; font-size: 0.7rem; cursor: pointer; border: 1px solid var(--gold); padding: 2px 6px; }
-        .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
-        .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 10px; font-family: 'Cinzel'; cursor: pointer; }
-        
-        #context-menu { position: fixed; display: none; background: #0a0a0a; border: 1px solid var(--gold); z-index: 6000; width: 160px; }
-        .menu-item { padding: 8px; color: var(--gold); font-family: 'Cinzel'; border-bottom: 1px solid #1a1a1a; cursor: pointer; text-align: center; font-size: 0.7rem; }
-    </style>
-</head>
-<body onclick="closeModals(); closeMenu();">
-
-    <div id="status-display">GOTHIC ARCHIVE</div>
-    
-    <nav id="top-nav">
-        <button id="back-btn" class="nav-link" onclick="goBack()" style="display:none;">← BACK</button>
-        <a href="oracle.html" class="nav-link">ORACLE</a>
-        <a href="travel.html" class="nav-link">TRAVEL</a>
-        <a href="accom.html" class="nav-link">ACCOMODATION</a>
-        <a href="https://perchance.org/ai-character-generator" class="nav-link" target="_blank" rel="noopener noreferrer">IMAGE</a>
-        <a href="https://www.iobit.com/en/ai-photo-editor-free.php" class="nav-link" target="_blank" rel="noopener noreferrer">IMG EDITING</a>
-        <button class="nav-link" onclick="event.stopPropagation(); showCalc()">%</button>
-        <button id="summon-nav-btn" class="nav-link" onclick="event.stopPropagation(); showSummon()">+</button>
-        <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
-    </nav>
-
-    <main id="archive-grid"></main>
-
-    <div id="calc-modal" class="modal-overlay" onclick="event.stopPropagation()"><div class="modal-content"><div class="close-ritual" onclick="closeModals()">X</div><input type="number" id="calc-amount" class="modal-input" placeholder="Amount"><input type="number" id="calc-percent" class="modal-input" value="20"><button class="ritual-btn" onclick="runCalcRitual()">CALCULATE</button></div></div>
-    
-    <div id="summon-modal" class="modal-overlay" onclick="event.stopPropagation()">
-        <div class="modal-content">
-            <div class="close-ritual" onclick="closeModals()">X</div>
-            <input type="text" id="sum-name" class="modal-input" placeholder="Name">
-            <input type="text" id="sum-url" class="modal-input" placeholder="URL">
-            <select id="sum-type" class="modal-input"><option value="relic">Relic</option><option value="folder">Folder</option></select>
-            <input type="file" id="sum-file" class="modal-input" accept="image/*">
-            <button class="ritual-btn" onclick="runSummonRitual()">SUMMON</button>
-        </div>
-    </div>
-    
-    <div id="context-menu" onclick="event.stopPropagation()">
-        <div class="menu-item" onclick="menuRename()">Rename</div>
-        <div id="menu-url-opt" class="menu-item" onclick="menuChangeUrl()">URL</div>
-        <div class="menu-item" onclick="document.getElementById('img-swap').click()">Img</div>
-        <div class="menu-item" onclick="toggleMoveMenu()">Move</div>
-        <div id="move-sub-menu" style="display:none;"></div>
-        <div class="menu-item" onclick="menuDelete()" style="color:var(--crimson)">Banish</div>
-    </div>
-    <input type="file" id="img-swap" style="display:none" onchange="swapImage(this)" accept="image/*">
-
-    <script>
-        const firebaseConfig = { apiKey: "AIzaSyAuNbY1Xv_ZF3kJah20qqPBz-IiiMAR9gE", authDomain: "aidenstartpage.firebaseapp.com", databaseURL: "https://aidenstartpage-default-rtdb.europe-west1.firebasedatabase.app", projectId: "aidenstartpage" };
-        firebase.initializeApp(firebaseConfig);
-        const rtdb = firebase.database();
-        let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragEl = null, startX, startY, initialX, initialY, hasMoved = false;
-
-        rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; render(); });
-
-        function render() {
-            const grid = document.getElementById('archive-grid');
-            grid.innerHTML = '';
-            document.body.classList.toggle('is-editing', isEditMode);
-            document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
-            document.getElementById('summon-nav-btn').style.display = isEditMode ? "inline-flex" : "none";
-
-            Object.entries(allRelics).filter(([id, r]) => (r.parent || 'root') === currentFolder).forEach(([id, r], index) => {
-                const wrap = document.createElement('div');
-                wrap.className = 'relic-wrapper';
-                const layout = (r.layouts && r.layouts.desktop) || {vx: (index%4)*25, vy: Math.floor(index/4)*25};
-                wrap.style.left = layout.vx + '%'; wrap.style.top = (layout.vy+10) + '%';
-                wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}"><img src="${r.imgUrl || ''}"></div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
-                
-                wrap.onpointerdown = (e) => {
-                    if (isEditMode) { activeMenuId = id; dragEl = wrap; startX = e.clientX; startY = e.clientY; initialX = wrap.offsetLeft; initialY = wrap.offsetTop; wrap.setPointerCapture(e.pointerId); }
-                };
-                wrap.onpointermove = (e) => { if (dragEl) { wrap.style.left = (initialX + (e.clientX - startX)) + 'px'; wrap.style.top = (initialY + (e.clientY - startY)) + 'px'; } };
-                wrap.onpointerup = (e) => {
-                    if (dragEl) { rtdb.ref(`relics/${id}/layouts/desktop`).update({vx: (wrap.offsetLeft/window.innerWidth)*100, vy: (wrap.offsetTop/window.innerHeight)*100}); dragEl = null; }
-                    else if (!isEditMode) { if (r.type === 'folder') enterFolder(id, r.name); else if (r.url) window.open(r.url, '_blank'); }
-                };
-                grid.appendChild(wrap);
-            });
-        }
-        function toggleEdit() { isEditMode = !isEditMode; render(); }
-        function enterFolder(id, name) { currentFolder = id; document.getElementById('status-display').innerText = name.toUpperCase(); document.getElementById('back-btn').style.display = 'inline-block'; render(); }
-        function goBack() { currentFolder = 'root'; document.getElementById('status-display').innerText = "GOTHIC ARCHIVE"; document.getElementById('back-btn').style.display = 'none'; render(); }
-        function showCalc() { document.getElementById('calc-modal').style.display = 'flex'; }
-        function showSummon() { document.getElementById('summon-modal').style.display = 'flex'; }
-        function closeModals() { document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none'); }
-        function closeMenu() { document.getElementById('context-menu').style.display = 'none'; }
-        function runSummonRitual() { const name = document.getElementById('sum-name').value; rtdb.ref('relics').push({name, parent: currentFolder, type: document.getElementById('sum-type').value, url: document.getElementById('sum-url').value, imgUrl: ""}); closeModals(); }
-        function menuDelete() { rtdb.ref(`relics/${activeMenuId}`).remove(); closeMenu(); }
-        function menuRename() { const n = prompt("New Name:", allRelics[activeMenuId].name); if(n) rtdb.ref(`relics/${activeMenuId}`).update({name: n}); closeMenu(); }
-        function menuChangeUrl() { const u = prompt("URL:", allRelics[activeMenuId].url || ""); if(u) rtdb.ref(`relics/${activeMenuId}`).update({url: u}); closeMenu(); }
-        function swapImage(input) { if(input.files[0]) { const r = new FileReader(); r.onload = (e) => rtdb.ref(`relics/${activeMenuId}`).update({imgUrl: e.target.result}); r.readAsDataURL(input.files[0]); } closeMenu(); }
     </script>
 </body>
 </html>
