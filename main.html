@@ -30,7 +30,7 @@
         }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); background-attachment: fixed; }
         
-        /* Navigation: Doubled Layout Engine */
+        /* Centered Top Menu Layout Engine from image.png */
         #top-nav { 
             position: fixed; 
             top: 0; 
@@ -39,7 +39,7 @@
             padding: 16px; 
             display: flex; 
             flex-wrap: wrap; 
-            justify-content: flex-end; 
+            justify-content: center; 
             align-items: center;
             gap: 12px; 
             z-index: 4000; 
@@ -65,14 +65,14 @@
 
         #status-display { position: fixed; bottom: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.7rem; z-index: 3000; pointer-events: none; }
         
-        /* Hazy, Frosted Glass Widget Platform Container */
+        /* Narrow Frosted Glass Container matching image.png with Auto-Expansion */
         #archive-grid { 
             position: relative; 
             width: 94%; 
             max-width: 1400px;
-            min-height: 400px;
-            height: 600px; 
-            margin: 180px auto 50px auto;
+            min-height: 180px;
+            height: auto; 
+            margin: 140px auto 50px auto;
             padding: 30px; 
             box-sizing: border-box; 
             background: rgba(15, 15, 15, 0.65); 
@@ -105,7 +105,7 @@
             box-shadow: 0 0 20px rgba(122, 0, 0, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.6);
         }
 
-        /* Fluid/Flexible Element Architectures */
+        /* Fluid Elements Architecture */
         .relic-wrapper { 
             position: absolute; 
             display: flex; 
@@ -130,7 +130,7 @@
         .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
         .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 10px; font-family: 'Cinzel'; cursor: pointer; }
         
-        /* Pop-Up Modal Style Architecture */
+        /* Popup Interface Context Menus */
         #context-menu { 
             position: fixed; 
             display: none; 
@@ -188,7 +188,7 @@
                 border-width: 1.5px;
             }
             #archive-grid {
-                margin-top: 260px;
+                margin-top: 240px;
                 width: 96%;
             }
         }
@@ -253,7 +253,7 @@
             const grid = document.getElementById('archive-grid');
             if (size) {
                 if (size.width) grid.style.width = size.width;
-                if (size.height) grid.style.height = size.height;
+                if (size.height && size.height !== 'auto') grid.style.minHeight = size.height;
             }
         });
 
@@ -278,14 +278,14 @@
             const currentW = pStartWidth + (e.clientX - pStartX);
             const currentH = pStartHeight + (e.clientY - pStartY);
             if (currentW > 280) gridElement.style.width = currentW + 'px';
-            if (currentH > 200) gridElement.style.height = currentH + 'px';
+            if (currentH > 120) gridElement.style.minHeight = currentH + 'px';
         };
 
         platformResizeHandle.onpointerup = (e) => {
             if (!isResizingPlatform) return;
             isResizingPlatform = false;
             platformResizeHandle.releasePointerCapture(e.pointerId);
-            rtdb.ref('settings/platform_size').update({ width: gridElement.style.width, height: gridElement.style.height });
+            rtdb.ref('settings/platform_size').update({ width: gridElement.style.width, height: gridElement.style.minHeight });
         };
 
         function render() {
@@ -302,7 +302,7 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 
-                const layout = (r.layouts && r.layouts.desktop) || {vx: (index % 4) * 22 + 4, vy: Math.floor(index / 4) * 22 + 4};
+                const layout = (r.layouts && r.layouts.desktop) || {vx: (index % 8) * 11 + 2, vy: Math.floor(index / 8) * 22 + 4};
                 wrap.style.left = layout.vx + '%'; 
                 wrap.style.top = layout.vy + '%';
                 
@@ -310,7 +310,6 @@
                 
                 wrap.onpointerdown = (e) => {
                     const now = Date.now();
-                    // Intercept and map double tap triggers on editing platform
                     if (isEditMode && (now - lastTap < 300)) {
                         e.stopPropagation();
                         e.preventDefault();
@@ -373,17 +372,14 @@
                 subMenu.style.display = 'none';
                 return;
             }
-            
             subMenu.innerHTML = '';
             
-            // Core main.html level navigation option
             const rootOpt = document.createElement('div');
             rootOpt.className = 'sub-menu-item';
             rootOpt.innerText = '📁 Main Vault (Root)';
             rootOpt.onclick = () => moveRelicToFolder('root');
             subMenu.appendChild(rootOpt);
 
-            // Filter all folders stored inside the db to produce destination arrays
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
                     const fOpt = document.createElement('div');
