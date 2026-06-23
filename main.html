@@ -30,7 +30,7 @@
         }
         body { background-image: linear-gradient(rgba(0,0,0,0.97), rgba(0,0,0,0.97)), url('https://www.transparenttextures.com/patterns/dark-brick-wall.png'); background-attachment: fixed; }
         
-        /* Centered Top Menu Layout Engine from image.png */
+        /* Navigation: Doubled Layout Engine */
         #top-nav { 
             position: fixed; 
             top: 0; 
@@ -39,7 +39,7 @@
             padding: 16px; 
             display: flex; 
             flex-wrap: wrap; 
-            justify-content: center; 
+            justify-content: flex-end; 
             align-items: center;
             gap: 12px; 
             z-index: 4000; 
@@ -65,14 +65,14 @@
 
         #status-display { position: fixed; bottom: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.7rem; z-index: 3000; pointer-events: none; }
         
-        /* Narrow Frosted Glass Container matching image.png with Auto-Expansion */
+        /* Hazy, Frosted Glass Widget Platform Container */
         #archive-grid { 
             position: relative; 
             width: 94%; 
             max-width: 1400px;
-            min-height: 180px;
-            height: auto; 
-            margin: 140px auto 50px auto;
+            min-height: 400px;
+            height: 600px; 
+            margin: 180px auto 50px auto;
             padding: 30px; 
             box-sizing: border-box; 
             background: rgba(15, 15, 15, 0.65); 
@@ -81,7 +81,8 @@
             box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6), 0 25px 55px rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(16px) saturate(120%); 
             -webkit-backdrop-filter: blur(16px) saturate(120%);
-            overflow: visible;
+            /* Prevents elements from hanging out */
+            overflow: hidden; 
         }
 
         /* Platform Container Global Resize Handle */
@@ -105,7 +106,7 @@
             box-shadow: 0 0 20px rgba(122, 0, 0, 0.3), inset 0 0 30px rgba(0, 0, 0, 0.6);
         }
 
-        /* Fluid Elements Architecture */
+        /* Fluid/Flexible Element Architectures */
         .relic-wrapper { 
             position: absolute; 
             display: flex; 
@@ -130,7 +131,7 @@
         .modal-input { width: 100%; background: #111; border: 1px solid #333; color: #fff; padding: 10px; margin-bottom: 10px; box-sizing: border-box; }
         .ritual-btn { width: 100%; background: var(--crimson); color: #fff; border: none; padding: 10px; font-family: 'Cinzel'; cursor: pointer; }
         
-        /* Popup Interface Context Menus */
+        /* Pop-Up Modal Style Architecture */
         #context-menu { 
             position: fixed; 
             display: none; 
@@ -188,7 +189,7 @@
                 border-width: 1.5px;
             }
             #archive-grid {
-                margin-top: 240px;
+                margin-top: 260px;
                 width: 96%;
             }
         }
@@ -211,7 +212,6 @@
         <button id="edit-toggle" class="nav-link" onclick="event.stopPropagation(); toggleEdit()">EDIT</button>
     </nav>
 
-    <!-- Glass Widget Container Panel -->
     <main id="archive-grid">
         <div id="platform-resize-handle"></div>
     </main>
@@ -229,7 +229,6 @@
         </div>
     </div>
     
-    <!-- Pop-Up Architecture Interface Menu -->
     <div id="context-menu" onclick="event.stopPropagation()">
         <div class="menu-item" onclick="menuRename()">Rename</div>
         <div class="menu-item" onclick="document.getElementById('img-swap').click()">Change Image</div>
@@ -253,7 +252,7 @@
             const grid = document.getElementById('archive-grid');
             if (size) {
                 if (size.width) grid.style.width = size.width;
-                if (size.height && size.height !== 'auto') grid.style.minHeight = size.height;
+                if (size.height) grid.style.height = size.height;
             }
         });
 
@@ -278,14 +277,14 @@
             const currentW = pStartWidth + (e.clientX - pStartX);
             const currentH = pStartHeight + (e.clientY - pStartY);
             if (currentW > 280) gridElement.style.width = currentW + 'px';
-            if (currentH > 120) gridElement.style.minHeight = currentH + 'px';
+            if (currentH > 200) gridElement.style.height = currentH + 'px';
         };
 
         platformResizeHandle.onpointerup = (e) => {
             if (!isResizingPlatform) return;
             isResizingPlatform = false;
             platformResizeHandle.releasePointerCapture(e.pointerId);
-            rtdb.ref('settings/platform_size').update({ width: gridElement.style.width, height: gridElement.style.minHeight });
+            rtdb.ref('settings/platform_size').update({ width: gridElement.style.width, height: gridElement.style.height });
         };
 
         function render() {
@@ -302,14 +301,21 @@
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
                 
-                const layout = (r.layouts && r.layouts.desktop) || {vx: (index % 8) * 11 + 2, vy: Math.floor(index / 8) * 22 + 4};
-                wrap.style.left = layout.vx + '%'; 
-                wrap.style.top = layout.vy + '%';
+                // Fallback positions should stay within the grid
+                const layout = (r.layouts && r.layouts.desktop) || {vx: (index % 4) * 22 + 4, vy: Math.floor(index / 4) * 22 + 4};
+                
+                // Keep loaded positions within bounds (0 to 100%)
+                const vx = Math.max(0, Math.min(100, layout.vx));
+                const vy = Math.max(0, Math.min(100, layout.vy));
+
+                wrap.style.left = vx + '%'; 
+                wrap.style.top = vy + '%';
                 
                 wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}"><img src="${r.imgUrl || ''}"></div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
                 
                 wrap.onpointerdown = (e) => {
                     const now = Date.now();
+                    // Intercept and map double tap triggers on editing platform
                     if (isEditMode && (now - lastTap < 300)) {
                         e.stopPropagation();
                         e.preventDefault();
@@ -343,8 +349,19 @@
                 wrap.onpointerup = (e) => {
                     if (dragEl && dragEl === wrap) { 
                         wrap.classList.remove('dragging');
-                        const finalVx = (wrap.offsetLeft / grid.offsetWidth) * 100;
-                        const finalVy = (wrap.offsetTop / grid.offsetHeight) * 100;
+                        
+                        // Bound the dropped position within the grid before saving
+                        const leftPx = Math.max(0, Math.min(grid.offsetWidth - wrap.offsetWidth, wrap.offsetLeft));
+                        const topPx = Math.max(0, Math.min(grid.offsetHeight - wrap.offsetHeight, wrap.offsetTop));
+
+                        // Convert pixel positions to percentages relative to grid size
+                        const finalVx = (leftPx / grid.offsetWidth) * 100;
+                        const finalVy = (topPx / grid.offsetHeight) * 100;
+
+                        // Visual feedback to show snapped position
+                        wrap.style.left = finalVx + '%';
+                        wrap.style.top = finalVy + '%';
+
                         rtdb.ref(`relics/${id}/layouts/desktop`).update({vx: finalVx, vy: finalVy}); 
                         dragEl = null; 
                     }
@@ -372,14 +389,17 @@
                 subMenu.style.display = 'none';
                 return;
             }
+            
             subMenu.innerHTML = '';
             
+            // Core main.html level navigation option
             const rootOpt = document.createElement('div');
             rootOpt.className = 'sub-menu-item';
             rootOpt.innerText = '📁 Main Vault (Root)';
             rootOpt.onclick = () => moveRelicToFolder('root');
             subMenu.appendChild(rootOpt);
 
+            // Filter all folders stored inside the db to produce destination arrays
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
                     const fOpt = document.createElement('div');
