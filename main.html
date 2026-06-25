@@ -65,24 +65,30 @@
 
         #status-display { position: fixed; bottom: 20px; left: 20px; font-family: 'Cinzel'; color: var(--gold); font-size: 0.7rem; z-index: 3000; pointer-events: none; }
         
-        /* Hazy, Frosted Glass Widget Platform Container */
+        /* Faded Grey Tone, Auto-Expanding CSS Grid Container with 3 Columns */
         #archive-grid { 
             position: relative; 
             width: 94%; 
             max-width: 1400px;
-            min-height: 400px;
-            height: 600px; 
             margin: 180px auto 50px auto;
             padding: 30px; 
             box-sizing: border-box; 
-            background: rgba(15, 15, 15, 0.65); 
+            background: rgba(40, 40, 40, 0.45); 
             border: 1.5px solid rgba(140, 115, 64, 0.35);
             border-radius: 14px;
             box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.6), 0 25px 55px rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(16px) saturate(120%); 
             -webkit-backdrop-filter: blur(16px) saturate(120%);
-            /* Prevents elements from hanging out */
-            overflow: hidden; 
+            
+            /* Structural alterations to force 3 wide column mechanics with auto-expansion */
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 40px 20px;
+            justify-items: center;
+            align-content: start;
+            min-height: 250px;
+            height: auto;
+            overflow: visible; 
         }
 
         /* Platform Container Global Resize Handle */
@@ -108,7 +114,7 @@
 
         /* Fluid/Flexible Element Architectures */
         .relic-wrapper { 
-            position: absolute; 
+            position: relative; 
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -191,6 +197,8 @@
             #archive-grid {
                 margin-top: 260px;
                 width: 96%;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 25px 10px;
             }
         }
     </style>
@@ -242,7 +250,7 @@
         firebase.initializeApp(firebaseConfig);
         const rtdb = firebase.database();
         let isEditMode = false, currentFolder = 'root', allRelics = {}, activeMenuId = null;
-        let dragEl = null, startX, startY, initialX, initialY, lastTap = 0;
+        let lastTap = 0;
 
         rtdb.ref('relics').on('value', snap => { allRelics = snap.val() || {}; render(); });
 
@@ -251,21 +259,18 @@
             const grid = document.getElementById('archive-grid');
             if (size) {
                 if (size.width) grid.style.width = size.width;
-                if (size.height) grid.style.height = size.height;
             }
         });
 
         const gridElement = document.getElementById('archive-grid');
         const platformResizeHandle = document.getElementById('platform-resize-handle');
-        let isResizingPlatform = false, pStartX, pStartY, pStartWidth, pStartHeight;
+        let isResizingPlatform = false, pStartX, pStartWidth;
 
         platformResizeHandle.onpointerdown = (e) => {
             if (!isEditMode) return;
             isResizingPlatform = true;
             pStartX = e.clientX;
-            pStartY = e.clientY;
             pStartWidth = gridElement.offsetWidth;
-            pStartHeight = gridElement.offsetHeight;
             platformResizeHandle.setPointerCapture(e.pointerId);
             e.stopPropagation();
             e.preventDefault();
@@ -274,16 +279,14 @@
         platformResizeHandle.onpointermove = (e) => {
             if (!isResizingPlatform) return;
             const currentW = pStartWidth + (e.clientX - pStartX);
-            const currentH = pStartHeight + (e.clientY - pStartY);
             if (currentW > 280) gridElement.style.width = currentW + 'px';
-            if (currentH > 200) gridElement.style.height = currentH + 'px';
         };
 
         platformResizeHandle.onpointerup = (e) => {
             if (!isResizingPlatform) return;
             isResizingPlatform = false;
             platformResizeHandle.releasePointerCapture(e.pointerId);
-            rtdb.ref('settings/platform_size').update({ width: gridElement.style.width, height: gridElement.style.height });
+            rtdb.ref('settings/platform_size').update({ width: gridElement.style.width });
         };
 
         function render() {
@@ -296,75 +299,32 @@
             document.getElementById('edit-toggle').innerText = isEditMode ? "LOCK" : "EDIT";
             document.getElementById('summon-nav-btn').style.display = isEditMode ? "inline-flex" : "none";
 
-            Object.entries(allRelics).filter(([id, r]) => (r.parent || 'root') === currentFolder).forEach(([id, r], index) => {
+            Object.entries(allRelics).filter(([id, r]) => (r.parent || 'root') === currentFolder).forEach(([id, r]) => {
                 const wrap = document.createElement('div');
                 wrap.className = 'relic-wrapper';
-                
-                // Fallback positions should stay within the grid
-                const layout = (r.layouts && r.layouts.desktop) || {vx: (index % 4) * 22 + 4, vy: Math.floor(index / 4) * 22 + 4};
-                
-                // Keep loaded positions within bounds (0 to 100%)
-                const vx = Math.max(0, Math.min(100, layout.vx));
-                const vy = Math.max(0, Math.min(100, layout.vy));
-
-                wrap.style.left = vx + '%'; 
-                wrap.style.top = vy + '%';
                 
                 wrap.innerHTML = `<div class="${r.type === 'folder' ? 'folder-frame' : 'relic-frame'}"><img src="${r.imgUrl || ''}"></div><span class="relic-name">${r.name}</span><div class="resize-handle"></div>`;
                 
                 wrap.onpointerdown = (e) => {
                     const now = Date.now();
-                    // Intercept and map double tap triggers on editing platform
+                    // Double click/tap trigger context architecture inside 3-row fluid workflow
                     if (isEditMode && (now - lastTap < 300)) {
                         e.stopPropagation();
                         e.preventDefault();
                         activeMenuId = id;
                         showContextMenu(e.clientX, e.clientY);
-                        dragEl = null;
                         return;
                     }
                     lastTap = now;
 
                     if (isEditMode) { 
                         activeMenuId = id; 
-                        dragEl = wrap; 
-                        startX = e.clientX; 
-                        startY = e.clientY; 
-                        initialX = wrap.offsetLeft; 
-                        initialY = wrap.offsetTop; 
-                        wrap.classList.add('dragging');
-                        wrap.setPointerCapture(e.pointerId); 
                         e.stopPropagation();
                     }
                 };
                 
-                wrap.onpointermove = (e) => { 
-                    if (dragEl && dragEl === wrap) { 
-                        wrap.style.left = (initialX + (e.clientX - startX)) + 'px'; 
-                        wrap.style.top = (initialY + (e.clientY - startY)) + 'px'; 
-                    } 
-                };
-                
                 wrap.onpointerup = (e) => {
-                    if (dragEl && dragEl === wrap) { 
-                        wrap.classList.remove('dragging');
-                        
-                        // Bound the dropped position within the grid before saving
-                        const leftPx = Math.max(0, Math.min(grid.offsetWidth - wrap.offsetWidth, wrap.offsetLeft));
-                        const topPx = Math.max(0, Math.min(grid.offsetHeight - wrap.offsetHeight, wrap.offsetTop));
-
-                        // Convert pixel positions to percentages relative to grid size
-                        const finalVx = (leftPx / grid.offsetWidth) * 100;
-                        const finalVy = (topPx / grid.offsetHeight) * 100;
-
-                        // Visual feedback to show snapped position
-                        wrap.style.left = finalVx + '%';
-                        wrap.style.top = finalVy + '%';
-
-                        rtdb.ref(`relics/${id}/layouts/desktop`).update({vx: finalVx, vy: finalVy}); 
-                        dragEl = null; 
-                    }
-                    else if (!isEditMode) { 
+                    if (!isEditMode) { 
                         if (r.type === 'folder') enterFolder(id, r.name); 
                         else if (r.url) window.open(r.url, '_blank'); 
                     }
@@ -391,14 +351,12 @@
             
             subMenu.innerHTML = '';
             
-            // Core main.html level navigation option
             const rootOpt = document.createElement('div');
             rootOpt.className = 'sub-menu-item';
             rootOpt.innerText = '📁 Main Vault (Root)';
             rootOpt.onclick = () => moveRelicToFolder('root');
             subMenu.appendChild(rootOpt);
 
-            // Filter all folders stored inside the db to produce destination arrays
             Object.entries(allRelics).forEach(([id, r]) => {
                 if (r.type === 'folder' && id !== activeMenuId) {
                     const fOpt = document.createElement('div');
