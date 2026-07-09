@@ -210,6 +210,7 @@
     <nav id="top-nav">
         <button id="back-btn" class="nav-link" onclick="goBack()" style="display:none;">← BACK</button>
         <a href="oracle.html" class="nav-link">ORACLE</a>
+        <a href="task.html" class="nav-link">TASK</a>
         <a href="calendar.html" class="nav-link">CALENDAR</a>
         <a href="travel.html" class="nav-link">TRAVEL</a>
         <a href="accom.html" class="nav-link">ACCOMODATION</a>
@@ -307,7 +308,6 @@
                 
                 wrap.onpointerdown = (e) => {
                     const now = Date.now();
-                    // Double click/tap trigger context architecture inside 3-row fluid workflow
                     if (isEditMode && (now - lastTap < 300)) {
                         e.stopPropagation();
                         e.preventDefault();
