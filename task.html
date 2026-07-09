@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ground Control: Dynamic Deck</title>
+    <title>Ground Control: Firebase Deck</title>
     <style>
         :root {
             --base-bg: #000000;
@@ -124,7 +124,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Dark styling override for native dark calendar prompt */
         input[type="datetime-local"] {
             color-scheme: dark;
         }
@@ -197,7 +196,7 @@
             border-top: 3px solid var(--neon-high);
             background: linear-gradient(180deg, rgba(255, 0, 128, 0.03) 0%, transparent 100%), var(--glass-bg);
         }
-        .task-card.p-high > .task-title {
+        .task-card.p-high > .inline-rename-input {
             font-size: 1.8rem;
             font-weight: 800;
             letter-spacing: -0.5px;
@@ -208,19 +207,18 @@
             padding: 22px 20px;
             border-top: 3px solid var(--neon-med);
         }
-        .task-card.p-medium > .task-title { font-size: 1.3rem; font-weight: 600; }
+        .task-card.p-medium > .inline-rename-input { font-size: 1.3rem; font-weight: 600; }
 
         .task-card.p-low {
             padding: 12px 15px;
             border-top: 2px solid var(--neon-low);
             opacity: 0.75;
         }
-        .task-card.p-low > .task-title { font-size: 0.95rem; font-weight: 400; }
+        .task-card.p-low > .inline-rename-input { font-size: 0.95rem; font-weight: 400; }
 
-        /* Dynamic inline input rename styling */
         .inline-rename-input {
-            background: rgba(0, 0, 0, 0.8) !important;
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            background: transparent !important;
+            border: 1px solid transparent !important;
             color: #fff !important;
             padding: 4px 8px !important;
             font-size: inherit !important;
@@ -228,6 +226,11 @@
             text-align: center !important;
             border-radius: 6px !important;
             width: 80% !important;
+            transition: all 0.2s ease;
+        }
+        .inline-rename-input:focus {
+            background: rgba(0, 0, 0, 0.8) !important;
+            border-color: rgba(255, 255, 255, 0.2) !important;
         }
 
         .task-meta {
@@ -238,13 +241,15 @@
             letter-spacing: 1px;
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
         }
         .p-low > .task-meta { display: none; }
 
         .reminder-tag {
             color: var(--neon-med);
             font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
         }
 
         .task-controls {
@@ -296,12 +301,16 @@
 
         .subtask-adder {
             display: flex;
+            flex-direction: column;
             gap: 8px;
             margin-bottom: 20px;
             width: 100%;
+            background: rgba(255, 255, 255, 0.01);
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
         }
         .subtask-adder input { padding: 10px; font-size: 0.9rem; border-radius: 8px; }
-        .subtask-adder button { width: auto; padding: 0 20px; border-radius: 8px; }
 
         .subtask-list {
             display: flex;
@@ -334,8 +343,7 @@
             gap: 15px;
         }
         .sub-title {
-            font-size: 1rem;
-            text-align: left;
+            text-align: left !important;
             flex: 1;
         }
         .sub-card.done .sub-title {
@@ -352,30 +360,42 @@
 
         .sub-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 6px;
             width: 100%;
             justify-content: center;
         }
         .sub-actions .control-btn, .sub-actions .mini-select {
-            padding: 4px 8px;
+            padding: 6px 10px;
             font-size: 0.75rem;
-            min-width: 65px;
+            min-width: 80px;
         }
     </style>
+
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
 <div class="workspace-container">
-    <header>// GROUND CONTROL // DECK STATUS</header>
+    <header>// GROUND CONTROL // DATABASE DECK</header>
     
     <div class="sync-banner">
-        <span class="sync-dot" id="syncIndicator"></span> <span id="syncText">Deck Live Connected</span>
+        <span class="sync-dot" id="syncIndicator"></span> <span id="syncText">Connecting to Firebase Grid...</span>
     </div>
 
     <div class="creator-card">
         <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
         <div class="input-row">
-            <input type="datetime-local" id="taskReminder" placeholder="Set Alert Timestamp">
+            <input type="datetime-local" id="taskReminder" placeholder="Set Alert Target">
+            <select id="taskInterval">
+                <option value="once">ONCE ONLY</option>
+                <option value="hourly">HOURLY LOOP</option>
+                <option value="daily">DAILY LOOP</option>
+                <option value="monthly">MONTHLY LOOP</option>
+            </select>
+        </div>
+        <div class="input-row">
             <select id="taskPriority">
                 <option value="high">HIGH PRIORITY</option>
                 <option value="medium" selected>MEDIUM PRIORITY</option>
@@ -401,68 +421,53 @@
 </div>
 
 <script>
-    const storeKey = 'adhd_nested_glass_v4';
-    
-    let state = {
-        tasks: JSON.parse(localStorage.getItem(storeKey)) || [
-            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', reminder: '', subs: [{id:'s1', title: 'Clean primary leads stems', priority: 'high', done: true}] }
-        ]
+    // Live User Firebase Configuration Setup
+    const firebaseConfig = {
+        apiKey: "AIzaSyAQSRSJC11L7n5zYivGAWKZosW-emSIaos",
+        authDomain: "paperlesscandy.firebaseapp.com",
+        projectId: "paperlesscandy",
+        storageBucket: "paperlesscandy.firebasestorage.app",
+        messagingSenderId: "231190762242",
+        appId: "1:231190762242:web:adc945167257b368eca81b"
     };
 
-    function setSyncState(isSyncing, text = "Deck Connected") {
+    // Initialize Client Connection
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database().ref('deck_workspace_v4');
+
+    let state = { tasks: [] };
+
+    function setSyncState(isSyncing, text = "Firebase Connected") {
         const indicator = document.getElementById('syncIndicator');
         const textField = document.getElementById('syncText');
         if(isSyncing) {
             indicator.classList.add('syncing');
-            textField.innerText = "Syncing Grid Cloud...";
+            textField.innerText = "Writing Matrix Cloud...";
         } else {
             indicator.classList.remove('syncing');
             textField.innerText = text;
         }
     }
 
-    async function pushToCloud() {
-        setSyncState(true);
-        localStorage.setItem(storeKey, JSON.stringify(state.tasks));
-        try {
-            await fetch('https://api.jsonbin.io/v3/b/66100527acd3cb34a83424cb', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': '$2a$10$W2G6X6bK0Ym7rV4j0X5a0.GkC1M09A9gVvJqH/7G5O79S9mX9x64q'
-                },
-                body: JSON.stringify(state.tasks)
-            });
-            setSyncState(false, "Deck Synced to Cloud");
-        } catch (e) {
-            setSyncState(false, "Local Mode Active");
-        }
-        renderBoard();
-    }
-
-    async function pullFromCloud() {
-        try {
-            const res = await fetch('https://api.jsonbin.io/v3/b/66100527acd3cb34a83424cb/latest', {
-                headers: { 'X-Master-Key': '$2a$10$W2G6X6bK0Ym7rV4j0X5a0.GkC1M09A9gVvJqH/7G5O79S9mX9x64q' }
-            });
-            const data = await res.json();
-            if (data.record && Array.isArray(data.record)) {
-                state.tasks = data.record;
-                localStorage.setItem(storeKey, JSON.stringify(state.tasks));
-                renderBoard();
-            }
-        } catch (e) {
-            console.log("Offline bypass active.");
-        }
-    }
-
     function saveState() {
-        pushToCloud();
+        setSyncState(true);
+        db.set(state.tasks)
+          .then(() => setSyncState(false, "Firebase Saved"))
+          .catch(() => setSyncState(false, "Write Error"));
     }
+
+    // Direct Sync Pipeline Realtime Listener
+    db.on('value', (snapshot) => {
+        const data = snapshot.val();
+        state.tasks = Array.isArray(data) ? data : [];
+        renderBoard();
+        setSyncState(false, "Grid Synchronized");
+    });
 
     function addNewTask() {
         const titleInput = document.getElementById('taskTitle');
         const reminderInput = document.getElementById('taskReminder');
+        const intervalInput = document.getElementById('taskInterval');
         if (!titleInput.value.trim()) return;
 
         state.tasks.push({
@@ -472,26 +477,40 @@
             type: document.getElementById('taskType').value,
             status: 'active',
             reminder: reminderInput.value,
+            interval: intervalInput.value,
             subs: []
         });
         titleInput.value = '';
         reminderInput.value = '';
+        intervalInput.value = 'once';
         saveState();
     }
 
     function addSubTask(taskId) {
         const input = document.getElementById(`sub-input-${taskId}`);
+        const remInput = document.getElementById(`sub-rem-${taskId}`);
+        const intInput = document.getElementById(`sub-int-${taskId}`);
+        const priInput = document.getElementById(`sub-pri-${taskId}`);
+        const typInput = document.getElementById(`sub-typ-${taskId}`);
+        
         if (!input || !input.value.trim()) return;
 
         const task = state.tasks.find(t => t.id === taskId);
         if (task) {
+            if(!task.subs) task.subs = [];
             task.subs.push({
                 id: 'sub-' + Date.now(),
                 title: input.value.trim(),
-                priority: 'medium',
+                priority: priInput.value,
+                type: typInput.value,
+                status: 'active',
+                reminder: remInput.value,
+                interval: intInput.value,
                 done: false
             });
             input.value = '';
+            remInput.value = '';
+            intInput.value = 'once';
             saveState();
         }
     }
@@ -508,7 +527,7 @@
     function renameSubTask(taskId, subId, newTitle) {
         if (!newTitle.trim()) return;
         const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
+        if (task && task.subs) {
             const sub = task.subs.find(s => s.id === subId);
             if (sub) {
                 sub.title = newTitle.trim();
@@ -527,7 +546,7 @@
 
     function changeSubPriority(taskId, subId, newPriority) {
         const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
+        if (task && task.subs) {
             const sub = task.subs.find(s => s.id === subId);
             if (sub) {
                 sub.priority = newPriority;
@@ -538,7 +557,7 @@
 
     function handleSubCompletion(taskId, subId, isChecked) {
         const task = state.tasks.find(t => t.id === taskId);
-        if (!task) return;
+        if (!task || !task.subs) return;
         const sub = task.subs.find(s => s.id === subId);
         if (!sub) return;
 
@@ -546,8 +565,15 @@
 
         if (isChecked) {
             setTimeout(() => {
-                if (confirm(`Subtask "${sub.title}" cleared.\n\nShould this asset be permanently deleted or kept inside the layout log?\n\nClick OK to DELETE, Cancel to Keep.`)) {
-                    task.subs = task.subs.filter(s => s.id !== subId);
+                if (sub.type === 'recurring') {
+                    sub.done = false;
+                    sub.status = 'active';
+                } else {
+                    if (confirm(`Subtask "${sub.title}" cleared.\n\nShould this asset be permanently deleted or kept inside layout history?\n\nClick OK to DELETE, Cancel to Keep.`)) {
+                        task.subs = task.subs.filter(s => s.id !== subId);
+                    } else {
+                        sub.status = 'postponed';
+                    }
                 }
                 saveState();
             }, 150);
@@ -559,7 +585,7 @@
     function banishSubTask(taskId, subId) {
         if (confirm("Are you certain you wish to delete this subtask?")) {
             const task = state.tasks.find(t => t.id === taskId);
-            if (task) {
+            if (task && task.subs) {
                 task.subs = task.subs.filter(s => s.id !== subId);
                 saveState();
             }
@@ -571,7 +597,7 @@
         if (!task) return;
 
         if (task.type === 'recurring') {
-            task.subs.forEach(s => s.done = false);
+            if (task.subs) task.subs.forEach(s => s.done = false);
             task.status = 'active';
             saveState();
         } else {
@@ -594,11 +620,34 @@
     function postponeTask(taskId) {
         const task = state.tasks.find(t => t.id === taskId);
         if (task) {
-            const targetTime = prompt("Set postponement date/time reminder:", task.reminder || "");
+            const targetTime = prompt("Set Postponed Date & Time (YYYY-MM-DDTHH:MM format):", task.reminder || "");
             if (targetTime !== null) {
                 task.reminder = targetTime;
+                const targetInterval = prompt("Update Recurrence Frequency? (Type: once, hourly, daily, monthly)", task.interval || "once");
+                if (targetInterval !== null) {
+                    task.interval = targetInterval;
+                }
                 task.status = 'postponed';
                 saveState();
+            }
+        }
+    }
+
+    function postponeSubTask(taskId, subId) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task && task.subs) {
+            const sub = task.subs.find(s => s.id === subId);
+            if (sub) {
+                const targetTime = prompt("Set Subtask Postponed Date & Time (YYYY-MM-DDTHH:MM format):", sub.reminder || "");
+                if (targetTime !== null) {
+                    sub.reminder = targetTime;
+                    const targetInterval = prompt("Update Subtask Recurrence Frequency? (Type: once, hourly, daily, monthly)", sub.interval || "once");
+                    if (targetInterval !== null) {
+                        sub.interval = targetInterval;
+                    }
+                    sub.status = 'postponed';
+                    saveState();
+                }
             }
         }
     }
@@ -611,11 +660,24 @@
         }
     }
 
-    function formatReminder(dateTimeStr) {
-        if (!dateTimeStr) return "";
+    function resetSubTask(taskId, subId) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task && task.subs) {
+            const sub = task.subs.find(s => s.id === subId);
+            if (sub) {
+                sub.status = 'active';
+                sub.done = false;
+                saveState();
+            }
+        }
+    }
+
+    function formatReminder(dateTimeStr, interval) {
+        if (!dateTimeStr) return interval !== 'once' ? `⏳ Cadence: [${interval.toUpperCase()}]` : "";
         try {
             const dt = new Date(dateTimeStr);
-            return "⏳ ALERT: " + dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const formattedTime = dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            return interval !== 'once' ? `⏳ ALERT: ${formattedTime} (${interval.toUpperCase()})` : `⏳ ALERT: ${formattedTime}`;
         } catch(e) {
             return dateTimeStr;
         }
@@ -649,7 +711,8 @@
             card.className = `task-card p-${task.priority}`;
             card.setAttribute('onclick', `toggleCard(event, '${task.id}')`);
 
-            const reminderLabel = task.reminder ? `<span class="reminder-tag">${formatReminder(task.reminder)}</span>` : '';
+            const reminderText = formatReminder(task.reminder, task.interval || 'once');
+            const reminderLabel = reminderText ? `<span class="reminder-tag">${reminderText}</span>` : '';
 
             const actionButtons = task.status === 'active' ? `
                 <select class="mini-select" onchange="changeTaskPriority('${task.id}', this.value)">
@@ -664,7 +727,8 @@
                 <button class="control-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Return to Deck</button>
             `;
 
-            const sortedSubs = [...task.subs].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
+            const rawSubs = task.subs || [];
+            const sortedSubs = [...rawSubs].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
 
             card.innerHTML = `
                 <input type="text" class="inline-rename-input task-title" value="${task.title}" onchange="renameTask('${task.id}', this.value)" onclick="event.stopPropagation()">
@@ -677,26 +741,59 @@
 
                 <div class="subtask-container" onclick="event.stopPropagation();">
                     <div class="subtask-adder">
-                        <input type="text" id="sub-input-${task.id}" placeholder="Next linked operation step...">
-                        <button class="commit-btn" onclick="addSubTask('${task.id}')">+</button>
+                        <input type="text" id="sub-input-${task.id}" placeholder="Next subtask description...">
+                        <div class="input-row" style="margin-top:5px; gap:5px;">
+                            <input type="datetime-local" id="sub-rem-${task.id}">
+                            <select id="sub-int-${task.id}">
+                                <option value="once">ONCE ONLY</option>
+                                <option value="hourly">HOURLY LOOP</option>
+                                <option value="daily">DAILY LOOP</option>
+                                <option value="monthly">MONTHLY LOOP</option>
+                            </select>
+                        </div>
+                        <div class="input-row" style="margin-top:5px; gap:5px;">
+                            <select id="sub-pri-${task.id}">
+                                <option value="high">HIGH</option>
+                                <option value="medium" selected>MED</option>
+                                <option value="low">LOW</option>
+                            </select>
+                            <select id="sub-typ-${task.id}">
+                                <option value="oneoff">ONE-OFF</option>
+                                <option value="recurring">LOOP</option>
+                            </select>
+                            <button class="commit-btn" style="padding:10px;" onclick="addSubTask('${task.id}')">+</button>
+                        </div>
                     </div>
                     <div class="subtask-list">
-                        ${sortedSubs.map(sub => `
-                            <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''}">
-                                <div class="sub-main-row">
-                                    <input type="checkbox" class="sub-checkbox" ${sub.done ? 'checked' : ''} onchange="handleSubCompletion('${task.id}', '${sub.id}', this.checked)">
-                                    <input type="text" class="inline-rename-input sub-title" value="${sub.title}" onchange="renameSubTask('${task.id}', '${sub.id}', this.value)">
+                        ${sortedSubs.map(sub => {
+                            const subReminderText = formatReminder(sub.reminder, sub.interval || 'once');
+                            const subReminderLabel = subReminderText ? `<div class="reminder-tag" style="font-size:0.7rem; margin-top:2px;">${subReminderText}</div>` : '';
+                            
+                            const subActionButtons = sub.status === 'active' ? `
+                                <select class="mini-select" onchange="changeSubPriority('${task.id}', '${sub.id}', this.value)">
+                                    <option value="high" ${sub.priority === 'high' ? 'selected' : ''}>High</option>
+                                    <option value="medium" ${sub.priority === 'medium' ? 'selected' : ''}>Med</option>
+                                    <option value="low" ${sub.priority === 'low' ? 'selected' : ''}>Low</option>
+                                </select>
+                                <button class="control-btn btn-postpone" onclick="postponeSubTask('${task.id}', '${sub.id}')">⏳ Postpone</button>
+                                <button class="control-btn btn-banish" onclick="banishSubTask('${task.id}', '${sub.id}')">Delete</button>
+                            ` : `
+                                <button class="control-btn" onclick="resetSubTask('${task.id}', '${sub.id}')">↩ Return</button>
+                            `;
+
+                            return `
+                                <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''} ${sub.status === 'postponed' ? 'postponed-sub' : ''}">
+                                    <div class="sub-main-row">
+                                        <input type="checkbox" class="sub-checkbox" ${sub.done ? 'checked' : ''} onchange="handleSubCompletion('${task.id}', '${sub.id}', this.checked)">
+                                        <div style="flex:1; display:flex; flex-direction:column; align-items:flex-start;">
+                                            <input type="text" class="inline-rename-input sub-title" value="${sub.title}" onchange="renameSubTask('${task.id}', '${sub.id}', this.value)">
+                                            ${subReminderLabel}
+                                        </div>
+                                    </div>
+                                    <div class="sub-actions">${subActionButtons}</div>
                                 </div>
-                                <div class="sub-actions">
-                                    <select class="mini-select" onchange="changeSubPriority('${task.id}', '${sub.id}', this.value)">
-                                        <option value="high" ${sub.priority === 'high' ? 'selected' : ''}>High</option>
-                                        <option value="medium" ${sub.priority === 'medium' ? 'selected' : ''}>Med</option>
-                                        <option value="low" ${sub.priority === 'low' ? 'selected' : ''}>Low</option>
-                                    </select>
-                                    <button class="control-btn btn-banish" onclick="banishSubTask('${task.id}', '${sub.id}')">Delete</button>
-                                </div>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
@@ -707,15 +804,6 @@
 
         if (openCardId) document.getElementById(openCardId)?.classList.add('expanded');
     }
-
-    async function initPipeline() {
-        await pullFromCloud();
-        setInterval(async () => {
-            await pullFromCloud();
-        }, 5000);
-    }
-
-    initPipeline();
 </script>
 </body>
 </html>
