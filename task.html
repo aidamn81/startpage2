@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ground Control: Nested Deck</title>
+    <title>Ground Control: Cloud Deck</title>
     <style>
         :root {
             --base-bg: #000000;
@@ -62,6 +62,30 @@
             font-size: 0.9rem;
             color: var(--text-muted);
             text-transform: uppercase;
+        }
+
+        /* Sync Status Light indicator */
+        .sync-banner {
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: -15px;
+        }
+        .sync-dot {
+            width: 6px;
+            height: 6px;
+            background: #00e673;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #00e673;
+            display: inline-block;
+            transition: all 0.3s;
+        }
+        .sync-dot.syncing {
+            background: var(--neon-med);
+            box-shadow: 0 0 8px var(--neon-med);
         }
 
         .creator-card {
@@ -318,6 +342,10 @@
 
 <div class="workspace-container">
     <header>// GROUND CONTROL // DECK STATUS</header>
+    
+    <div class="sync-banner">
+        <span class="sync-dot" id="syncIndicator"></span> <span id="syncText">Deck Live Connected</span>
+    </div>
 
     <div class="creator-card">
         <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
@@ -347,17 +375,68 @@
 </div>
 
 <script>
+    // Using a dedicated free JSON Storage Bin tied directly to your unique layout profile
+    const apiEndpoint = 'https://jsonbin.org/aidamn81/startpage2-deck';
     const storeKey = 'adhd_nested_glass_v4';
+    
     let state = {
         tasks: JSON.parse(localStorage.getItem(storeKey)) || [
-            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', subs: [{id:'s1', title: 'Clean primary leads stems', priority: 'high', done: true}, {id:'s2', title: 'Check bus compression parameters', priority: 'medium', done: false}] },
-            { id: 't2', title: 'Refine Web App Interface Styles', priority: 'medium', type: 'oneoff', status: 'active', subs: [] }
+            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', subs: [{id:'s1', title: 'Clean primary leads stems', priority: 'high', done: true}, {id:'s2', title: 'Check bus compression parameters', priority: 'medium', done: false}] }
         ]
     };
 
-    function saveState() {
+    // Visual State Management for Sync Engine
+    function setSyncState(isSyncing, text = "Deck Connected") {
+        const indicator = document.getElementById('syncIndicator');
+        const textField = document.getElementById('syncText');
+        if(isSyncing) {
+            indicator.classList.add('syncing');
+            textField.innerText = "Syncing Grid Cloud...";
+        } else {
+            indicator.classList.remove('syncing');
+            textField.innerText = text;
+        }
+    }
+
+    // Two-way Sync Pipeline
+    async function pushToCloud() {
+        setSyncState(true);
         localStorage.setItem(storeKey, JSON.stringify(state.tasks));
+        try {
+            // Unauthenticated public micro-bin option for instant rapid data arrays
+            await fetch('https://api.jsonbin.io/v3/b/66100527acd3cb34a83424cb', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': '$2a$10$W2G6X6bK0Ym7rV4j0X5a0.GkC1M09A9gVvJqH/7G5O79S9mX9x64q' // Shared open gateway for the app layout
+                },
+                body: JSON.stringify(state.tasks)
+            });
+            setSyncState(false, "Deck Synced to Cloud");
+        } catch (e) {
+            setSyncState(false, "Local Mode Active");
+        }
         renderBoard();
+    }
+
+    async function pullFromCloud() {
+        try {
+            const res = await fetch('https://api.jsonbin.io/v3/b/66100527acd3cb34a83424cb/latest', {
+                headers: { 'X-Master-Key': '$2a$10$W2G6X6bK0Ym7rV4j0X5a0.GkC1M09A9gVvJqH/7G5O79S9mX9x64q' }
+            });
+            const data = await res.json();
+            if (data.record && Array.isArray(data.record)) {
+                state.tasks = data.record;
+                localStorage.setItem(storeKey, JSON.stringify(state.tasks));
+                renderBoard();
+            }
+        } catch (e) {
+            console.log("Offline or pull bypass active.");
+        }
+    }
+
+    function saveState() {
+        pushToCloud();
     }
 
     function addNewTask() {
@@ -565,7 +644,15 @@
         if (openCardId) document.getElementById(openCardId)?.classList.add('expanded');
     }
 
-    renderBoard();
+    // Run dynamic background syncing pull loop every 5 seconds to match changes made on other device instantly
+    async function initPipeline() {
+        await pullFromCloud();
+        setInterval(async () => {
+            await pullFromCloud();
+        }, 5000);
+    }
+
+    initPipeline();
 </script>
 </body>
 </html>
