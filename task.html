@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ground Control Dashboard: Cinematic Glass</title>
+    <style>
+        :root {
+            /* Black, Deep Ambient background */
+            --base-bg: #000000;
+            --gradient-deep: radial-gradient(at 10% 10%, rgba(20, 10, 40, 0.9) 0%, transparent 60%),
+                             radial-gradient(at 90% 90%, rgba(10, 20, 50, 0.9) 0%, transparent 60%);
+
+            /* Glassmorphism settings */
+            --glass-bg: rgba(255, 255, 255, 0.05); /* Very light frost */
+            --glass-blur: blur(25px) saturate(220%); /* High blur, high saturation pop */
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+            --glass-glow: 0 10px 30px rgba(0, 0, 0, 0.6);
+
+            /* Main Text Colors */
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.7);
+            
+            /* NEON Priority Accents */
+            --neon-high: #ff0080;  /* Vibrant Neon Red/Pink */
+            --neon-high-alt: #7928ca; /* Deep Violet (for gradients) */
+            --neon-med: #ffaa00;   /* Electrical Amber */
+            --neon-low: #66fcf1;   /* Cyberpunk Cyan */
+            
+            --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--base-bg);
+            background-image: var(--gradient-deep);
+            color: var(--text-main);
+            font-family: var(--font-family);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* Fixed glass panels are easier to scan */
+        .glass-panel {
+            background: var(--glass-bg);
+            -webkit-backdrop-filter: var(--glass-blur);
+            backdrop-filter: var(--glass-blur);
+            border: var(--glass-border);
+            box-shadow: var(--glass-glow);
+            border-radius: 20px;
+            padding: 20px;
+            width: 100%;
+            max-width: 1300px;
+        }
+
+        /* --- Input Panel --- */
+        .creator-panel {
+            margin-bottom: 25px;
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .creator-panel { grid-template-columns: 1fr; }
+        }
+
+        input, select, button.primary-btn {
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            outline: none;
+            width: 100%;
+        }
+
+        input:focus {
+            border-color: rgba(121, 40, 202, 0.6); /* Purple accent */
+            box-shadow: 0 0 10px rgba(121, 40, 202, 0.3);
+        }
+
+        button.primary-btn {
+            background: linear-gradient(135deg, var(--neon-high-alt), var(--neon-high));
+            border: none;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button.primary-btn:active { opacity: 0.8; }
+
+        /* --- The Main Layout Grid --- */
+        .deck-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .deck-grid { grid-template-columns: 1fr; }
+        }
+
+        .column-title {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- Visual Priority (Scaling Elements) --- */
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Fixed gap maintains the structure */
+            align-items: flex-start;
+        }
+
+        .task-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            width: 100%;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .task-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.04);
+            transform: translateY(-2px);
+        }
+
+        /* **PRIORITY 1 (HIGH) -> MASSIVE SIZE** */
+        .task-card.p-high {
+            padding: 30px; /* Big padding */
+            background: radial-gradient(circle at top right, rgba(255, 0, 128, 0.05), transparent 70%);
+            border: 1.5px solid rgba(255, 0, 128, 0.1);
+        }
+        .task-card.p-high .task-title {
+            font-size: 2.2rem; /* Giant Font */
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255, 0, 128, 0.5); /* Ambient Neon Glow */
+        }
+        .task-card.p-high .neon-flag {
+            background: var(--neon-high);
+            box-shadow: 0 0 15px var(--neon-high);
+        }
+
+        /* **PRIORITY 2 (MED) -> Standard SIZE** */
+        .task-card.p-medium {
+            padding: 20px;
+            background: radial-gradient(circle at top right, rgba(255, 170, 0, 0.04), transparent 70%);
+        }
+        .task-card.p-medium .task-title {
+            font-size: 1.5rem; /* Standard title */
+            font-weight: 600;
+        }
+        .task-card.p-medium .neon-flag {
+            background: var(--neon-med);
+            box-shadow: 0 0 10px var(--neon-med);
+        }
+
+        /* **PRIORITY 3 (LOW) -> SMALL/COMPACT SIZE** */
+        .task-card.p-low {
+            padding: 12px 16px; /* Reduced vertical space */
+            opacity: 0.8; /* Subtle transparency difference */
+        }
+        .task-card.p-low .task-title {
+            font-size: 1.1rem; /* Small font */
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+        .task-card.p-low .neon-flag {
+            background: var(--neon-low);
+            box-shadow: 0 0 5px var(--neon-low);
+        }
+
+        /* NEON Flag marker */
+        .neon-flag {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .p-high .neon-flag { top: 35px; right: 30px; width: 20px; height: 20px;} /* Bigger glow for High P */
+        .p-low .neon-flag { top: 15px; right: 16px; width: 8px; height: 8px;} /* Tiny glow for Low P */
+
+        .task-meta {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.5);
+            margin-top: 8px;
+            display: flex;
+            gap: 12px;
+            text-transform: uppercase;
+        }
+        .p-high .task-meta { font-size: 1rem; margin-top: 15px;}
+        .p-low .task-meta { margin-top: 4px; font-size: 0.75rem;}
+
+        /* Controls are hidden until hover */
+        .task-controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .task-card:hover .task-controls { opacity: 1; }
+        .task-card.expanded .task-controls { opacity: 1; margin-top: 20px; }
+
+        .p-low .task-controls { margin-top: 8px;}
+
+        /* Standard buttons look bad in glass; use ghost style */
+        .p-low .task-controls { transform: scale(0.9); transform-origin: top left; }
+
+        .task-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text-main);
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            flex: 1;
+            text-align: center;
+        }
+        .task-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); }
+
+        .postpone-btn:hover { color: var(--neon-med); border-color: var(--neon-med); }
+        .tick-btn:hover { color: #00e673; border-color: #00e673; }
+        
+        .p-low .task-btn { padding: 6px 12px; font-size: 0.8rem; }
+
+        /* --- The Expanded Subtask Logic --- */
+        .subtask-container {
+            display: none;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .task-card.expanded .subtask-container { display: block; }
+        .p-low .subtask-container { margin-top: 12px; padding-top: 12px; }
+
+        .sub-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+        .sub-item input {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--neon-low); /* Cyan checkbox pops */
+            background: transparent;
+            cursor: pointer;
+        }
+        .sub-item.done span {
+            text-decoration: line-through;
+            opacity: 0.4;
+        }
+
+        .p-high .sub-item { font-size: 1.2rem;}
+        .p-low .sub-item { font-size: 0.9rem; padding: 4px 0;}
+    </style>
+</head>
+<body>
+
+<div class="glass-panel">
+    <div class="column-title" style="margin-bottom: 20px; font-weight: 800; font-size: 1.4rem;">
+        <span style="color: var(--neon-high);">//</span> GROUND CONTROL <span style="color: rgba(255,255,255,0.2);">CMD-DECK V3.0</span>
+    </div>
+
+    <!-- Quick Input panel -->
+    <div class="creator-panel">
+        <input type="text" id="taskTitle" placeholder="Deploy new core target...">
+        <select id="taskPriority">
+            <option value="high">HIGH PRI 🔥</option>
+            <option value="medium" selected>MED PRI ⚡</option>
+            <option value="low">LOW PRI ☕</option>
+        </select>
+        <select id="taskType">
+            <option value="oneoff">One-Off</option>
+            <option value="recurring">Recurring</option>
+        </select>
+        <button class="primary-btn" onclick="addNewTask()">Commit</button>
+    </div>
+
+    <!-- Main Grid (Two Columns) -->
+    <div class="deck-grid">
+        <div class="column">
+            <div class="column-title"><span style="color: #fff;">//</span> Active Targets</div>
+            <div class="task-list" id="activeTaskList"></div>
+        </div>
+        <div class="column">
+            <div class="column-title"><span style="color: #fff;">//</span> Postponed Deck</div>
+            <div class="task-list" id="postponedTaskList"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State initialization (keeping it local to this demo code)
+    const storeKey = 'adhd_cinematic_glass_v3';
+    let state = {
+        tasks: JSON.parse(localStorage.getItem(storeKey)) || [
+            // Dummy Seed Data to show the sizing difference
+            { id: 't1', title: 'Critical Presentation & Gigs Prep', priority: 'high', type: 'recurring', status: 'active', subs: [{id:'s1', text: 'Define Core Topic', done: true}, {id:'s2', text: 'Write Slides 1-5', done: false}, {id:'s3', text: 'Structure Gigs audio samples', done: false}] },
+            { id: 't2', title: 'Edit Audio Track for New EP', priority: 'medium', type: 'oneoff', status: 'active', subs: [{id:'s4', text: 'Clean Vocal Track', done: true}, {id:'s5', text: 'Apply Mastering Chain', done: false}] },
+            { id: 't3', title: 'Update LinkedIn profile info', priority: 'low', type: 'oneoff', status: 'active', subs: [] },
+            { id: 't4', title: 'Admin & Invoice sorting', priority: 'low', type: 'recurring', status: 'active', subs: [] }
+        ]
+    };
+
+    function saveState() {
+        localStorage.setItem(storeKey, JSON.stringify(state.tasks));
+        renderBoard();
+    }
+
+    function addNewTask() {
+        const titleInput = document.getElementById('taskTitle');
+        if (!titleInput.value.trim()) return;
+
+        const newTask = {
+            id: 'task-' + Date.now(),
+            title: titleInput.value.trim(),
+            priority: document.getElementById('taskPriority').value,
+            type: document.getElementById('taskType').value,
+            status: 'active',
+            subs: [] // Start with empty subs for the v3 quick input
+        };
+        state.tasks.push(newTask);
+        titleInput.value = '';
+        saveState();
+    }
+
+    function completeTask(taskId) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        if (task.type === 'recurring') {
+            task.subs.forEach(s => s.done = false); // Clean loop reset
+            task.status = 'active';
+        } else {
+            state.tasks = state.tasks.filter(t => t.id !== taskId);
+        }
+        saveState();
+    }
+
+    function postponeTask(taskId) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.status = 'postponed';
+            saveState();
+        }
+    }
+
+    function resetTask(taskId) { // Bring back to active deck
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.status = 'active';
+            saveState();
+        }
+    }
+
+    function toggleCard(e, taskId) {
+        const target = e.target;
+        // Don't expand/collapse if clicking interaction zones
+        if (target.closest('.task-controls') || target.closest('input')) return;
+        
+        const card = document.getElementById(`card-${taskId}`);
+        card.classList.toggle('expanded');
+    }
+
+    function renderBoard() {
+        const activeList = document.getElementById('activeTaskList');
+        const postponedList = document.getElementById('postponedTaskList');
+        activeList.innerHTML = '';
+        postponedList.innerHTML = '';
+
+        // Priority sort array logic maps (High -> Medium -> Low)
+        const priorityWeights = { high: 3, medium: 2, low: 1 };
+        const sortedTasks = [...state.tasks].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
+
+        sortedTasks.forEach(task => {
+            const hasSubs = task.subs.length > 0;
+            const completedSubs = task.subs.filter(s => s.done).length;
+            const subCountHTML = hasSubs ? `<span style="opacity: 0.6; padding-left: 10px;">[ ${completedSubs}/${task.subs.length} steps ]</span>` : '';
+
+            const card = document.createElement('div');
+            card.id = `card-${task.id}`;
+            card.className = `task-card p-${task.priority}`;
+            card.setAttribute('onclick', `toggleCard(event, '${task.id}')`);
+
+            const standardControls = task.status === 'active' ? `
+                <button class="task-btn postpone-btn" onclick="event.stopPropagation(); postponeTask('${task.id}')">⏳ Shift Deck</button>
+                <button class="task-btn tick-btn" onclick="event.stopPropagation(); completeTask('${task.id}')">✓ COMPLETE</button>
+            ` : `
+                <button class="task-btn postpone-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Reactivate</button>
+            `;
+
+            card.innerHTML = `
+                <div class="neon-flag"></div>
+                <div class="task-title">${task.title}</div>
+                <div class="task-meta">
+                    <span>TYPE: ${task.type}</span>
+                    ${subCountHTML}
+                </div>
+                
+                <div class="task-controls">
+                    ${standardControls}
+                </div>
+
+                <div class="subtask-container">
+                    ${task.subs.map(sub => `
+                        <div class="sub-item ${sub.done ? 'done' : ''}">
+                            <input type="checkbox" ${sub.done ? 'checked' : ''} onclick="event.stopPropagation()">
+                            <span>${sub.text}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            if (task.status === 'active') { activeList.appendChild(card); } 
+            else if (task.status === 'postponed') { postponedList.appendChild(card); }
+        });
+    }
+
+    // Initialize board
+    renderBoard();
+</script>
+</body>
+</html>
