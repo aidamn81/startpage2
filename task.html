@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ground Control: Cloud Deck</title>
+    <title>Ground Control: Dynamic Deck</title>
     <style>
         :root {
             --base-bg: #000000;
@@ -64,7 +64,6 @@
             text-transform: uppercase;
         }
 
-        /* Sync Status Light indicator */
         .sync-banner {
             font-size: 0.75rem;
             letter-spacing: 1px;
@@ -123,6 +122,11 @@
             text-align: center;
             width: 100%;
             transition: all 0.2s ease;
+        }
+
+        /* Dark styling override for native dark calendar prompt */
+        input[type="datetime-local"] {
+            color-scheme: dark;
         }
 
         input:focus, select:focus {
@@ -213,14 +217,35 @@
         }
         .task-card.p-low > .task-title { font-size: 0.95rem; font-weight: 400; }
 
+        /* Dynamic inline input rename styling */
+        .inline-rename-input {
+            background: rgba(0, 0, 0, 0.8) !important;
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            color: #fff !important;
+            padding: 4px 8px !important;
+            font-size: inherit !important;
+            font-weight: inherit !important;
+            text-align: center !important;
+            border-radius: 6px !important;
+            width: 80% !important;
+        }
+
         .task-meta {
             font-size: 0.7rem;
             color: var(--text-muted);
             margin-top: 6px;
             text-transform: uppercase;
             letter-spacing: 1px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
         }
         .p-low > .task-meta { display: none; }
+
+        .reminder-tag {
+            color: var(--neon-med);
+            font-weight: 700;
+        }
 
         .task-controls {
             margin-top: 15px;
@@ -228,7 +253,7 @@
             flex-wrap: wrap;
             gap: 8px;
             width: 100%;
-            max-width: 520px;
+            max-width: 540px;
             opacity: 0;
             height: 0;
             overflow: hidden;
@@ -250,7 +275,7 @@
             font-weight: 600;
             cursor: pointer;
             flex: 1;
-            min-width: 100px;
+            min-width: 90px;
             transition: all 0.2s;
             text-align: center;
         }
@@ -334,7 +359,7 @@
         .sub-actions .control-btn, .sub-actions .mini-select {
             padding: 4px 8px;
             font-size: 0.75rem;
-            min-width: 70px;
+            min-width: 65px;
         }
     </style>
 </head>
@@ -350,6 +375,7 @@
     <div class="creator-card">
         <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
         <div class="input-row">
+            <input type="datetime-local" id="taskReminder" placeholder="Set Alert Timestamp">
             <select id="taskPriority">
                 <option value="high">HIGH PRIORITY</option>
                 <option value="medium" selected>MEDIUM PRIORITY</option>
@@ -375,17 +401,14 @@
 </div>
 
 <script>
-    // Using a dedicated free JSON Storage Bin tied directly to your unique layout profile
-    const apiEndpoint = 'https://jsonbin.org/aidamn81/startpage2-deck';
     const storeKey = 'adhd_nested_glass_v4';
     
     let state = {
         tasks: JSON.parse(localStorage.getItem(storeKey)) || [
-            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', subs: [{id:'s1', title: 'Clean primary leads stems', priority: 'high', done: true}, {id:'s2', title: 'Check bus compression parameters', priority: 'medium', done: false}] }
+            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', reminder: '', subs: [{id:'s1', title: 'Clean primary leads stems', priority: 'high', done: true}] }
         ]
     };
 
-    // Visual State Management for Sync Engine
     function setSyncState(isSyncing, text = "Deck Connected") {
         const indicator = document.getElementById('syncIndicator');
         const textField = document.getElementById('syncText');
@@ -398,17 +421,15 @@
         }
     }
 
-    // Two-way Sync Pipeline
     async function pushToCloud() {
         setSyncState(true);
         localStorage.setItem(storeKey, JSON.stringify(state.tasks));
         try {
-            // Unauthenticated public micro-bin option for instant rapid data arrays
             await fetch('https://api.jsonbin.io/v3/b/66100527acd3cb34a83424cb', {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Master-Key': '$2a$10$W2G6X6bK0Ym7rV4j0X5a0.GkC1M09A9gVvJqH/7G5O79S9mX9x64q' // Shared open gateway for the app layout
+                    'X-Master-Key': '$2a$10$W2G6X6bK0Ym7rV4j0X5a0.GkC1M09A9gVvJqH/7G5O79S9mX9x64q'
                 },
                 body: JSON.stringify(state.tasks)
             });
@@ -431,7 +452,7 @@
                 renderBoard();
             }
         } catch (e) {
-            console.log("Offline or pull bypass active.");
+            console.log("Offline bypass active.");
         }
     }
 
@@ -441,6 +462,7 @@
 
     function addNewTask() {
         const titleInput = document.getElementById('taskTitle');
+        const reminderInput = document.getElementById('taskReminder');
         if (!titleInput.value.trim()) return;
 
         state.tasks.push({
@@ -449,9 +471,11 @@
             priority: document.getElementById('taskPriority').value,
             type: document.getElementById('taskType').value,
             status: 'active',
+            reminder: reminderInput.value,
             subs: []
         });
         titleInput.value = '';
+        reminderInput.value = '';
         saveState();
     }
 
@@ -469,6 +493,27 @@
             });
             input.value = '';
             saveState();
+        }
+    }
+
+    function renameTask(taskId, newTitle) {
+        if (!newTitle.trim()) return;
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.title = newTitle.trim();
+            saveState();
+        }
+    }
+
+    function renameSubTask(taskId, subId, newTitle) {
+        if (!newTitle.trim()) return;
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            const sub = task.subs.find(s => s.id === subId);
+            if (sub) {
+                sub.title = newTitle.trim();
+                saveState();
+            }
         }
     }
 
@@ -549,8 +594,12 @@
     function postponeTask(taskId) {
         const task = state.tasks.find(t => t.id === taskId);
         if (task) {
-            task.status = 'postponed';
-            saveState();
+            const targetTime = prompt("Set postponement date/time reminder:", task.reminder || "");
+            if (targetTime !== null) {
+                task.reminder = targetTime;
+                task.status = 'postponed';
+                saveState();
+            }
         }
     }
 
@@ -562,8 +611,18 @@
         }
     }
 
+    function formatReminder(dateTimeStr) {
+        if (!dateTimeStr) return "";
+        try {
+            const dt = new Date(dateTimeStr);
+            return "⏳ ALERT: " + dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        } catch(e) {
+            return dateTimeStr;
+        }
+    }
+
     function toggleCard(e, taskId) {
-        if (e.target.closest('.task-controls') || e.target.closest('.subtask-container') || e.target.closest('.mini-select')) return;
+        if (e.target.closest('.task-controls') || e.target.closest('.subtask-container') || e.target.closest('.mini-select') || e.target.closest('.inline-rename-input')) return;
         
         const card = document.getElementById(`card-${taskId}`);
         const wasExpanded = card.classList.contains('expanded');
@@ -590,13 +649,15 @@
             card.className = `task-card p-${task.priority}`;
             card.setAttribute('onclick', `toggleCard(event, '${task.id}')`);
 
+            const reminderLabel = task.reminder ? `<span class="reminder-tag">${formatReminder(task.reminder)}</span>` : '';
+
             const actionButtons = task.status === 'active' ? `
                 <select class="mini-select" onchange="changeTaskPriority('${task.id}', this.value)">
                     <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
                     <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Med</option>
                     <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
                 </select>
-                <button class="control-btn btn-postpone" onclick="event.stopPropagation(); postponeTask('${task.id}')">⏳ Defer</button>
+                <button class="control-btn btn-postpone" onclick="event.stopPropagation(); postponeTask('${task.id}')">⏳ Postpone</button>
                 <button class="control-btn btn-complete" onclick="event.stopPropagation(); completeTask('${task.id}')">✓ Clear from Current Task</button>
                 <button class="control-btn btn-banish" onclick="event.stopPropagation(); banishMainTask('${task.id}')">✕ Delete</button>
             ` : `
@@ -606,8 +667,11 @@
             const sortedSubs = [...task.subs].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
 
             card.innerHTML = `
-                <div class="task-title">${task.title}</div>
-                <div class="task-meta">${task.type}</div>
+                <input type="text" class="inline-rename-input task-title" value="${task.title}" onchange="renameTask('${task.id}', this.value)" onclick="event.stopPropagation()">
+                <div class="task-meta">
+                    <div>${task.type}</div>
+                    ${reminderLabel}
+                </div>
                 
                 <div class="task-controls">${actionButtons}</div>
 
@@ -621,7 +685,7 @@
                             <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''}">
                                 <div class="sub-main-row">
                                     <input type="checkbox" class="sub-checkbox" ${sub.done ? 'checked' : ''} onchange="handleSubCompletion('${task.id}', '${sub.id}', this.checked)">
-                                    <div class="sub-title">${sub.title}</div>
+                                    <input type="text" class="inline-rename-input sub-title" value="${sub.title}" onchange="renameSubTask('${task.id}', '${sub.id}', this.value)">
                                 </div>
                                 <div class="sub-actions">
                                     <select class="mini-select" onchange="changeSubPriority('${task.id}', '${sub.id}', this.value)">
@@ -644,7 +708,6 @@
         if (openCardId) document.getElementById(openCardId)?.classList.add('expanded');
     }
 
-    // Run dynamic background syncing pull loop every 5 seconds to match changes made on other device instantly
     async function initPipeline() {
         await pullFromCloud();
         setInterval(async () => {
