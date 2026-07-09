@@ -3,28 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ground Control: Minimal Deck</title>
+    <title>Ground Control: Nested Deck</title>
     <style>
         :root {
-            /* Pure Dark Ambient Base */
             --base-bg: #000000;
             --gradient-deep: radial-gradient(at 50% 0%, rgba(25, 15, 45, 0.8) 0%, transparent 50%),
                              radial-gradient(at 50% 100%, rgba(10, 20, 45, 0.8) 0%, transparent 50%);
 
-            /* Sleek Translucent Glassmorphism */
             --glass-bg: rgba(255, 255, 255, 0.03);
             --glass-blur: blur(30px) saturate(200%);
             --glass-border: 1px solid rgba(255, 255, 255, 0.08);
             --glass-glow: 0 15px 35px rgba(0, 0, 0, 0.7);
 
-            /* Main Text Colors */
             --text-main: #ffffff;
             --text-muted: rgba(255, 255, 255, 0.5);
             
-            /* Neon Priority Accents */
-            --neon-high: #ff0080;   /* Crimson Fuchsia */
-            --neon-med: #ffaa00;    /* Amber */
-            --neon-low: #66fcf1;    /* Cyan */
+            --neon-high: #ff0080;   
+            --neon-med: #ffaa00;    
+            --neon-low: #66fcf1;    
             
             --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Arial, sans-serif;
         }
@@ -50,17 +46,15 @@
             overflow-y: auto;
         }
 
-        /* Center-aligned Master Column */
         .workspace-container {
             width: 100%;
-            max-width: 680px; /* Perfect scanning width for both phone & large tablet viewports */
+            max-width: 680px; 
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 30px;
         }
 
-        /* Minimal Header */
         header {
             text-align: center;
             letter-spacing: 2px;
@@ -70,7 +64,6 @@
             text-transform: uppercase;
         }
 
-        /* Minimal Translucent Input Panel */
         .creator-card {
             background: var(--glass-bg);
             -webkit-backdrop-filter: var(--glass-blur);
@@ -124,7 +117,6 @@
         }
         button.commit-btn:active { transform: scale(0.98); }
 
-        /* Board Section Setup */
         .deck-section {
             width: 100%;
             display: flex;
@@ -141,7 +133,6 @@
             margin-bottom: 5px;
         }
 
-        /* Center-Aligned Task List */
         .task-list {
             display: flex;
             flex-direction: column;
@@ -150,7 +141,7 @@
             width: 100%;
         }
 
-        /* Glass Task Cards */
+        /* Task & Subtask Card Shared Morphisms */
         .task-card {
             background: var(--glass-bg);
             -webkit-backdrop-filter: var(--glass-blur);
@@ -169,50 +160,37 @@
             align-items: center;
             justify-content: center;
         }
-
         .task-card:hover {
             background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.15);
         }
 
-        /* --- SIZING BY PRIORITY --- */
-        
-        /* High Priority - Dominant Size */
+        /* Main Priorities */
         .task-card.p-high {
             padding: 35px 25px;
             border-top: 3px solid var(--neon-high);
             background: linear-gradient(180deg, rgba(255, 0, 128, 0.03) 0%, transparent 100%), var(--glass-bg);
         }
-        .task-card.p-high .task-title {
+        .task-card.p-high > .task-title {
             font-size: 1.8rem;
             font-weight: 800;
             letter-spacing: -0.5px;
             text-shadow: 0 0 20px rgba(255, 0, 128, 0.3);
         }
 
-        /* Medium Priority - Standard Balanced Size */
         .task-card.p-medium {
             padding: 22px 20px;
             border-top: 3px solid var(--neon-med);
         }
-        .task-card.p-medium .task-title {
-            font-size: 1.3rem;
-            font-weight: 600;
-        }
+        .task-card.p-medium > .task-title { font-size: 1.3rem; font-weight: 600; }
 
-        /* Low Priority - Tiny & Highly Compact */
         .task-card.p-low {
             padding: 12px 15px;
             border-top: 2px solid var(--neon-low);
             opacity: 0.75;
         }
-        .task-card.p-low .task-title {
-            font-size: 0.95rem;
-            font-weight: 400;
-            color: rgba(255,255,255,0.9);
-        }
+        .task-card.p-low > .task-title { font-size: 0.95rem; font-weight: 400; }
 
-        /* Meta Indicators */
         .task-meta {
             font-size: 0.7rem;
             color: var(--text-muted);
@@ -220,28 +198,28 @@
             text-transform: uppercase;
             letter-spacing: 1px;
         }
-        .p-low .task-meta { display: none; } /* Completely hidden meta on low for ultra-minimalism */
+        .p-low > .task-meta { display: none; }
 
-        /* Inline Glass Controls */
+        /* Controls Expansion Box */
         .task-controls {
             margin-top: 15px;
             display: flex;
+            flex-wrap: wrap;
             gap: 8px;
             width: 100%;
-            max-width: 280px;
+            max-width: 450px;
             opacity: 0;
             height: 0;
             overflow: hidden;
             transition: all 0.25s ease;
         }
-        .task-card.expanded .task-controls {
+        .task-card.expanded > .task-controls {
             opacity: 1;
             height: auto;
             margin-top: 20px;
         }
-        .p-low .task-controls { max-width: 220px; }
 
-        .control-btn {
+        .control-btn, .mini-select {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.08);
             color: var(--text-main);
@@ -251,41 +229,93 @@
             font-weight: 600;
             cursor: pointer;
             flex: 1;
+            min-width: 100px;
             transition: all 0.2s;
+            text-align: center;
         }
-        .control-btn:hover { background: rgba(255, 255, 255, 0.15); }
+        .mini-select { text-align-last: center; outline: none; }
+        .control-btn:hover, .mini-select:hover { background: rgba(255, 255, 255, 0.15); }
         .btn-complete:hover { color: #00e673; border-color: #00e673; }
         .btn-postpone:hover { color: var(--neon-med); border-color: var(--neon-med); }
+        .btn-banish:hover { color: var(--neon-high); border-color: var(--neon-high); }
 
-        /* --- Minimal Subtasks Panel --- */
+        /* --- Fully Functional Subtask Control Panel --- */
         .subtask-container {
             width: 100%;
-            max-width: 320px;
             display: none;
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            text-align: left;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
-        .task-card.expanded .subtask-container { display: block; }
+        .task-card.expanded > .subtask-container { display: block; }
 
-        .sub-item {
+        .subtask-adder {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .subtask-adder input { padding: 10px; font-size: 0.9rem; border-radius: 8px; }
+        .subtask-adder button { width: auto; padding: 0 20px; border-radius: 8px; }
+
+        .subtask-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        /* Nested Subtask Structure */
+        .sub-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 12px;
+            padding: 12px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            cursor: default;
+        }
+        .sub-card.p-high { border-left: 3px solid var(--neon-high); }
+        .sub-card.p-medium { border-left: 3px solid var(--neon-med); }
+        .sub-card.p-low { border-left: 3px solid var(--neon-low); }
+
+        .sub-main-row {
             display: flex;
             align-items: center;
-            gap: 10px;
-            padding: 6px 0;
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.8);
+            justify-content: space-between;
+            width: 100%;
+            gap: 15px;
         }
-        .sub-item input {
-            width: 16px;
-            height: 16px;
+        .sub-title {
+            font-size: 1rem;
+            text-align: left;
+            flex: 1;
+        }
+        .sub-card.done .sub-title {
+            text-decoration: line-through;
+            opacity: 0.3;
+        }
+
+        .sub-checkbox {
+            width: 20px !important;
+            height: 20px !important;
             accent-color: var(--neon-low);
             cursor: pointer;
         }
-        .sub-item.done span {
-            text-decoration: line-through;
-            opacity: 0.3;
+
+        .sub-actions {
+            display: flex;
+            gap: 6px;
+            width: 100%;
+            justify-content: center;
+        }
+        .sub-actions .control-btn, .sub-actions .mini-select {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            min-width: 70px;
         }
     </style>
 </head>
@@ -294,9 +324,9 @@
 <div class="workspace-container">
     <header>// GROUND CONTROL // DECK STATUS</header>
 
-    <!-- Center Add Interface -->
+    <!-- Center Entry Engine -->
     <div class="creator-card">
-        <input type="text" id="taskTitle" placeholder="Target Description...">
+        <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
         <div class="input-row">
             <select id="taskPriority">
                 <option value="high">HIGH PRIORITY</option>
@@ -307,17 +337,17 @@
                 <option value="oneoff">ONE-OFF</option>
                 <option value="recurring">LOOP</option>
             </select>
-            <button class="commit-btn" onclick="addNewTask()">Commit</button>
+            <button class="commit-btn" onclick="addNewTask()">Commit Anchor</button>
         </div>
     </div>
 
-    <!-- Active Section -->
+    <!-- Active Grid Deck -->
     <div class="deck-section">
         <div class="section-title">Active Deck</div>
         <div class="task-list" id="activeTaskList"></div>
     </div>
 
-    <!-- Postponed Section -->
+    <!-- Shifted / Postponed Grid Deck -->
     <div class="deck-section" style="margin-top: 20px;">
         <div class="section-title">Postponed / Shifted</div>
         <div class="task-list" id="postponedTaskList"></div>
@@ -325,12 +355,11 @@
 </div>
 
 <script>
-    const storeKey = 'adhd_minimal_glass_v3';
+    const storeKey = 'adhd_nested_glass_v4';
     let state = {
         tasks: JSON.parse(localStorage.getItem(storeKey)) || [
-            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', subs: [{id:'s1', text: 'Clean primary leads stems', done: true}, {id:'s2', text: 'Check bus compression parameters', done: false}] },
-            { id: 't2', title: 'Refine Web App Interface Styles', priority: 'medium', type: 'oneoff', status: 'active', subs: [] },
-            { id: 't3', title: 'Clear desktop caches', priority: 'low', type: 'oneoff', status: 'active', subs: [] }
+            { id: 't1', title: 'Live Performance Audio Mixing', priority: 'high', type: 'recurring', status: 'active', subs: [{id:'s1', title: 'Clean primary leads stems', priority: 'high', done: true}, {id:'s2', title: 'Check bus compression parameters', priority: 'medium', done: false}] },
+            { id: 't2', title: 'Refine Web App Interface Styles', priority: 'medium', type: 'oneoff', status: 'active', subs: [] }
         ]
     };
 
@@ -355,6 +384,72 @@
         saveState();
     }
 
+    function addSubTask(taskId) {
+        const input = document.getElementById(`sub-input-${taskId}`);
+        if (!input || !input.value.trim()) return;
+
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.subs.push({
+                id: 'sub-' + Date.now(),
+                title: input.value.trim(),
+                priority: 'medium',
+                done: false
+            });
+            input.value = '';
+            saveState();
+        }
+    }
+
+    function changeTaskPriority(taskId, newPriority) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            task.priority = newPriority;
+            saveState();
+        }
+    }
+
+    function changeSubPriority(taskId, subId, newPriority) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (task) {
+            const sub = task.subs.find(s => s.id === subId);
+            if (sub) {
+                sub.priority = newPriority;
+                saveState();
+            }
+        }
+    }
+
+    function handleSubCompletion(taskId, subId, isChecked) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (!task) return;
+        const sub = task.subs.find(s => s.id === subId);
+        if (!sub) return;
+
+        sub.done = isChecked;
+
+        if (isChecked) {
+            setTimeout(() => {
+                if (confirm(`Subtask "${sub.title}" cleared.\n\nShould this asset be permanently banished (Deleted) or kept inside the layout log (Kept)?\n\nClick OK to Banish, Cancel to Keep.`)) {
+                    task.subs = task.subs.filter(s => s.id !== subId);
+                }
+                saveState();
+            }, 150);
+        } else {
+            saveState();
+        }
+    }
+
+    function banishSubTask(taskId, subId) {
+        if (confirm("Are you certain you wish to banish this subtask into oblivion?")) {
+            const task = state.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.subs = task.subs.filter(s => s.id !== subId);
+                saveState();
+            }
+        }
+    }
+
     function completeTask(taskId) {
         const task = state.tasks.find(t => t.id === taskId);
         if (!task) return;
@@ -362,10 +457,22 @@
         if (task.type === 'recurring') {
             task.subs.forEach(s => s.done = false);
             task.status = 'active';
+            saveState();
         } else {
-            state.tasks = state.tasks.filter(t => t.id !== taskId);
+            if (confirm(`Anchor "${task.title}" cleared.\n\nBanish permanently or preserve in layout?\n\nClick OK to Banish, Cancel to Keep.`)) {
+                state.tasks = state.tasks.filter(t => t.id !== taskId);
+            } else {
+                task.status = 'postponed';
+            }
+            saveState();
         }
-        saveState();
+    }
+
+    function banishMainTask(taskId) {
+        if (confirm("Are you certain you wish to banish this anchor asset from the entire active deck?")) {
+            state.tasks = state.tasks.filter(t => t.id !== taskId);
+            saveState();
+        }
     }
 
     function postponeTask(taskId) {
@@ -385,22 +492,23 @@
     }
 
     function toggleCard(e, taskId) {
-        if (e.target.closest('.task-controls') || e.target.closest('.subtask-container')) return;
-        document.getElementById(`card-${taskId}`).classList.toggle('expanded');
-    }
-
-    function toggleSubItem(taskId, subId) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-            const sub = task.subs.find(s => s.id === subId);
-            if (sub) sub.done = !sub.done;
-            saveState();
-        }
+        if (e.target.closest('.task-controls') || e.target.closest('.subtask-container') || e.target.closest('.mini-select')) return;
+        
+        const card = document.getElementById(`card-${taskId}`);
+        const wasExpanded = card.classList.contains('expanded');
+        
+        // Collapse others for strict minimal scanning visibility
+        document.querySelectorAll('.task-card').forEach(c => c.classList.remove('expanded'));
+        if (!wasExpanded) card.classList.add('expanded');
     }
 
     function renderBoard() {
         const activeList = document.getElementById('activeTaskList');
         const postponedList = document.getElementById('postponedTaskList');
+        
+        // Cache expanded element tracking states
+        const openCardId = document.querySelector('.task-card.expanded')?.id;
+
         activeList.innerHTML = '';
         postponedList.innerHTML = '';
 
@@ -414,11 +522,20 @@
             card.setAttribute('onclick', `toggleCard(event, '${task.id}')`);
 
             const actionButtons = task.status === 'active' ? `
+                <select class="mini-select" onchange="changeTaskPriority('${task.id}', this.value)">
+                    <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+                    <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Med</option>
+                    <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+                </select>
                 <button class="control-btn btn-postpone" onclick="event.stopPropagation(); postponeTask('${task.id}')">⏳ Defer</button>
                 <button class="control-btn btn-complete" onclick="event.stopPropagation(); completeTask('${task.id}')">✓ Clear</button>
+                <button class="control-btn btn-banish" onclick="event.stopPropagation(); banishMainTask('${task.id}')">✕ Banish</button>
             ` : `
-                <button class="control-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Return</button>
+                <button class="control-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Return to Deck</button>
             `;
+
+            // Sort subtasks by priority internally
+            const sortedSubs = [...task.subs].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
 
             card.innerHTML = `
                 <div class="task-title">${task.title}</div>
@@ -426,19 +543,38 @@
                 
                 <div class="task-controls">${actionButtons}</div>
 
-                <div class="subtask-container">
-                    ${task.subs.map(sub => `
-                        <div class="sub-item ${sub.done ? 'done' : ''}">
-                            <input type="checkbox" ${sub.done ? 'checked' : ''} onclick="toggleSubItem('${task.id}', '${sub.id}')">
-                            <span>${sub.text}</span>
-                        </div>
-                    `).join('')}
+                <div class="subtask-container" onclick="event.stopPropagation();">
+                    <div class="subtask-adder">
+                        <input type="text" id="sub-input-${task.id}" placeholder="Next linked operation step...">
+                        <button class="commit-btn" onclick="addSubTask('${task.id}')">+</button>
+                    </div>
+                    <div class="subtask-list">
+                        ${sortedSubs.map(sub => `
+                            <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''}">
+                                <div class="sub-main-row">
+                                    <input type="checkbox" class="sub-checkbox" ${sub.done ? 'checked' : ''} onchange="handleSubCompletion('${task.id}', '${sub.id}', this.checked)">
+                                    <div class="sub-title">${sub.title}</div>
+                                </div>
+                                <div class="sub-actions">
+                                    <select class="mini-select" onchange="changeSubPriority('${task.id}', '${sub.id}', this.value)">
+                                        <option value="high" ${sub.priority === 'high' ? 'selected' : ''}>High</option>
+                                        <option value="medium" ${sub.priority === 'medium' ? 'selected' : ''}>Med</option>
+                                        <option value="low" ${sub.priority === 'low' ? 'selected' : ''}>Low</option>
+                                    </select>
+                                    <button class="control-btn btn-banish" onclick="banishSubTask('${task.id}', '${sub.id}')">Banish</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
                 </div>
             `;
 
             if (task.status === 'active') activeList.appendChild(card);
-            else if (task.status === 'postponed') activeList.appendChild(card), postponedList.appendChild(card);
+            else if (task.status === 'postponed') postponedList.appendChild(card);
         });
+
+        // Restore expansion state cleanly
+        if (openCardId) document.getElementById(openCardId)?.classList.add('expanded');
     }
 
     renderBoard();
