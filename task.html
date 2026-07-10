@@ -242,7 +242,7 @@
         /* --- Expandable Glass Box Containers --- */
         .glass-task-box {
             background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
+            border: 1px solid var(--border-glow);
             border-radius: 14px;
             box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
             backdrop-filter: blur(16px) saturate(120%);
@@ -261,7 +261,7 @@
         }
 
         .glass-task-box.expanded {
-            max-height: 800px; /* High boundary ceiling clearance */
+            max-height: 900px; /* High boundary ceiling clearance increased slightly for controls */
             background: var(--glass-bg-expanded);
             border-color: rgba(212, 175, 55, 0.25);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
@@ -304,7 +304,30 @@
         .task-actions-side {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
+        }
+
+        .order-arrows-cluster {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .arrow-nav-btn {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 4px;
+            transition: color 0.2s;
+            user-select: none;
+        }
+
+        .arrow-nav-btn:hover {
+            color: var(--gold-accent);
         }
 
         .expand-arrow {
@@ -429,6 +452,37 @@
             border-radius: 14px;
         }
 
+        .image-toggle-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-glow);
+            color: var(--text-muted);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .file-upload-label:hover {
+            border-color: var(--gold-accent);
+            color: var(--text-primary);
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -488,8 +542,14 @@
                 </div>
 
                 <div>
-                    <span class="label-text">Reference Image URL</span>
-                    <input type="url" id="task-image" placeholder="https://example.com/image.jpg" style="width: 100%; margin-top: 6px;">
+                    <span class="label-text">Reference Image (URL or Local File)</span>
+                    <div class="image-toggle-container">
+                        <input type="url" id="task-image" placeholder="https://example.com/image.jpg">
+                        <label class="file-upload-label">
+                            📸 Upload Device File
+                            <input type="file" accept="image/*" class="hidden-file-input" onchange="handleLocalImageUpload(this, 'task-image')">
+                        </label>
+                    </div>
                 </div>
 
                 <div class="button-row">
@@ -535,6 +595,20 @@
         const creatorWorkspace = document.getElementById('creator-workspace');
         const mainTriggerContainer = document.getElementById('main-trigger-container');
 
+        // Storage Reference cache for processing current client ordering mutations
+        let runtimeTaskCache = {};
+
+        // Local Device File Parsing Asset Utility
+        window.handleLocalImageUpload = function(inputElement, targetInputId) {
+            if (inputElement.files && inputElement.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(targetInputId).value = e.target.result;
+                };
+                reader.readAsDataURL(inputElement.files[0]);
+            }
+        };
+
         // Workspace Panels Interlocks
         window.toggleMainCreator = function(show) {
             if (show) {
@@ -548,7 +622,7 @@
 
         // Manage expand / collapse functions safely without colliding into button actions
         window.toggleGlassBox = function(id, event) {
-            if (event.target.closest('.task-actions') || event.target.closest('.task-actions-side') || event.target.closest('input') || event.target.closest('select') || event.target.closest('textarea') || event.target.closest('button')) {
+            if (event.target.closest('.task-actions') || event.target.closest('.task-actions-side') || event.target.closest('input') || event.target.closest('select') || event.target.closest('textarea') || event.target.closest('button') || event.target.closest('.order-arrows-cluster')) {
                 return;
             }
             const box = document.getElementById(`box-${id}`);
@@ -582,6 +656,14 @@
                 return;
             }
 
+            // Determine baseline order score to place new assets structurally at top
+            let operationalOrder = 0;
+            const currentKeys = Object.keys(runtimeTaskCache);
+            if (currentKeys.length > 0) {
+                const highestOrder = Math.max(...currentKeys.map(k => runtimeTaskCache[k].sortOrder || 0));
+                operationalOrder = highestOrder + 100;
+            }
+
             const newTask = {
                 title: titleInput.value.trim(),
                 cadence: cadenceSelect.value,
@@ -589,6 +671,7 @@
                 reminder: reminderInput.value || "",
                 notes: notesInput.value.trim() || "",
                 imageUrl: imageInput.value.trim() || "",
+                sortOrder: operationalOrder,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
@@ -610,6 +693,9 @@
             const completeArgs = isSubtask ? `'${parentId}', '${id}'` : `'${id}'`;
             const editArgs = isSubtask ? `'${id}', '${parentId}'` : `'${id}'`;
 
+            const moveUpCall = isSubtask ? `shiftSubtaskOrder('${parentId}', '${id}', -1)` : `shiftTaskOrder('${id}', -1)`;
+            const moveDownCall = isSubtask ? `shiftSubtaskOrder('${parentId}', '${id}', 1)` : `shiftTaskOrder('${id}', 1)`;
+
             return `
                 <div class="task-header">
                     <div class="task-info-side">
@@ -617,6 +703,10 @@
                         <span class="task-badge-meta">${task.energy}</span>
                     </div>
                     <div class="task-actions-side">
+                        <div class="order-arrows-cluster">
+                            <span class="arrow-nav-btn" onclick="event.stopPropagation(); ${moveUpCall}">▲</span>
+                            <span class="arrow-nav-btn" onclick="event.stopPropagation(); ${moveDownCall}">▼</span>
+                        </div>
                         <span class="expand-arrow">▼</span>
                     </div>
                 </div>
@@ -643,13 +733,20 @@
         tasksRef.on('value', (snapshot) => {
             activeTasksContainer.innerHTML = '';
             const data = snapshot.val();
+            runtimeTaskCache = data || {};
 
             if (!data) {
                 activeTasksContainer.innerHTML = `<div class="empty-notice">Your space is clear. No active tasks detected.</div>`;
                 return;
             }
 
-            const sortedKeys = Object.keys(data).sort((a, b) => b.timestamp - a.timestamp);
+            // Order via absolute positioning tracking index value falling back securely onto time values
+            const sortedKeys = Object.keys(data).sort((a, b) => {
+                const orderA = data[a].sortOrder !== undefined ? data[a].sortOrder : 0;
+                const orderB = data[b].sortOrder !== undefined ? data[b].sortOrder : 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.timestamp - a.timestamp;
+            });
 
             sortedKeys.forEach((key) => {
                 const task = data[key];
@@ -664,7 +761,12 @@
                 // Nested subtasks engine builder loop check
                 if (task.subtasks) {
                     const subListContainer = document.getElementById(`subtasks-list-${key}`);
-                    const subKeys = Object.keys(task.subtasks).sort((a, b) => b.timestamp - a.timestamp);
+                    const subKeys = Object.keys(task.subtasks).sort((a, b) => {
+                        const sA = task.subtasks[a].sortOrder !== undefined ? task.subtasks[a].sortOrder : 0;
+                        const sB = task.subtasks[b].sortOrder !== undefined ? task.subtasks[b].sortOrder : 0;
+                        if (sA !== sB) return sB - sA;
+                        return b.timestamp - a.timestamp;
+                    });
                     
                     subKeys.forEach((subKey) => {
                         const subtask = task.subtasks[subKey];
@@ -678,6 +780,84 @@
                 }
             });
         });
+
+        // Sequence Ordering Mutation Mutators for Parent Tasks
+        window.shiftTaskOrder = function(taskId, direction) {
+            const keys = Object.keys(runtimeTaskCache).sort((a, b) => {
+                const orderA = runtimeTaskCache[a].sortOrder !== undefined ? runtimeTaskCache[a].sortOrder : 0;
+                const orderB = runtimeTaskCache[b].sortOrder !== undefined ? runtimeTaskCache[b].sortOrder : 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.timestamp - a.timestamp;
+            });
+
+            const index = keys.indexOf(taskId);
+            if (index === -1) return;
+
+            // Compute destination target index tracking
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= keys.length) return;
+
+            const currentTask = runtimeTaskCache[taskId];
+            const targetTaskId = keys[targetIndex];
+            const targetTask = runtimeTaskCache[targetTaskId];
+
+            const currentOrder = currentTask.sortOrder !== undefined ? currentTask.sortOrder : 0;
+            const targetOrder = targetTask.sortOrder !== undefined ? targetTask.sortOrder : 0;
+
+            // Normalize order variations securely when elements equal zero
+            let newCurrentOrder = targetOrder;
+            let newTargetOrder = currentOrder;
+
+            if (newCurrentOrder === newTargetOrder) {
+                if (direction < 0) { newCurrentOrder += 10; } 
+                else { newTargetOrder += 10; }
+            }
+
+            const updates = {};
+            updates[`${taskId}/sortOrder`] = newCurrentOrder;
+            updates[`${targetTaskId}/sortOrder`] = newTargetOrder;
+            tasksRef.update(updates);
+        };
+
+        // Sequence Ordering Mutation Mutators for Subtasks
+        window.shiftSubtaskOrder = function(parentId, subtaskId, direction) {
+            const parentTask = runtimeTaskCache[parentId];
+            if (!parentTask || !parentTask.subtasks) return;
+
+            const subtasksData = parentTask.subtasks;
+            const keys = Object.keys(subtasksData).sort((a, b) => {
+                const orderA = subtasksData[a].sortOrder !== undefined ? subtasksData[a].sortOrder : 0;
+                const orderB = subtasksData[b].sortOrder !== undefined ? subtasksData[b].sortOrder : 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.timestamp - a.timestamp;
+            });
+
+            const index = keys.indexOf(subtaskId);
+            if (index === -1) return;
+
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= keys.length) return;
+
+            const currentSub = subtasksData[subtaskId];
+            const targetSubId = keys[targetIndex];
+            const targetSub = subtasksData[targetSubId];
+
+            const currentOrder = currentSub.sortOrder !== undefined ? currentSub.sortOrder : 0;
+            const targetOrder = targetSub.sortOrder !== undefined ? targetSub.sortOrder : 0;
+
+            let newCurrentOrder = targetOrder;
+            let newTargetOrder = currentOrder;
+
+            if (newCurrentOrder === newTargetOrder) {
+                if (direction < 0) { newCurrentOrder += 10; } 
+                else { newTargetOrder += 10; }
+            }
+
+            const updates = {};
+            updates[`${parentId}/subtasks/${subtaskId}/sortOrder`] = newCurrentOrder;
+            updates[`${parentId}/subtasks/${targetSubId}/sortOrder`] = newTargetOrder;
+            tasksRef.update(updates);
+        };
 
         // Subtask Creator Embed Panel Injector
         window.toggleSubtaskCreator = function(parentId) {
@@ -695,7 +875,16 @@
                         </div>
                         <input type="datetime-local" id="sub-reminder-${parentId}">
                         <textarea id="sub-notes-${parentId}" placeholder="Notes..."></textarea>
-                        <input type="url" id="sub-image-${parentId}" placeholder="Image URL...">
+                        <div>
+                            <span class="label-text">Reference Image (URL or Local File)</span>
+                            <div class="image-toggle-container">
+                                <input type="url" id="sub-image-${parentId}" placeholder="Image URL...">
+                                <label class="file-upload-label">
+                                    📸 Upload File
+                                    <input type="file" accept="image/*" class="hidden-file-input" onchange="handleLocalImageUpload(this, 'sub-image-${parentId}')">
+                                </label>
+                            </div>
+                        </div>
                         <div class="button-row">
                             <button class="action-btn btn-sub" onclick="commitSubtask('${parentId}')">Embed</button>
                             <button class="action-btn btn-edit" onclick="toggleSubtaskCreator('${parentId}')">Cancel</button>
@@ -710,6 +899,16 @@
             const title = document.getElementById(`sub-title-${parentId}`).value.trim();
             if (!title) { alert("Please input a title."); return; }
 
+            let operationalSubOrder = 0;
+            const parent = runtimeTaskCache[parentId];
+            if (parent && parent.subtasks) {
+                const currentSubKeys = Object.keys(parent.subtasks);
+                if (currentSubKeys.length > 0) {
+                    const highestSubOrder = Math.max(...currentSubKeys.map(k => parent.subtasks[k].sortOrder || 0));
+                    operationalSubOrder = highestSubOrder + 100;
+                }
+            }
+
             const subTaskData = {
                 title: title,
                 cadence: document.getElementById(`sub-cadence-${parentId}`).value,
@@ -717,6 +916,7 @@
                 reminder: document.getElementById(`sub-reminder-${parentId}`).value || "",
                 notes: document.getElementById(`sub-notes-${parentId}`).value.trim() || "",
                 imageUrl: document.getElementById(`sub-image-${parentId}`).value.trim() || "",
+                sortOrder: operationalSubOrder,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
@@ -793,7 +993,16 @@
                             </div>
                             <input type="datetime-local" id="edit-reminder" value="${task.reminder || ''}">
                             <textarea id="edit-notes">${task.notes || ''}</textarea>
-                            <input type="url" id="edit-image" value="${task.imageUrl || ''}">
+                            <div>
+                                <span class="label-text">Reference Image (URL or Local File)</span>
+                                <div class="image-toggle-container">
+                                    <input type="url" id="edit-image" value="${task.imageUrl || ''}">
+                                    <label class="file-upload-label">
+                                        📸 Upload Swap File
+                                        <input type="file" accept="image/*" class="hidden-file-input" onchange="handleLocalImageUpload(this, 'edit-image')">
+                                    </label>
+                                </div>
+                            </div>
                             <div class="button-row">
                                 <button class="btn-add" onclick="saveTaskEdits('${id}', '${parentId}')">Save Adjustments</button>
                                 <button class="btn-cancel" onclick="closeEditWorkspace()">Cancel</button>
