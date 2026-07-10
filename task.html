@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ground Control | Fluid Glass Scheduler</title>
     
-    <!-- Google Fonts for High Readability -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
     
-    <!-- Firebase Core SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
@@ -514,15 +512,12 @@
     </header>
 
     <main>
-        <!-- Workspace Target Modals Section -->
         <div id="edit-workspace-anchor"></div>
 
-        <!-- Hidden Adder Container Toggler Link -->
         <div class="trigger-btn-container" id="main-trigger-container">
             <button class="btn-trigger-main" onclick="toggleMainCreator(true)">+ Add New Task</button>
         </div>
 
-        <!-- Clean Add Workspace Card -->
         <section class="creator-card" id="creator-workspace" style="display: none;">
             <div class="input-group">
                 <span class="label-text">Task Header</span>
@@ -573,7 +568,6 @@
             </div>
         </section>
 
-        <!-- Main Display Feed -->
         <div>
             <div class="bucket-title">Current Focus Stack</div>
             <div id="active-tasks" class="task-list">
@@ -615,6 +609,14 @@
         // Long Press Implementation State Tracking Maps
         let pressTimer = null;
         let isLongPressActionTriggered = false;
+
+        // --- Outbound Native Apple Shortcuts Deep-Linking Bridge ---
+        function triggerIOSShortcut(shortcutName, inputData = "") {
+            const encodedName = encodeURIComponent(shortcutName);
+            const encodedInput = encodeURIComponent(inputData);
+            const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}&input=${encodedInput}`;
+            window.location.href = shortcutURL;
+        }
 
         // Local Device File Parsing Asset Utility
         window.handleLocalImageUpload = function(inputElement, targetInputId) {
@@ -1032,10 +1034,27 @@
             tasksRef.once('value', (snap) => {
                 const data = snap.val(); if (!data) return;
                 let pathRef = tasksRef.child(id);
-                Object.keys(data).forEach(pk => {
-                    if (data[pk].subtasks && data[pk].subtasks[id]) pathRef = tasksRef.child(`${pk}/subtasks/${id}`);
+                let targetTaskTitle = "";
+
+                // Safely determine title context whether it's a parent node or subtask node
+                if (data[id]) {
+                    targetTaskTitle = data[id].title;
+                } else {
+                    Object.keys(data).forEach(pk => {
+                        if (data[pk].subtasks && data[pk].subtasks[id]) {
+                            pathRef = tasksRef.child(`${pk}/subtasks/${id}`);
+                            targetTaskTitle = data[pk].subtasks[id].title;
+                        }
+                    });
+                }
+
+                pathRef.update({ 
+                    reminder: time.toISOString().slice(0, 16), 
+                    timestamp: firebase.database.ServerValue.TIMESTAMP 
+                }).then(() => {
+                    // Fire off the external native iOS Apple Shortcut trigger
+                    triggerIOSShortcut('ADHD Snooze Sentinel', targetTaskTitle);
                 });
-                pathRef.update({ reminder: time.toISOString().slice(0, 16), timestamp: firebase.database.ServerValue.TIMESTAMP });
             });
         };
 
