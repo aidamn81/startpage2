@@ -2,953 +2,409 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ground Control: Grid Deck</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ground Control | Fluid Scheduler</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
     <style>
         :root {
-            --base-bg: #000000;
-            --gradient-deep: radial-gradient(at 50% 0%, rgba(25, 15, 45, 0.8) 0%, transparent 50%),
-                             radial-gradient(at 50% 100%, rgba(10, 20, 45, 0.8) 0%, transparent 50%);
-
-            --glass-bg: rgba(255, 255, 255, 0.03);
-            --glass-blur: blur(30px) saturate(200%);
-            --glass-border: 1px solid rgba(255, 255, 255, 0.08);
-            --glass-glow: 0 15px 35px rgba(0, 0, 0, 0.7);
-
-            --text-main: #ffffff;
-            --text-muted: rgba(255, 255, 255, 0.5);
-            
-            --neon-high: #ff0080;   
-            --neon-med: #ffaa00;    
-            --neon-low: #66fcf1;    
-            
-            --font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", Arial, sans-serif;
+            --bg-base: #0a0a0c;
+            --panel-bg: rgba(20, 20, 25, 0.7);
+            --border-glow: rgba(255, 255, 255, 0.08);
+            --text-primary: #f0f0f5;
+            --text-muted: #8a8a98;
+            --accent-green: #4ade80;
+            --accent-orange: #fb923c;
+            --accent-red: #f87171;
+            --font-display: 'Cinzel', serif;
+            --font-sans: 'Outfit', sans-serif;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            -webkit-font-smoothing: antialiased;
             -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            background-color: var(--base-bg);
-            background-image: var(--gradient-deep);
-            color: var(--text-main);
-            font-family: var(--font-family);
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
             min-height: 100vh;
-            padding: 40px 20px;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-            overflow-y: auto;
-        }
-
-        .workspace-container {
-            width: 100%;
-            max-width: 1200px; 
+            padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 30px;
+            overflow-x: hidden;
         }
 
+        /* Top Header Control panel */
         header {
-            text-align: center;
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
             letter-spacing: 2px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            color: var(--text-muted);
             text-transform: uppercase;
         }
 
-        .sync-banner {
-            font-size: 0.75rem;
-            letter-spacing: 1px;
-            color: var(--text-muted);
+        /* Status Indicator Indicator */
+        .sync-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 6px 14px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-orange);
+            box-shadow: 0 0 8px var(--accent-orange);
+            transition: all 0.4s ease;
+        }
+
+        .dot.connected {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        /* Task Engine Container Grid */
+        main {
+            width: 100%;
+            max-width: 800px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            margin-top: -15px;
-        }
-        .sync-status-row {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .sync-dot {
-            width: 6px;
-            height: 6px;
-            background: #ffaa00;
-            border-radius: 50%;
-            box-shadow: 0 0 8px #ffaa00;
-            display: inline-block;
-            transition: all 0.3s;
-        }
-        .sync-dot.synced {
-            background: #00e673;
-            box-shadow: 0 0 8px #00e673;
-        }
-        .sync-dot.syncing {
-            background: var(--neon-high);
-            box-shadow: 0 0 8px var(--neon-high);
-        }
-        .sync-dot.error {
-            background: #ff0000;
-            box-shadow: 0 0 8px #ff0000;
-        }
-        #debugErrorLog {
-            color: #ff4d4d;
-            font-family: monospace;
-            font-size: 0.7rem;
-            margin-top: 4px;
-            max-width: 400px;
-            text-align: center;
-        }
-
-        /* Top Creator Toggle Trigger */
-        .toggle-creator-btn {
-            background: var(--glass-bg);
-            border: var(--glass-border);
-            color: var(--text-main);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            padding: 16px 32px;
-            border-radius: 50px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: var(--glass-glow);
-        }
-        .toggle-creator-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
-            transform: translateY(-1px);
-        }
-
-        .creator-drawer {
-            width: 100%;
-            max-width: 680px;
-            max-height: 0;
-            overflow: hidden;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-            opacity: 0;
-        }
-        .creator-drawer.open {
-            max-height: 400px;
-            opacity: 1;
-            margin-bottom: 10px;
+            gap: 20px;
         }
 
         .creator-card {
-            background: var(--glass-bg);
-            -webkit-backdrop-filter: var(--glass-blur);
-            backdrop-filter: var(--glass-blur);
-            border: var(--glass-border);
-            box-shadow: var(--glass-glow);
-            border-radius: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
             padding: 20px;
-            width: 100%;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        .input-group {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
 
-        .input-row {
-            display: flex;
-            gap: 10px;
-            width: 100%;
-        }
-
-        @media (max-width: 600px) {
-            .input-row { flex-direction: column; }
-        }
-
-        input, select, button.commit-btn {
-            background: rgba(0, 0, 0, 0.6);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text-main);
-            padding: 14px;
-            border-radius: 12px;
+        input, select, button {
+            font-family: var(--font-sans);
             font-size: 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-glow);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 10px;
             outline: none;
-            text-align: center;
-            width: 100%;
             transition: all 0.2s ease;
-        }
-
-        input[type="datetime-local"] {
-            color-scheme: dark;
         }
 
         input:focus, select:focus {
-            border-color: rgba(255, 255, 255, 0.2);
-            background: rgba(0, 0, 0, 0.8);
+            border-color: rgba(255, 255, 255, 0.20);
         }
 
-        button.commit-btn {
-            background: #ffffff;
-            color: #000000;
-            border: none;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-        }
-        button.commit-btn:active { transform: scale(0.98); }
-
-        .deck-section {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .section-title {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-            text-align: center;
-            margin-bottom: 5px;
-        }
-
-        /* Responsive Grid Framework for Columns & Rows */
-        .task-list {
+        .row-inputs {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 20px;
-            width: 100%;
-        }
-        @media (max-width: 360px) {
-            .task-list {
-                grid-template-columns: 1fr;
-            }
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
         }
 
-        .task-card {
-            background: var(--glass-bg);
-            -webkit-backdrop-filter: var(--glass-blur);
-            backdrop-filter: var(--glass-blur);
-            border: var(--glass-border);
-            box-shadow: var(--glass-glow);
-            border-radius: 18px;
-            width: 100%;
-            text-align: center;
-            cursor: pointer;
-            position: relative;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
-            align-self: start;
-        }
-        .task-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .task-card.expanded {
-            grid-column: span 1;
-        }
-        @media (min-width: 768px) {
-            .task-card.expanded {
-                grid-column: span 2;
-            }
-        }
-        @media (min-width: 1024px) {
-            .task-card.expanded {
-                grid-column: span 3;
-            }
-        }
-
-        .task-card.p-high {
-            padding: 30px 20px;
-            border-top: 3px solid var(--neon-high);
-            background: linear-gradient(180deg, rgba(255, 0, 128, 0.03) 0%, transparent 100%), var(--glass-bg);
-        }
-        .task-card.p-high > .inline-rename-input {
-            font-size: 1.5rem;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            text-shadow: 0 0 20px rgba(255, 0, 128, 0.3);
-        }
-
-        .task-card.p-medium {
-            padding: 22px 20px;
-            border-top: 3px solid var(--neon-med);
-        }
-        .task-card.p-medium > .inline-rename-input { font-size: 1.2rem; font-weight: 600; }
-
-        .task-card.p-low {
-            padding: 14px 15px;
-            border-top: 2px solid var(--neon-low);
-            opacity: 0.75;
-        }
-        .task-card.p-low > .inline-rename-input { font-size: 0.95rem; font-weight: 400; }
-
-        .inline-rename-input {
-            background: transparent !important;
-            border: 1px solid transparent !important;
-            color: #fff !important;
-            padding: 4px 8px !important;
-            font-size: inherit !important;
-            font-weight: inherit !important;
-            text-align: center !important;
-            border-radius: 6px !important;
-            width: 90% !important;
-            transition: all 0.2s ease;
-        }
-        .inline-rename-input:focus {
-            background: rgba(0, 0, 0, 0.8) !important;
-            border-color: rgba(255, 255, 255, 0.2) !important;
-        }
-
-        .task-meta {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-top: 6px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .p-low > .task-meta { display: none; }
-
-        .reminder-tag {
-            color: var(--neon-med);
-            font-weight: 700;
-            font-size: 0.75rem;
-            letter-spacing: 0.5px;
-        }
-
-        .task-controls {
-            margin-top: 0;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            width: 100%;
-            opacity: 0;
-            height: 0;
-            overflow: hidden;
-            transition: all 0.25s ease;
-        }
-        .task-card.expanded > .task-controls {
-            opacity: 1;
-            height: auto;
-            margin-top: 20px;
-        }
-
-        .control-btn, .mini-select {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text-main);
-            padding: 8px 14px;
-            border-radius: 8px;
-            font-size: 0.8rem;
+        button.btn-add {
+            background: var(--text-primary);
+            color: var(--bg-base);
             font-weight: 600;
             cursor: pointer;
-            flex: 1;
-            min-width: 90px;
-            transition: all 0.2s;
-            text-align: center;
+            border: none;
+            margin-top: 5px;
         }
-        .mini-select { text-align-last: center; outline: none; }
-        .control-btn:hover, .mini-select:hover { background: rgba(255, 255, 255, 0.15); }
-        .btn-complete:hover { color: #00e673; border-color: #00e673; }
-        .btn-postpone:hover { color: var(--neon-med); border-color: var(--neon-med); }
-        .btn-banish:hover { color: var(--neon-high); border-color: var(--neon-high); }
 
-        .subtask-container {
-            width: 100%;
-            display: none;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        button.btn-add:active {
+            transform: scale(0.98);
         }
-        .task-card.expanded > .subtask-container { display: block; }
 
-        .subtask-adder {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            margin-bottom: 20px;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.01);
-            padding: 12px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+        /* Fluid Schedule Bucket List display */
+        .bucket-title {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            margin: 15px 0 5px 5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
         }
-        .subtask-adder input { padding: 10px; font-size: 0.9rem; border-radius: 8px; }
 
-        .subtask-list {
+        .task-list {
             display: flex;
             flex-direction: column;
             gap: 12px;
-            width: 100%;
         }
 
-        .sub-card {
-            background: rgba(0, 0, 0, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            border-radius: 12px;
-            padding: 12px;
-            width: 100%;
+        .task-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .task-info {
             display: flex;
             flex-direction: column;
-            align-items: center;
+            gap: 4px;
+            max-width: 65%;
+        }
+
+        .task-name {
+            font-size: 1.1rem;
+            font-weight: 500;
+            word-break: break-word;
+        }
+
+        .task-meta {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .task-actions {
+            display: flex;
             gap: 8px;
-            cursor: default;
-        }
-        .sub-card.p-high { border-left: 3px solid var(--neon-high); }
-        .sub-card.p-medium { border-left: 3px solid var(--neon-med); }
-        .sub-card.p-low { border-left: 3px solid var(--neon-low); }
-
-        .sub-main-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            width: 100%;
-            gap: 15px;
-        }
-        .sub-title {
-            text-align: left !important;
-            flex: 1;
-        }
-        .sub-card.done .sub-title {
-            text-decoration: line-through;
-            opacity: 0.3;
         }
 
-        .sub-checkbox {
-            width: 20px !important;
-            height: 20px !important;
-            accent-color: var(--neon-low);
+        .action-btn {
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            border-radius: 8px;
             cursor: pointer;
+            border: none;
         }
 
-        .sub-actions {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
-            width: 100%;
-            justify-content: center;
+        .btn-bump {
+            background: rgba(251, 146, 60, 0.15);
+            color: var(--accent-orange);
+            border: 1px solid rgba(251, 146, 60, 0.2);
         }
-        .sub-actions .control-btn, .sub-actions .mini-select {
-            padding: 6px 10px;
-            font-size: 0.75rem;
-            min-width: 80px;
+
+        .btn-bump:active {
+            background: rgba(251, 146, 60, 0.3);
+        }
+
+        .btn-done {
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--accent-green);
+            border: 1px solid rgba(74, 222, 128, 0.2);
+        }
+
+        .btn-done:active {
+            background: rgba(74, 222, 128, 0.3);
+        }
+
+        /* Empty State text styling */
+        .empty-notice {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            border: 1px dashed rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
         }
     </style>
-
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
-<div class="workspace-container">
-    <header>// GROUND CONTROL // DASHBOARD MATRIX</header>
-    
-    <div class="sync-banner">
-        <div class="sync-status-row">
-            <span class="sync-dot" id="syncIndicator"></span> 
-            <span id="syncText">Connecting to Firebase Grid...</span>
+    <header>
+        <h1>Schedule</h1>
+        <div class="sync-badge">
+            <div id="sync-dot" class="dot"></div>
+            <span id="sync-text">Connecting</span>
         </div>
-        <div id="debugErrorLog"></div>
-    </div>
+    </header>
 
-    <button class="toggle-creator-btn" onclick="toggleCreatorDrawer()">+ Add A Task</button>
-
-    <div class="creator-drawer" id="creatorDrawer">
-        <div class="creator-card">
-            <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
-            <div class="input-row">
-                <input type="datetime-local" id="taskReminder" placeholder="Set Alert Target">
-                <select id="taskInterval">
-                    <option value="once">ONCE ONLY</option>
-                    <option value="hourly">HOURLY LOOP</option>
-                    <option value="daily">DAILY LOOP</option>
-                    <option value="monthly">MONTHLY LOOP</option>
-                </select>
+    <main>
+        <section class="creator-card">
+            <div class="input-group">
+                <input type="text" id="task-title" placeholder="What requires your focus?" autocomplete="off">
+                <div class="row-inputs">
+                    <select id="task-cadence">
+                        <option value="One-Off">One-Off Action</option>
+                        <option value="Recurring">Recurring Routine</option>
+                    </select>
+                    <select id="task-energy">
+                        <option value="High Energy">⚡ High Energy</option>
+                        <option value="Low Energy">🕯️ Low Energy</option>
+                    </select>
+                </div>
+                <button class="btn-add" id="add-task-btn">Commit to Canvas</button>
             </div>
-            <div class="input-row">
-                <select id="taskPriority">
-                    <option value="high">HIGH PRIORITY</option>
-                    <option value="medium" selected>MEDIUM PRIORITY</option>
-                    <option value="low">LOW PRIORITY</option>
-                </select>
-                <select id="taskType">
-                    <option value="oneoff">ONE-OFF</option>
-                    <option value="recurring">LOOP</option>
-                </select>
-                <button class="commit-btn" id="commitBtn" onclick="addNewTask()">Commit Anchor</button>
+        </section>
+
+        <div>
+            <div class="bucket-title">Current Focus Stack</div>
+            <div id="active-tasks" class="task-list">
+                <div class="empty-notice">Your space is clear. No active tasks detected.</div>
             </div>
         </div>
-    </div>
+    </main>
 
-    <div class="deck-section">
-        <div class="section-title">Active Deck Matrix</div>
-        <div class="task-list" id="activeTaskList"></div>
-    </div>
-
-    <div class="deck-section" style="margin-top: 20px;">
-        <div class="section-title">Postponed / Shifted</div>
-        <div class="task-list" id="postponedTaskList"></div>
-    </div>
-</div>
-
-<script>
-    let db;
-    let state = { tasks: [] };
-    let hasLoadedInitialData = false; 
-
-    function initializeAppMatrix() {
+    <script>
+        // 1. Updated Europe-West Project Database Routing Configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyAQSRSJC11L7n5zYivGAWKZosW-emSIaos",
-            authDomain: "paperlesscandy.firebaseapp.com",
-            databaseURL: "https://paperlesscandy-default-rtdb.firebaseio.com",
-            projectId: "paperlesscandy",
-            storageBucket: "paperlesscandy.firebasestorage.app",
-            messagingSenderId: "231190762242",
-            appId: "1:231190762242:web:adc945167257b368eca81b"
+            apiKey: "YOUR_API_KEY", 
+            authDomain: "task-5e6d4.firebaseapp.com",
+            databaseURL: "https://task-5e6d4-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "task-5e6d4",
+            storageBucket: "task-5e6d4.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
         };
 
-        try {
-            if (!firebase.apps.length) {
-                firebase.initializeApp(firebaseConfig);
-            }
-            
-            db = firebase.database().ref('deck_workspace_v4');
-
-            // Listen directly for network status connectivity changes
-            firebase.database().ref('.info/connected').on('value', (snap) => {
-                if (snap.val() === false && !hasLoadedInitialData) {
-                    setSyncState('connecting', "Establishing Data Link...");
-                }
-            });
-
-            // Stream changes from cloud database node
-            db.on('value', (snapshot) => {
-                const data = snapshot.val();
-                state.tasks = Array.isArray(data) ? data : [];
-                hasLoadedInitialData = true; 
-                document.getElementById('debugErrorLog').innerText = ""; 
-                renderBoard();
-                setSyncState('synced', "Grid Synchronized");
-            }, (error) => {
-                console.error("Firebase Security/Read Fault:", error);
-                setSyncState('error', "Database Access Denied");
-                document.getElementById('debugErrorLog').innerText = `Error context: ${error.message || error}`;
-            });
-
-        } catch (e) {
-            console.error("Initialization exception:", e);
-            setSyncState('error', "Initialization Failed");
-            document.getElementById('debugErrorLog').innerText = `Init Error: ${e.message}`;
-        }
-    }
-
-    // Execute across all rendering engines instantly
-    if (document.readyState === 'loading') {
-        window.addEventListener('DOMContentLoaded', initializeAppMatrix);
-    } else {
-        initializeAppMatrix();
-    }
-
-    function toggleCreatorDrawer() {
-        const drawer = document.getElementById('creatorDrawer');
-        drawer.classList.toggle('open');
-    }
-
-    function setSyncState(status, text = "") {
-        const indicator = document.getElementById('syncIndicator');
-        const textField = document.getElementById('syncText');
-        if (!indicator || !textField) return;
-        
-        indicator.className = "sync-dot"; 
-        
-        if (status === 'syncing') {
-            indicator.classList.add('syncing');
-            textField.innerText = text || "Writing Matrix Cloud...";
-        } else if (status === 'synced') {
-            indicator.classList.add('synced');
-            textField.innerText = text || "Grid Synchronized";
-        } else if (status === 'error') {
-            indicator.classList.add('error');
-            textField.innerText = text || "Connection Lost";
+        // Initialize App Instance Safely
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         } else {
-            textField.innerText = text || "Connecting...";
+            firebase.app();
         }
-    }
 
-    function saveState() {
-        if (!hasLoadedInitialData || !db) return;
+        const db = firebase.database();
+        const tasksRef = db.ref("schedule_items");
 
-        setSyncState('syncing');
-        db.set(state.tasks)
-          .then(() => setSyncState('synced', "Firebase Saved"))
-          .catch((err) => {
-              console.error("Write error:", err);
-              setSyncState('error', "Write Error");
-              document.getElementById('debugErrorLog').innerText = `Write Error: ${err.message}`;
-          });
-    }
+        // UI Reference Handles
+        const syncDot = document.getElementById('sync-dot');
+        const syncText = document.getElementById('sync-text');
+        const activeTasksContainer = document.getElementById('active-tasks');
+        const addTaskBtn = document.getElementById('add-task-btn');
 
-    function addNewTask() {
-        const titleInput = document.getElementById('taskTitle');
-        const reminderInput = document.getElementById('taskReminder');
-        const intervalInput = document.getElementById('taskInterval');
-        if (!titleInput || !titleInput.value.trim()) return;
-
-        state.tasks.push({
-            id: 'task-' + Date.now(),
-            title: titleInput.value.trim(),
-            priority: document.getElementById('taskPriority').value,
-            type: document.getElementById('taskType').value,
-            status: 'active',
-            reminder: reminderInput.value,
-            interval: intervalInput.value,
-            subs: []
-        });
-        titleInput.value = '';
-        reminderInput.value = '';
-        intervalInput.value = 'once';
-        
-        document.getElementById('creatorDrawer').classList.remove('open');
-        
-        if (hasLoadedInitialData) {
-            saveState();
-        } else {
-            renderBoard();
-        }
-    }
-
-    function addSubTask(taskId) {
-        const input = document.getElementById(`sub-input-${taskId}`);
-        const remInput = document.getElementById(`sub-rem-${taskId}`);
-        const intInput = document.getElementById(`sub-int-${taskId}`);
-        const priInput = document.getElementById(`sub-pri-${taskId}`);
-        const typInput = document.getElementById(`sub-typ-${taskId}`);
-        
-        if (!input || !input.value.trim()) return;
-
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-            if(!task.subs) task.subs = [];
-            task.subs.push({
-                id: 'sub-' + Date.now(),
-                title: input.value.trim(),
-                priority: priInput.value,
-                type: typInput.value,
-                status: 'active',
-                reminder: remInput.value,
-                interval: intInput.value,
-                done: false
-            });
-            input.value = '';
-            remInput.value = '';
-            intInput.value = 'once';
-            saveState();
-        }
-    }
-
-    function renameTask(taskId, newTitle) {
-        if (!newTitle.trim()) return;
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-            task.title = newTitle.trim();
-            saveState();
-        }
-    }
-
-    function renameSubTask(taskId, subId, newTitle) {
-        if (!newTitle.trim()) return;
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task && task.subs) {
-            const sub = task.subs.find(s => s.id === subId);
-            if (sub) {
-                sub.title = newTitle.trim();
-                saveState();
-            }
-        }
-    }
-
-    function changeTaskPriority(taskId, newPriority) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-            task.priority = newPriority;
-            saveState();
-        }
-    }
-
-    function changeSubPriority(taskId, subId, newPriority) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task && task.subs) {
-            const sub = task.subs.find(s => s.id === subId);
-            if (sub) {
-                sub.priority = newPriority;
-                saveState();
-            }
-        }
-    }
-
-    function handleSubCompletion(taskId, subId, isChecked) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (!task || !task.subs) return;
-        const sub = task.subs.find(s => s.id === subId);
-        if (!sub) return;
-
-        sub.done = isChecked;
-
-        if (isChecked) {
-            setTimeout(() => {
-                if (sub.type === 'recurring') {
-                    sub.done = false;
-                    sub.status = 'active';
-                } else {
-                    if (confirm(`Subtask "${sub.title}" cleared.\n\nShould this asset be permanently deleted or kept inside layout history?\n\nClick OK to DELETE, Cancel to Keep.`)) {
-                        task.subs = task.subs.filter(s => s.id !== subId);
-                    } else {
-                        sub.status = 'postponed';
-                    }
-                }
-                saveState();
-            }, 150);
-        } else {
-            saveState();
-        }
-    }
-
-    function banishSubTask(taskId, subId) {
-        if (confirm("Are you certain you wish to delete this subtask?")) {
-            const task = state.tasks.find(t => t.id === taskId);
-            if (task && task.subs) {
-                task.subs = task.subs.filter(s => s.id !== subId);
-                saveState();
-            }
-        }
-    }
-
-    function completeTask(taskId) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (!task) return;
-
-        if (task.type === 'recurring') {
-            if (task.subs) task.subs.forEach(s => s.done = false);
-            task.status = 'active';
-            saveState();
-        } else {
-            if (confirm(`Anchor "${task.title}" cleared.\n\nDelete permanently or preserve in layout history?\n\nClick OK to DELETE, Cancel to Keep.`)) {
-                state.tasks = state.tasks.filter(t => t.id !== taskId);
+        // Monitor Realtime Sync States
+        db.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                syncDot.classList.add('connected');
+                syncText.textContent = "Live-Synced";
             } else {
-                task.status = 'postponed';
+                syncDot.classList.remove('connected');
+                syncText.textContent = "Connecting";
             }
-            saveState();
-        }
-    }
-
-    function banishMainTask(taskId) {
-        if (confirm("Are you certain you wish to permanently delete this anchor task?")) {
-            state.tasks = state.tasks.filter(t => t.id !== taskId);
-            saveState();
-        }
-    }
-
-    function postponeTask(taskId) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-            const targetTime = prompt("Set Postponed Date & Time (YYYY-MM-DDTHH:MM format):", task.reminder || "");
-            if (targetTime !== null) {
-                task.reminder = targetTime;
-                const targetInterval = prompt("Update Recurrence Frequency? (Type: once, hourly, daily, monthly)", task.interval || "once");
-                if (targetInterval !== null) {
-                    task.interval = targetInterval;
-                }
-                task.status = 'postponed';
-                saveState();
-            }
-        }
-    }
-
-    function postponeSubTask(taskId, subId) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task && task.subs) {
-            const sub = task.subs.find(s => s.id === subId);
-            if (sub) {
-                const targetTime = prompt("Set Subtask Postponed Date & Time (YYYY-MM-DDTHH:MM format):", sub.reminder || "");
-                if (targetTime !== null) {
-                    sub.reminder = targetTime;
-                    const targetInterval = prompt("Update Subtask Recurrence Frequency? (Type: once, hourly, daily, monthly)", sub.interval || "once");
-                    if (targetInterval !== null) {
-                        sub.interval = targetInterval;
-                    }
-                    sub.status = 'postponed';
-                    saveState();
-                }
-            }
-        }
-    }
-
-    function resetTask(taskId) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task) {
-            task.status = 'active';
-            saveState();
-        }
-    }
-
-    function resetSubTask(taskId, subId) {
-        const task = state.tasks.find(t => t.id === taskId);
-        if (task && task.subs) {
-            const sub = task.subs.find(s => s.id === subId);
-            if (sub) {
-                sub.status = 'active';
-                sub.done = false;
-                saveState();
-            }
-        }
-    }
-
-    function formatReminder(dateTimeStr, interval) {
-        if (!dateTimeStr) return interval !== 'once' ? `⏳ Cadence: [${interval.toUpperCase()}]` : "";
-        try {
-            const dt = new Date(dateTimeStr);
-            const formattedTime = dt.toLocaleDateString() + " " + dt.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            return interval !== 'once' ? `⏳ ALERT: ${formattedTime} (${interval.toUpperCase()})` : `⏳ ALERT: ${formattedTime}`;
-        } catch(e) {
-            return dateTimeStr;
-        }
-    }
-
-    // Modal view card scaling
-    function toggleCard(e, taskId) {
-        if (e.target.closest('.task-controls') || e.target.closest('.subtask-container') || e.target.closest('.mini-select') || e.target.closest('.inline-rename-input')) return;
-        
-        const card = document.getElementById(`card-${taskId}`);
-        const wasExpanded = card.classList.contains('expanded');
-        
-        document.querySelectorAll('.task-card').forEach(c => c.classList.remove('expanded'));
-        if (!wasExpanded) card.classList.add('expanded');
-    }
-
-    function renderBoard() {
-        const activeList = document.getElementById('activeTaskList');
-        const postponedList = document.getElementById('postponedTaskList');
-        if (!activeList || !postponedList) return;
-        
-        const openCardId = document.querySelector('.task-card.expanded')?.id;
-
-        activeList.innerHTML = '';
-        postponedList.innerHTML = '';
-
-        const priorityWeights = { high: 3, medium: 2, low: 1 };
-        const sortedTasks = [...state.tasks].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
-
-        sortedTasks.forEach(task => {
-            const card = document.createElement('div');
-            card.id = `card-${task.id}`;
-            card.className = `task-card p-${task.priority}`;
-            card.setAttribute('onclick', `toggleCard(event, '${task.id}')`);
-
-            const reminderText = formatReminder(task.reminder, task.interval || 'once');
-            const reminderLabel = reminderText ? `<span class="reminder-tag">${reminderText}</span>` : '';
-
-            const actionButtons = task.status === 'active' ? `
-                <select class="mini-select" onchange="changeTaskPriority('${task.id}', this.value)">
-                    <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
-                    <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Med</option>
-                    <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
-                </select>
-                <button class="control-btn btn-postpone" onclick="event.stopPropagation(); postponeTask('${task.id}')">⏳ Postpone</button>
-                <button class="control-btn btn-complete" onclick="event.stopPropagation(); completeTask('${task.id}')">✓ Clear</button>
-                <button class="control-btn btn-banish" onclick="event.stopPropagation(); banishMainTask('${task.id}')">✕ Delete</button>
-            ` : `
-                <button class="control-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Return</button>
-            `;
-
-            const rawSubs = task.subs || [];
-            const sortedSubs = [...rawSubs].sort((a, b) => priorityWeights[b.priority] - priorityWeights[a.priority]);
-
-            card.innerHTML = `
-                <input type="text" class="inline-rename-input task-title" value="${task.title}" onchange="renameTask('${task.id}', this.value)" onclick="event.stopPropagation()">
-                <div class="task-meta">
-                    <div>${task.type}</div>
-                    ${reminderLabel}
-                </div>
-                
-                <div class="task-controls">${actionButtons}</div>
-
-                <div class="subtask-container" onclick="event.stopPropagation();">
-                    <div class="subtask-adder">
-                        <input type="text" id="sub-input-${task.id}" placeholder="Next subtask description...">
-                        <div class="input-row" style="margin-top:5px; gap:5px;">
-                            <input type="datetime-local" id="sub-rem-${task.id}">
-                            <select id="sub-int-${task.id}">
-                                <option value="once">ONCE ONLY</option>
-                                <option value="hourly">HOURLY LOOP</option>
-                                <option value="daily">DAILY LOOP</option>
-                                <option value="monthly">MONTHLY LOOP</option>
-                            </select>
-                        </div>
-                        <div class="input-row" style="margin-top:5px; gap:5px;">
-                            <select id="sub-pri-${task.id}">
-                                <option value="high">HIGH</option>
-                                <option value="medium" selected>MED</option>
-                                <option value="low">LOW</option>
-                            </select>
-                            <select id="sub-typ-${task.id}">
-                                <option value="oneoff">ONE-OFF</option>
-                                <option value="recurring">LOOP</option>
-                            </select>
-                            <button class="commit-btn" style="padding:10px;" onclick="addSubTask('${task.id}')">+</button>
-                        </div>
-                    </div>
-                    <div class="subtask-list">
-                        ${sortedSubs.map(sub => {
-                            const subReminderText = formatReminder(sub.reminder, sub.interval || 'once');
-                            const subReminderLabel = subReminderText ? `<div class="reminder-tag" style="font-size:0.7rem; margin-top:2px;">${subReminderText}</div>` : '';
-                            
-                            const subActionButtons = sub.status === 'active' ? `
-                                <select class="mini-select" onchange="changeSubPriority('${task.id}', '${sub.id}', this.value)">
-                                    <option value="high" ${sub.priority === 'high' ? 'selected' : ''}>High</option>
-                                    <option value="medium" ${sub.priority === 'medium' ? 'selected' : ''}>Med</option>
-                                    <option value="low" ${sub.priority === 'low' ? 'selected' : ''}>Low</option>
-                                </select>
-                                <button class="control-btn btn-postpone" onclick="postponeSubTask('${task.id}', '${sub.id}')">⏳ Postpone</button>
-                                <button class="control-btn btn-banish" onclick="banishSubTask('${task.id}', '${sub.id}')">Delete</button>
-                            ` : `
-                                <button class="control-btn" onclick="resetSubTask('${task.id}', '${sub.id}')">↩ Return</button>
-                            `;
-
-                            return `
-                                <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''}">
-                                    <div class="sub-main-row">
-                                        <input type="checkbox" class="sub-checkbox" ${sub.done ? 'checked' : ''} onchange="handleSubCompletion('${task.id}', '${sub.id}', this.checked)">
-                                        <div style="flex:1; display:flex; flex-direction:column; align-items:flex-start;">
-                                            <input type="text" class="inline-rename-input sub-title" value="${sub.title}" onchange="renameSubTask('${task.id}', '${sub.id}', this.value)">
-                                            ${subReminderLabel}
-                                        </div>
-                                    </div>
-                                    <div class="sub-actions">${subActionButtons}</div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </div>
-            `;
-
-            if (task.status === 'active') activeList.appendChild(card);
-            else if (task.status === 'postponed') postponedList.appendChild(card);
         });
 
-        if (openCardId) document.getElementById(openCardId)?.classList.add('expanded');
-    }
-</script>
+        // 2. Commit Task Event Handler Action
+        addTaskBtn.addEventListener('click', () => {
+            const titleInput = document.getElementById('task-title');
+            const cadenceSelect = document.getElementById('task-cadence');
+            const energySelect = document.getElementById('task-energy');
+
+            if (!titleInput.value.trim()) {
+                alert("Please declare a title for your task.");
+                return;
+            }
+
+            const newTask = {
+                title: titleInput.value.trim(),
+                cadence: cadenceSelect.value,
+                energy: energySelect.value,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            tasksRef.push(newTask)
+                .then(() => {
+                    titleInput.value = ''; // Flush input clean
+                })
+                .catch((err) => {
+                    console.error("Database Write Error: ", err);
+                });
+        });
+
+        // 3. Render Dashboard Data Stream Engine
+        tasksRef.on('value', (snapshot) => {
+            activeTasksContainer.innerHTML = '';
+            const data = snapshot.val();
+
+            if (!data) {
+                activeTasksContainer.innerHTML = `<div class="empty-notice">Your space is clear. No active tasks detected.</div>`;
+                return;
+            }
+
+            // Loop and compile task nodes dynamically
+            Object.keys(data).forEach((key) => {
+                const task = data[key];
+                
+                const taskCard = document.createElement('div');
+                taskCard.className = 'task-card';
+                taskCard.innerHTML = `
+                    <div class="task-info">
+                        <div class="task-name">${escapeHTML(task.title)}</div>
+                        <div class="task-meta">${task.cadence} • ${task.energy}</div>
+                    </div>
+                    <div class="task-actions">
+                        <button class="action-btn btn-bump" onclick="bumpTask('${key}')">Bump</button>
+                        <button class="action-btn btn-done" onclick="completeTask('${key}')">Done</button>
+                    </div>
+                `;
+                activeTasksContainer.appendChild(taskCard);
+            });
+        });
+
+        // 4. Fluid Processing Action Closures
+        window.bumpTask = function(id) {
+            // Guilt-Free Bump: Simulates push priority rearrangement by refreshing the positioning timestamp
+            tasksRef.child(id).update({
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        };
+
+        window.completeTask = function(id) {
+            // Banish item cleanly from the live tracking tree upon confirmation
+            if (confirm("Clear this item from your current visual stack?")) {
+                tasksRef.child(id).remove();
+            }
+        };
+
+        // Clean Injection String Escaper Utility
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
+            );
+        }
+    </script>
 </body>
 </html>
