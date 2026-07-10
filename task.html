@@ -76,15 +76,19 @@
         .sync-dot {
             width: 6px;
             height: 6px;
-            background: #00e673;
+            background: #ffaa00;
             border-radius: 50%;
-            box-shadow: 0 0 8px #00e673;
+            box-shadow: 0 0 8px #ffaa00;
             display: inline-block;
             transition: all 0.3s;
         }
+        .sync-dot.synced {
+            background: #00e673;
+            box-shadow: 0 0 8px #00e673;
+        }
         .sync-dot.syncing {
-            background: var(--neon-med);
-            box-shadow: 0 0 8px var(--neon-med);
+            background: var(--neon-high);
+            box-shadow: 0 0 8px var(--neon-high);
         }
 
         /* Top Creator Toggle Trigger */
@@ -426,6 +430,7 @@
         }
     </style>
 
+    <!-- Firebase App and Database SDK Modules -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
@@ -438,8 +443,10 @@
         <span class="sync-dot" id="syncIndicator"></span> <span id="syncText">Connecting to Firebase Grid...</span>
     </div>
 
+    <!-- Interactive Top Panel Toggle -->
     <button class="toggle-creator-btn" onclick="toggleCreatorDrawer()">+ Add A Task</button>
 
+    <!-- Slidedown Entry Field Drawer Module -->
     <div class="creator-drawer" id="creatorDrawer">
         <div class="creator-card">
             <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
@@ -494,40 +501,51 @@
     const db = firebase.database().ref('deck_workspace_v4');
 
     let state = { tasks: [] };
+    let hasLoadedInitialData = false; // Guard flag to stop empty array overwrites
 
     function toggleCreatorDrawer() {
         const drawer = document.getElementById('creatorDrawer');
         drawer.classList.toggle('open');
     }
 
-    function setSyncState(isSyncing, text = "Firebase Connected") {
+    function setSyncState(status, text = "") {
         const indicator = document.getElementById('syncIndicator');
         const textField = document.getElementById('syncText');
-        if(isSyncing) {
+        
+        indicator.className = "sync-dot"; 
+        
+        if (status === 'syncing') {
             indicator.classList.add('syncing');
-            textField.innerText = "Writing Matrix Cloud...";
+            textField.innerText = text || "Writing Matrix Cloud...";
+        } else if (status === 'synced') {
+            indicator.classList.add('synced');
+            textField.innerText = text || "Grid Synchronized";
         } else {
-            indicator.classList.remove('syncing');
-            textField.innerText = text;
+            textField.innerText = text || "Connecting...";
         }
     }
 
     function saveState() {
-        setSyncState(true);
+        // Guard checking: never push to Firebase if initial collection hasn't landed
+        if (!hasLoadedInitialData) return;
+
+        setSyncState('syncing');
         db.set(state.tasks)
-          .then(() => setSyncState(false, "Firebase Saved"))
-          .catch(() => setSyncState(false, "Write Error"));
+          .then(() => setSyncState('synced', "Firebase Saved"))
+          .catch(() => setSyncState('error', "Write Error"));
     }
 
     // Direct Sync Pipeline Realtime Listener
     db.on('value', (snapshot) => {
         const data = snapshot.val();
         state.tasks = Array.isArray(data) ? data : [];
+        hasLoadedInitialData = true; // Safe pipeline flag enabled
         renderBoard();
-        setSyncState(false, "Grid Synchronized");
+        setSyncState('synced', "Grid Synchronized");
     });
 
     function addNewTask() {
+        if (!hasLoadedInitialData) return;
         const titleInput = document.getElementById('taskTitle');
         const reminderInput = document.getElementById('taskReminder');
         const intervalInput = document.getElementById('taskInterval');
@@ -547,7 +565,6 @@
         reminderInput.value = '';
         intervalInput.value = 'once';
         
-        // Auto close panel post checkout
         document.getElementById('creatorDrawer').classList.remove('open');
         saveState();
     }
