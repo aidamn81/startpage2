@@ -51,6 +51,8 @@
             flex-direction: column;
             align-items: center;
             overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         header {
@@ -180,6 +182,8 @@
             border-radius: 10px;
             outline: none;
             transition: all 0.2s ease;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         textarea {
@@ -249,10 +253,12 @@
             -webkit-backdrop-filter: blur(16px) saturate(120%);
             transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
                         border-color 0.3s ease, 
-                        background-color 0.3s ease;
+                        background-color 0.3s ease,
+                        transform 0.2s ease;
             overflow: hidden;
             max-height: 58px; /* Collapsed state barrier */
             cursor: pointer;
+            position: relative;
         }
 
         .glass-task-box:hover {
@@ -261,10 +267,16 @@
         }
 
         .glass-task-box.expanded {
-            max-height: 900px; /* High boundary ceiling clearance increased slightly for controls */
+            max-height: 950px; /* High boundary ceiling clearance increased slightly for controls */
             background: var(--glass-bg-expanded);
             border-color: rgba(212, 175, 55, 0.25);
             box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-task-box.long-press-primed {
+            transform: scale(0.97);
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 15px rgba(251, 146, 96, 0.2);
         }
 
         .task-header {
@@ -369,6 +381,8 @@
             color: rgba(240, 240, 245, 0.8);
             white-space: pre-wrap;
             line-height: 1.4;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
         .task-reminder {
@@ -598,6 +612,10 @@
         // Storage Reference cache for processing current client ordering mutations
         let runtimeTaskCache = {};
 
+        // Long Press Implementation State Tracking Maps
+        let pressTimer = null;
+        let isLongPressActionTriggered = false;
+
         // Local Device File Parsing Asset Utility
         window.handleLocalImageUpload = function(inputElement, targetInputId) {
             if (inputElement.files && inputElement.files[0]) {
@@ -622,12 +640,51 @@
 
         // Manage expand / collapse functions safely without colliding into button actions
         window.toggleGlassBox = function(id, event) {
+            if (isLongPressActionTriggered) {
+                return;
+            }
             if (event.target.closest('.task-actions') || event.target.closest('.task-actions-side') || event.target.closest('input') || event.target.closest('select') || event.target.closest('textarea') || event.target.closest('button') || event.target.closest('.order-arrows-cluster')) {
                 return;
             }
             const box = document.getElementById(`box-${id}`);
             if (box) {
                 box.classList.toggle('expanded');
+            }
+        };
+
+        // Tactile Event Handlers Hooking into Glass Nodes
+        window.handleTouchStart = function(id, parentId, event) {
+            if (event.target.closest('.task-actions') || event.target.closest('.task-actions-side') || event.target.closest('input') || event.target.closest('select') || event.target.closest('textarea') || event.target.closest('button') || event.target.closest('.order-arrows-cluster')) {
+                return;
+            }
+            isLongPressActionTriggered = false;
+            const targetBox = document.getElementById(`box-${id}`);
+            
+            pressTimer = setTimeout(() => {
+                isLongPressActionTriggered = true;
+                if (targetBox) {
+                    targetBox.classList.add('long-press-primed');
+                }
+                // Haptic feedback sequence execution
+                if (navigator.vibrate) {
+                    navigator.vibrate(60);
+                }
+                
+                setTimeout(() => {
+                    if (targetBox) targetBox.classList.remove('long-press-primed');
+                    initiateEditMode(id, parentId);
+                }, 150);
+            }, 600); // 600ms long-press boundary hold
+        };
+
+        window.handleTouchEndClear = function(id, event) {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+            const targetBox = document.getElementById(`box-${id}`);
+            if (targetBox) {
+                targetBox.classList.remove('long-press-primed');
             }
         };
 
@@ -753,9 +810,16 @@
                 const masterBox = document.createElement('div');
                 masterBox.className = 'glass-task-box';
                 masterBox.id = `box-${key}`;
-                masterBox.setAttribute('onclick', `toggleGlassBox('${key}', event)`);
-                masterBox.innerHTML = buildTaskInnerFrame(key, task, false);
                 
+                // Attach safe evaluation event routing layers
+                masterBox.setAttribute('onclick', `toggleGlassBox('${key}', event)`);
+                masterBox.setAttribute('ontouchstart', `handleTouchStart('${key}', '', event)`);
+                masterBox.setAttribute('ontouchend', `handleTouchEndClear('${key}', event)`);
+                masterBox.setAttribute('onmousedown', `handleTouchStart('${key}', '', event)`);
+                masterBox.setAttribute('onmouseup', `handleTouchEndClear('${key}', event)`);
+                masterBox.setAttribute('onmouseleave', `handleTouchEndClear('${key}', event)`);
+                
+                masterBox.innerHTML = buildTaskInnerFrame(key, task, false);
                 activeTasksContainer.appendChild(masterBox);
 
                 // Nested subtasks engine builder loop check
@@ -773,7 +837,14 @@
                         const subBox = document.createElement('div');
                         subBox.className = 'glass-task-box';
                         subBox.id = `box-${subKey}`;
+                        
                         subBox.setAttribute('onclick', `toggleGlassBox('${subKey}', event)`);
+                        subBox.setAttribute('ontouchstart', `handleTouchStart('${subKey}', '${key}', event)`);
+                        subBox.setAttribute('ontouchend', `handleTouchEndClear('${subKey}', event)`);
+                        subBox.setAttribute('onmousedown', `handleTouchStart('${subKey}', '${key}', event)`);
+                        subBox.setAttribute('onmouseup', `handleTouchEndClear('${subKey}', event)`);
+                        subBox.setAttribute('onmouseleave', `handleTouchEndClear('${subKey}', event)`);
+                        
                         subBox.innerHTML = buildTaskInnerFrame(subKey, subtask, true, key);
                         subListContainer.appendChild(subBox);
                     });
