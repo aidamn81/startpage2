@@ -69,9 +69,15 @@
             letter-spacing: 1px;
             color: var(--text-muted);
             display: flex;
+            flex-direction: column;
             align-items: center;
             gap: 6px;
             margin-top: -15px;
+        }
+        .sync-status-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .sync-dot {
             width: 6px;
@@ -89,6 +95,18 @@
         .sync-dot.syncing {
             background: var(--neon-high);
             box-shadow: 0 0 8px var(--neon-high);
+        }
+        .sync-dot.error {
+            background: #ff0000;
+            box-shadow: 0 0 8px #ff0000;
+        }
+        #debugErrorLog {
+            color: #ff4d4d;
+            font-family: monospace;
+            font-size: 0.7rem;
+            margin-top: 4px;
+            max-width: 400px;
+            text-align: center;
         }
 
         /* Top Creator Toggle Trigger */
@@ -235,7 +253,6 @@
             border-color: rgba(255, 255, 255, 0.15);
         }
 
-        /* Adaptive column span rules when active task expansion triggers deep subtasks */
         .task-card.expanded {
             grid-column: span 1;
         }
@@ -430,7 +447,6 @@
         }
     </style>
 
-    <!-- Firebase App and Database SDK Modules -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 </head>
@@ -440,13 +456,15 @@
     <header>// GROUND CONTROL // DASHBOARD MATRIX</header>
     
     <div class="sync-banner">
-        <span class="sync-dot" id="syncIndicator"></span> <span id="syncText">Connecting to Firebase Grid...</span>
+        <div class="sync-status-row">
+            <span class="sync-dot" id="syncIndicator"></span> 
+            <span id="syncText">Connecting to Firebase Grid...</span>
+        </div>
+        <div id="debugErrorLog"></div>
     </div>
 
-    <!-- Interactive Top Panel Toggle -->
     <button class="toggle-creator-btn" onclick="toggleCreatorDrawer()">+ Add A Task</button>
 
-    <!-- Slidedown Entry Field Drawer Module -->
     <div class="creator-drawer" id="creatorDrawer">
         <div class="creator-card">
             <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
@@ -469,7 +487,7 @@
                     <option value="oneoff">ONE-OFF</option>
                     <option value="recurring">LOOP</option>
                 </select>
-                <button class="commit-btn" onclick="addNewTask()">Commit Anchor</button>
+                <button class="commit-btn" id="commitBtn" onclick="addNewTask()">Commit Anchor</button>
             </div>
         </div>
     </div>
@@ -490,35 +508,58 @@
     let state = { tasks: [] };
     let hasLoadedInitialData = false; 
 
-    // Initialize Connection cleanly safely after page assembly finishes
-    window.addEventListener('DOMContentLoaded', () => {
+    function initializeAppMatrix() {
         const firebaseConfig = {
             apiKey: "AIzaSyAQSRSJC11L7n5zYivGAWKZosW-emSIaos",
             authDomain: "paperlesscandy.firebaseapp.com",
+            databaseURL: "https://paperlesscandy-default-rtdb.firebaseio.com",
             projectId: "paperlesscandy",
             storageBucket: "paperlesscandy.firebasestorage.app",
             messagingSenderId: "231190762242",
             appId: "1:231190762242:web:adc945167257b368eca81b"
         };
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        
-        db = firebase.database().ref('deck_workspace_v4');
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            
+            db = firebase.database().ref('deck_workspace_v4');
 
-        // Setup real-time value listener pipeline immediately
-        db.on('value', (snapshot) => {
-            const data = snapshot.val();
-            state.tasks = Array.isArray(data) ? data : [];
-            hasLoadedInitialData = true; 
-            renderBoard();
-            setSyncState('synced', "Grid Synchronized");
-        }, (error) => {
-            console.error("Firebase read fault:", error);
-            setSyncState('error', "Database connection rejected");
-        });
-    });
+            // Listen directly for network status connectivity changes
+            firebase.database().ref('.info/connected').on('value', (snap) => {
+                if (snap.val() === false && !hasLoadedInitialData) {
+                    setSyncState('connecting', "Establishing Data Link...");
+                }
+            });
+
+            // Stream changes from cloud database node
+            db.on('value', (snapshot) => {
+                const data = snapshot.val();
+                state.tasks = Array.isArray(data) ? data : [];
+                hasLoadedInitialData = true; 
+                document.getElementById('debugErrorLog').innerText = ""; 
+                renderBoard();
+                setSyncState('synced', "Grid Synchronized");
+            }, (error) => {
+                console.error("Firebase Security/Read Fault:", error);
+                setSyncState('error', "Database Access Denied");
+                document.getElementById('debugErrorLog').innerText = `Error context: ${error.message || error}`;
+            });
+
+        } catch (e) {
+            console.error("Initialization exception:", e);
+            setSyncState('error', "Initialization Failed");
+            document.getElementById('debugErrorLog').innerText = `Init Error: ${e.message}`;
+        }
+    }
+
+    // Execute across all rendering engines instantly
+    if (document.readyState === 'loading') {
+        window.addEventListener('DOMContentLoaded', initializeAppMatrix);
+    } else {
+        initializeAppMatrix();
+    }
 
     function toggleCreatorDrawer() {
         const drawer = document.getElementById('creatorDrawer');
@@ -538,6 +579,9 @@
         } else if (status === 'synced') {
             indicator.classList.add('synced');
             textField.innerText = text || "Grid Synchronized";
+        } else if (status === 'error') {
+            indicator.classList.add('error');
+            textField.innerText = text || "Connection Lost";
         } else {
             textField.innerText = text || "Connecting...";
         }
@@ -552,11 +596,11 @@
           .catch((err) => {
               console.error("Write error:", err);
               setSyncState('error', "Write Error");
+              document.getElementById('debugErrorLog').innerText = `Write Error: ${err.message}`;
           });
     }
 
     function addNewTask() {
-        if (!hasLoadedInitialData) return;
         const titleInput = document.getElementById('taskTitle');
         const reminderInput = document.getElementById('taskReminder');
         const intervalInput = document.getElementById('taskInterval');
@@ -577,7 +621,12 @@
         intervalInput.value = 'once';
         
         document.getElementById('creatorDrawer').classList.remove('open');
-        saveState();
+        
+        if (hasLoadedInitialData) {
+            saveState();
+        } else {
+            renderBoard();
+        }
     }
 
     function addSubTask(taskId) {
@@ -777,6 +826,7 @@
         }
     }
 
+    // Modal view card scaling
     function toggleCard(e, taskId) {
         if (e.target.closest('.task-controls') || e.target.closest('.subtask-container') || e.target.closest('.mini-select') || e.target.closest('.inline-rename-input')) return;
         
