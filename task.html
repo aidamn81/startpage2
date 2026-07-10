@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Ground Control: Firebase Deck</title>
+    <title>Ground Control: Grid Deck</title>
     <style>
         :root {
             --base-bg: #000000;
@@ -48,7 +48,7 @@
 
         .workspace-container {
             width: 100%;
-            max-width: 680px; 
+            max-width: 1200px; 
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -85,6 +85,40 @@
         .sync-dot.syncing {
             background: var(--neon-med);
             box-shadow: 0 0 8px var(--neon-med);
+        }
+
+        /* Top Creator Toggle Trigger */
+        .toggle-creator-btn {
+            background: var(--glass-bg);
+            border: var(--glass-border);
+            color: var(--text-main);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            padding: 16px 32px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: var(--glass-glow);
+        }
+        .toggle-creator-btn:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .creator-drawer {
+            width: 100%;
+            max-width: 680px;
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 0;
+        }
+        .creator-drawer.open {
+            max-height: 400px;
+            opacity: 1;
+            margin-bottom: 10px;
         }
 
         .creator-card {
@@ -160,12 +194,17 @@
             margin-bottom: 5px;
         }
 
+        /* Responsive Grid Framework for Columns & Rows */
         .task-list {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 15px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
             width: 100%;
+        }
+        @media (max-width: 360px) {
+            .task-list {
+                grid-template-columns: 1fr;
+            }
         }
 
         .task-card {
@@ -184,20 +223,36 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            align-self: start;
         }
         .task-card:hover {
             background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.15);
         }
 
+        /* Adaptive column span rules when active task expansion triggers deep subtasks */
+        .task-card.expanded {
+            grid-column: span 1;
+        }
+        @media (min-width: 768px) {
+            .task-card.expanded {
+                grid-column: span 2;
+            }
+        }
+        @media (min-width: 1024px) {
+            .task-card.expanded {
+                grid-column: span 3;
+            }
+        }
+
         .task-card.p-high {
-            padding: 35px 25px;
+            padding: 30px 20px;
             border-top: 3px solid var(--neon-high);
             background: linear-gradient(180deg, rgba(255, 0, 128, 0.03) 0%, transparent 100%), var(--glass-bg);
         }
         .task-card.p-high > .inline-rename-input {
-            font-size: 1.8rem;
+            font-size: 1.5rem;
             font-weight: 800;
             letter-spacing: -0.5px;
             text-shadow: 0 0 20px rgba(255, 0, 128, 0.3);
@@ -207,10 +262,10 @@
             padding: 22px 20px;
             border-top: 3px solid var(--neon-med);
         }
-        .task-card.p-medium > .inline-rename-input { font-size: 1.3rem; font-weight: 600; }
+        .task-card.p-medium > .inline-rename-input { font-size: 1.2rem; font-weight: 600; }
 
         .task-card.p-low {
-            padding: 12px 15px;
+            padding: 14px 15px;
             border-top: 2px solid var(--neon-low);
             opacity: 0.75;
         }
@@ -225,7 +280,7 @@
             font-weight: inherit !important;
             text-align: center !important;
             border-radius: 6px !important;
-            width: 80% !important;
+            width: 90% !important;
             transition: all 0.2s ease;
         }
         .inline-rename-input:focus {
@@ -253,12 +308,11 @@
         }
 
         .task-controls {
-            margin-top: 15px;
+            margin-top: 0;
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             width: 100%;
-            max-width: 540px;
             opacity: 0;
             height: 0;
             overflow: hidden;
@@ -378,39 +432,43 @@
 <body>
 
 <div class="workspace-container">
-    <header>// GROUND CONTROL // DATABASE DECK</header>
+    <header>// GROUND CONTROL // DASHBOARD MATRIX</header>
     
     <div class="sync-banner">
         <span class="sync-dot" id="syncIndicator"></span> <span id="syncText">Connecting to Firebase Grid...</span>
     </div>
 
-    <div class="creator-card">
-        <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
-        <div class="input-row">
-            <input type="datetime-local" id="taskReminder" placeholder="Set Alert Target">
-            <select id="taskInterval">
-                <option value="once">ONCE ONLY</option>
-                <option value="hourly">HOURLY LOOP</option>
-                <option value="daily">DAILY LOOP</option>
-                <option value="monthly">MONTHLY LOOP</option>
-            </select>
-        </div>
-        <div class="input-row">
-            <select id="taskPriority">
-                <option value="high">HIGH PRIORITY</option>
-                <option value="medium" selected>MEDIUM PRIORITY</option>
-                <option value="low">LOW PRIORITY</option>
-            </select>
-            <select id="taskType">
-                <option value="oneoff">ONE-OFF</option>
-                <option value="recurring">LOOP</option>
-            </select>
-            <button class="commit-btn" onclick="addNewTask()">Commit Anchor</button>
+    <button class="toggle-creator-btn" onclick="toggleCreatorDrawer()">+ Add A Task</button>
+
+    <div class="creator-drawer" id="creatorDrawer">
+        <div class="creator-card">
+            <input type="text" id="taskTitle" placeholder="Target Anchors Description...">
+            <div class="input-row">
+                <input type="datetime-local" id="taskReminder" placeholder="Set Alert Target">
+                <select id="taskInterval">
+                    <option value="once">ONCE ONLY</option>
+                    <option value="hourly">HOURLY LOOP</option>
+                    <option value="daily">DAILY LOOP</option>
+                    <option value="monthly">MONTHLY LOOP</option>
+                </select>
+            </div>
+            <div class="input-row">
+                <select id="taskPriority">
+                    <option value="high">HIGH PRIORITY</option>
+                    <option value="medium" selected>MEDIUM PRIORITY</option>
+                    <option value="low">LOW PRIORITY</option>
+                </select>
+                <select id="taskType">
+                    <option value="oneoff">ONE-OFF</option>
+                    <option value="recurring">LOOP</option>
+                </select>
+                <button class="commit-btn" onclick="addNewTask()">Commit Anchor</button>
+            </div>
         </div>
     </div>
 
     <div class="deck-section">
-        <div class="section-title">Active Deck</div>
+        <div class="section-title">Active Deck Matrix</div>
         <div class="task-list" id="activeTaskList"></div>
     </div>
 
@@ -436,6 +494,11 @@
     const db = firebase.database().ref('deck_workspace_v4');
 
     let state = { tasks: [] };
+
+    function toggleCreatorDrawer() {
+        const drawer = document.getElementById('creatorDrawer');
+        drawer.classList.toggle('open');
+    }
 
     function setSyncState(isSyncing, text = "Firebase Connected") {
         const indicator = document.getElementById('syncIndicator');
@@ -483,6 +546,9 @@
         titleInput.value = '';
         reminderInput.value = '';
         intervalInput.value = 'once';
+        
+        // Auto close panel post checkout
+        document.getElementById('creatorDrawer').classList.remove('open');
         saveState();
     }
 
@@ -721,10 +787,10 @@
                     <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
                 </select>
                 <button class="control-btn btn-postpone" onclick="event.stopPropagation(); postponeTask('${task.id}')">⏳ Postpone</button>
-                <button class="control-btn btn-complete" onclick="event.stopPropagation(); completeTask('${task.id}')">✓ Clear from Current Task</button>
+                <button class="control-btn btn-complete" onclick="event.stopPropagation(); completeTask('${task.id}')">✓ Clear</button>
                 <button class="control-btn btn-banish" onclick="event.stopPropagation(); banishMainTask('${task.id}')">✕ Delete</button>
             ` : `
-                <button class="control-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Return to Deck</button>
+                <button class="control-btn" onclick="event.stopPropagation(); resetTask('${task.id}')">↩ Return</button>
             `;
 
             const rawSubs = task.subs || [];
@@ -782,7 +848,7 @@
                             `;
 
                             return `
-                                <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''} ${sub.status === 'postponed' ? 'postponed-sub' : ''}">
+                                <div class="sub-card p-${sub.priority} ${sub.done ? 'done' : ''}">
                                     <div class="sub-main-row">
                                         <input type="checkbox" class="sub-checkbox" ${sub.done ? 'checked' : ''} onchange="handleSubCompletion('${task.id}', '${sub.id}', this.checked)">
                                         <div style="flex:1; display:flex; flex-direction:column; align-items:flex-start;">
