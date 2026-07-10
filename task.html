@@ -104,6 +104,34 @@
             gap: 20px;
         }
 
+        /* Launcher and Workspace Components */
+        .trigger-btn-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn-trigger-main {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            font-family: var(--font-sans);
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 16px;
+            border-radius: 14px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-trigger-main:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
         .creator-card, .edit-card {
             background: var(--panel-bg);
             border: 1px solid var(--border-glow);
@@ -111,6 +139,7 @@
             padding: 20px;
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
+            animation: fadeIn 0.25s ease;
         }
 
         .edit-card {
@@ -215,6 +244,23 @@
             animation: fadeIn 0.3s ease;
         }
 
+        /* Sub-task Nesting Indentation and Treatment */
+        .subtasks-container {
+            margin-left: 20px;
+            border-left: 2px solid rgba(255, 255, 255, 0.05);
+            padding-left: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .subtasks-container .task-card {
+            background: rgba(0, 0, 0, 0.2);
+            border-color: rgba(255, 255, 255, 0.04);
+            padding: 12px;
+        }
+
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -287,20 +333,20 @@
         .task-actions {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
+            gap: 6px;
             border-top: 1px solid rgba(255, 255, 255, 0.05);
             padding-top: 12px;
         }
 
         .action-btn {
-            padding: 8px 14px;
-            font-size: 0.85rem;
+            padding: 8px 12px;
+            font-size: 0.8rem;
             font-weight: 600;
             border-radius: 8px;
             cursor: pointer;
             border: none;
             flex: 1;
-            min-width: 75px;
+            min-width: 68px;
             text-align: center;
         }
 
@@ -322,22 +368,35 @@
             border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
+        .btn-sub {
+            background: rgba(168, 85, 247, 0.1);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.2);
+        }
+
         .btn-delete {
             background: rgba(248, 113, 113, 0.1);
             color: var(--accent-red);
             border: 1px solid rgba(248, 113, 113, 0.15);
         }
 
-        /* Postpone Inline Submenu Layout */
-        .postpone-overlay {
+        .postpone-overlay, .subtask-creator-overlay {
             background: rgba(15, 15, 20, 0.95);
-            border: 1px solid var(--accent-orange);
+            border: 1px solid var(--border-glow);
             border-radius: 12px;
             padding: 14px;
             margin-top: 8px;
             display: flex;
             flex-direction: column;
             gap: 10px;
+        }
+        
+        .subtask-creator-overlay {
+            border-color: #a855f7;
+        }
+
+        .postpone-overlay {
+            border-color: var(--accent-orange);
         }
 
         .postpone-selectors {
@@ -370,8 +429,13 @@
         <!-- Inline Editing Target Area Container -->
         <div id="edit-workspace-anchor"></div>
 
-        <!-- Task Creation Workspace Panel -->
-        <section class="creator-card" id="creator-workspace">
+        <!-- Main Task Addition Toggler UI -->
+        <div class="trigger-btn-container" id="main-trigger-container">
+            <button class="btn-trigger-main" onclick="toggleMainCreator(true)">+ Add New Task</button>
+        </div>
+
+        <!-- Task Creation Workspace Panel (Hidden by Default) -->
+        <section class="creator-card" id="creator-workspace" style="display: none;">
             <div class="input-group">
                 <span class="label-text">Task Header</span>
                 <input type="text" id="task-title" placeholder="What requires your focus?" autocomplete="off">
@@ -408,7 +472,10 @@
                     <input type="url" id="task-image" placeholder="https://example.com/image.jpg" style="width: 100%; margin-top: 6px;">
                 </div>
 
-                <button class="btn-add" id="add-task-btn">Commit to Canvas</button>
+                <div class="button-row">
+                    <button class="btn-add" id="add-task-btn">Commit to Canvas</button>
+                    <button class="btn-cancel" onclick="toggleMainCreator(false)">Collapse</button>
+                </div>
             </div>
         </section>
 
@@ -448,6 +515,18 @@
         const addTaskBtn = document.getElementById('add-task-btn');
         const editWorkspaceAnchor = document.getElementById('edit-workspace-anchor');
         const creatorWorkspace = document.getElementById('creator-workspace');
+        const mainTriggerContainer = document.getElementById('main-trigger-container');
+
+        // Manage Master Panel Visibilities
+        window.toggleMainCreator = function(show) {
+            if (show) {
+                creatorWorkspace.style.display = 'block';
+                mainTriggerContainer.style.display = 'none';
+            } else {
+                creatorWorkspace.style.display = 'none';
+                mainTriggerContainer.style.display = 'flex';
+            }
+        };
 
         // Monitor Realtime Sync States Across All Connected Matrices
         db.ref('.info/connected').on('value', (snapshot) => {
@@ -460,7 +539,7 @@
             }
         });
 
-        // Commit Task Event Handler Action
+        // Commit Master Task Event Handler Action
         addTaskBtn.addEventListener('click', () => {
             const titleInput = document.getElementById('task-title');
             const cadenceSelect = document.getElementById('task-cadence');
@@ -490,9 +569,68 @@
                     reminderInput.value = '';
                     notesInput.value = '';
                     imageInput.value = '';
+                    toggleMainCreator(false);
                 })
                 .catch((err) => console.error("Database Error: ", err));
         });
+
+        // Helper function to build a standardized inner Task Card HTML structure
+        function buildTaskCardInner(id, task, isSubtask = false, parentId = '') {
+            let reminderHTML = '';
+            if (task.reminder) {
+                const dateObj = new Date(task.reminder);
+                reminderHTML = `
+                    <div class="task-reminder">
+                        ⏳ Alert: ${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                `;
+            }
+
+            let bodyHTML = '';
+            if (task.notes || task.imageUrl) {
+                bodyHTML = `<div class="task-body">`;
+                if (task.notes) {
+                    bodyHTML += `<div class="task-note">${escapeHTML(task.notes)}</div>`;
+                }
+                if (task.imageUrl) {
+                    bodyHTML += `
+                        <div class="task-img-container">
+                            <img src="${escapeHTML(task.imageUrl)}" class="task-img" onerror="this.parentNode.style.display='none'" alt="Task attachment">
+                        </div>
+                    `;
+                }
+                bodyHTML += `</div>`;
+            }
+
+            const deleteArgs = isSubtask ? `'${parentId}', '${id}'` : `'${id}'`;
+            const completeArgs = isSubtask ? `'${parentId}', '${id}'` : `'${id}'`;
+            const editArgs = isSubtask ? `'${id}', '${parentId}'` : `'${id}'`;
+
+            let actionButtons = `
+                <button class="action-btn btn-bump" onclick="togglePostponePanel('${id}')">Postpone</button>
+                <button class="action-btn btn-done" onclick="completeTask(${completeArgs})">Done</button>
+                <button class="action-btn btn-edit" onclick="initiateEditMode(${editArgs})">Edit</button>
+                ${!isSubtask ? `<button class="action-btn btn-sub" onclick="toggleSubtaskCreator('${id}')">+ Sub</button>` : ''}
+                <button class="action-btn btn-delete" onclick="deleteTask(${deleteArgs})">Delete</button>
+            `;
+
+            return `
+                <div class="task-header">
+                    <div class="task-info">
+                        <div class="task-name">${escapeHTML(task.title)}</div>
+                        <div class="task-meta">${task.cadence} • ${task.energy}</div>
+                        ${reminderHTML}
+                    </div>
+                </div>
+                ${bodyHTML}
+                <div class="task-actions">
+                    ${actionButtons}
+                </div>
+                <div id="postpone-panel-${id}" style="display: none;"></div>
+                ${!isSubtask ? `<div id="subtask-creator-${id}" style="display: none;"></div>` : ''}
+                ${!isSubtask ? `<div id="subtasks-list-${id}" class="subtasks-container" style="display: none;"></div>` : ''}
+            `;
+        }
 
         // Dynamic Realtime Render Pipeline
         tasksRef.on('value', (snapshot) => {
@@ -504,7 +642,7 @@
                 return;
             }
 
-            // Order by timestamp desc so bumps push things visually upward smoothly
+            // Order master tasks by timestamp descending
             const sortedKeys = Object.keys(data).sort((a, b) => b.timestamp - a.timestamp);
 
             sortedKeys.forEach((key) => {
@@ -513,51 +651,27 @@
                 const taskCard = document.createElement('div');
                 taskCard.className = 'task-card';
                 taskCard.id = `card-${key}`;
-                
-                let reminderHTML = '';
-                if (task.reminder) {
-                    const dateObj = new Date(task.reminder);
-                    reminderHTML = `
-                        <div class="task-reminder">
-                            ⏳ Alert: ${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </div>
-                    `;
-                }
-
-                let bodyHTML = '';
-                if (task.notes || task.imageUrl) {
-                    bodyHTML = `<div class="task-body">`;
-                    if (task.notes) {
-                        bodyHTML += `<div class="task-note">${escapeHTML(task.notes)}</div>`;
-                    }
-                    if (task.imageUrl) {
-                        bodyHTML += `
-                            <div class="task-img-container">
-                                <img src="${escapeHTML(task.imageUrl)}" class="task-img" onerror="this.parentNode.style.display='none'" alt="Task attachment">
-                            </div>
-                        `;
-                    }
-                    bodyHTML += `</div>`;
-                }
-
-                taskCard.innerHTML = `
-                    <div class="task-header">
-                        <div class="task-info">
-                            <div class="task-name">${escapeHTML(task.title)}</div>
-                            <div class="task-meta">${task.cadence} • ${task.energy}</div>
-                            ${reminderHTML}
-                        </div>
-                    </div>
-                    ${bodyHTML}
-                    <div class="task-actions">
-                        <button class="action-btn btn-bump" onclick="togglePostponePanel('${key}')">Postpone</button>
-                        <button class="action-btn btn-done" onclick="completeTask('${key}')">Done</button>
-                        <button class="action-btn btn-edit" onclick="initiateEditMode('${key}')">Edit</button>
-                        <button class="action-btn btn-delete" onclick="deleteTask('${key}')">Delete</button>
-                    </div>
-                    <div id="postpone-panel-${key}" style="display: none;"></div>
-                `;
+                taskCard.innerHTML = buildTaskCardInner(key, task, false);
                 activeTasksContainer.appendChild(taskCard);
+
+                // Check and render sub-tasks if present
+                if (task.subtasks) {
+                    const subtasksList = document.getElementById(`subtasks-list-${key}`);
+                    subtasksList.style.display = 'flex';
+                    
+                    const subData = task.subtasks;
+                    // Sort subtasks by chronological timestamp as well
+                    const sortedSubKeys = Object.keys(subData).sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    sortedSubKeys.forEach((subKey) => {
+                        const subtask = subData[subKey];
+                        const subCard = document.createElement('div');
+                        subCard.className = 'task-card';
+                        subCard.id = `card-${subKey}`;
+                        subCard.innerHTML = buildTaskCardInner(subKey, subtask, true, key);
+                        subtasksList.appendChild(subCard);
+                    });
+                }
             });
         });
 
@@ -601,29 +715,114 @@
             else if (unit === 'week') currentTime.setDate(currentTime.getDate() + (value * 7));
             else if (unit === 'month') currentTime.setMonth(currentTime.getMonth() + value);
 
-            // ISO string clean slicing to keep target format matching local input masks
             const targetISO = currentTime.toISOString().slice(0, 16);
 
-            tasksRef.child(id).update({
-                reminder: targetISO,
-                timestamp: firebase.database.ServerValue.TIMESTAMP // Soft sorting prioritization reset
-            }).then(() => {
-                alert(`Task repositioned safely.`);
+            // Locate if this ID belongs to a parent or subtask path
+            tasksRef.once('value', (snap) => {
+                const data = snap.val();
+                if (!data) return;
+                
+                let pathRef = tasksRef.child(id);
+                // Search inside subsets to see if it is nested
+                Object.keys(data).forEach((parentKey) => {
+                    if (data[parentKey].subtasks && data[parentKey].subtasks[id]) {
+                        pathRef = tasksRef.child(`${parentKey}/subtasks/${id}`);
+                    }
+                });
+
+                pathRef.update({
+                    reminder: targetISO,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                }).then(() => {
+                    alert(`Task repositioned safely.`);
+                });
             });
         };
 
+        // Inline Subtask Creator Interface
+        window.toggleSubtaskCreator = function(parentId) {
+            const container = document.getElementById(`subtask-creator-${parentId}`);
+            if (container.style.display === 'block') {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="subtask-creator-overlay">
+                    <span class="label-text" style="color: #c084fc">Construct Sub-Task Profile</span>
+                    <div class="input-group">
+                        <input type="text" id="sub-title-${parentId}" placeholder="Declare sub-action objective..." autocomplete="off">
+                        <div class="row-inputs">
+                            <select id="sub-cadence-${parentId}">
+                                <option value="One-Off">One-Off Action</option>
+                                <option value="Recurring">Recurring Routine</option>
+                            </select>
+                            <select id="sub-energy-${parentId}">
+                                <option value="High Energy">⚡ High Energy</option>
+                                <option value="Low Energy">🕯️ Low Energy</option>
+                            </select>
+                        </div>
+                        <input type="datetime-local" id="sub-reminder-${parentId}">
+                        <textarea id="sub-notes-${parentId}" placeholder="Sub-task specific parameters or descriptions..."></textarea>
+                        <input type="url" id="sub-image-${parentId}" placeholder="Optional resource graphic URL...">
+                        <div class="button-row">
+                            <button class="action-btn btn-sub" onclick="commitSubtask('${parentId}')" style="margin-top:0;">Embed Sub-Task</button>
+                            <button class="action-btn btn-edit" onclick="toggleSubtaskCreator('${parentId}')" style="margin-top:0;">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.style.display = 'block';
+        };
+
+        window.commitSubtask = function(parentId) {
+            const titleIn = document.getElementById(`sub-title-${parentId}`);
+            const cadenceSel = document.getElementById(`sub-cadence-${parentId}`);
+            const energySel = document.getElementById(`sub-energy-${parentId}`);
+            const reminderIn = document.getElementById(`sub-reminder-${parentId}`);
+            const notesIn = document.getElementById(`sub-notes-${parentId}`);
+            const imgIn = document.getElementById(`sub-image-${parentId}`);
+
+            if (!titleIn.value.trim()) {
+                alert("Please declare a title for the subtask.");
+                return;
+            }
+
+            const subTaskData = {
+                title: titleIn.value.trim(),
+                cadence: cadenceSel.value,
+                energy: energySel.value,
+                reminder: reminderIn.value || "",
+                notes: notesIn.value.trim() || "",
+                imageUrl: imgIn.value.trim() || "",
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            tasksRef.child(`${parentId}/subtasks`).push(subTaskData)
+                .then(() => {
+                    container = document.getElementById(`subtask-creator-${parentId}`);
+                    container.style.display = 'none';
+                    container.innerHTML = '';
+                })
+                .catch((err) => console.error("Subtask injection error:", err));
+        };
+
         // Master Inline Editor Interface Implementation
-        window.initiateEditMode = function(id) {
-            tasksRef.child(id).once('value', (snapshot) => {
+        window.initiateEditMode = function(id, parentId = '') {
+            const path = parentId ? `${parentId}/subtasks/${id}` : id;
+            
+            tasksRef.child(path).once('value', (snapshot) => {
                 const task = snapshot.val();
                 if (!task) return;
 
-                creatorWorkspace.style.display = 'none';
+                toggleMainCreator(false);
+                mainTriggerContainer.style.display = 'none';
                 
                 editWorkspaceAnchor.innerHTML = `
                     <section class="edit-card">
                         <div class="input-group">
-                            <span class="label-text" style="color: var(--accent-orange)">Modifying: ${escapeHTML(task.title)}</span>
+                            <span class="label-text" style="color: var(--accent-orange)">Modifying Target Workspace</span>
                             
                             <div>
                                 <span class="label-text">Task Title</span>
@@ -663,7 +862,7 @@
                             </div>
 
                             <div class="button-row">
-                                <button class="btn-add" onclick="saveTaskEdits('${id}')">Save Adjustments</button>
+                                <button class="btn-add" onclick="saveTaskEdits('${id}', '${parentId}')">Save Adjustments</button>
                                 <button class="btn-cancel" onclick="closeEditWorkspace()">Cancel</button>
                             </div>
                         </div>
@@ -673,12 +872,14 @@
             });
         };
 
-        window.saveTaskEdits = function(id) {
+        window.saveTaskEdits = function(id, parentId = '') {
             const updatedTitle = document.getElementById('edit-title').value.trim();
             if (!updatedTitle) {
                 alert("Task must maintain a structural header.");
                 return;
             }
+
+            const path = parentId ? `${parentId}/subtasks/${id}` : id;
 
             const updates = {
                 title: updatedTitle,
@@ -689,7 +890,7 @@
                 imageUrl: document.getElementById('edit-image').value.trim() || ""
             };
 
-            tasksRef.child(id).update(updates)
+            tasksRef.child(path).update(updates)
                 .then(() => {
                     closeEditWorkspace();
                 })
@@ -698,18 +899,20 @@
 
         window.closeEditWorkspace = function() {
             editWorkspaceAnchor.innerHTML = '';
-            creatorWorkspace.style.display = 'block';
+            mainTriggerContainer.style.display = 'flex';
         };
 
-        // Complete Execution Logic
-        window.completeTask = function(id) {
-            tasksRef.child(id).remove();
+        // Processing Task Completions
+        window.completeTask = function(arg1, arg2 = '') {
+            const path = arg2 ? `${arg1}/subtasks/${arg2}` : arg1;
+            tasksRef.child(path).remove();
         };
 
         // Explicit Destruction Layer with Guardrail Gate
-        window.deleteTask = function(id) {
-            if (confirm("Are you absolutely sure you want to permanently discard this task target profile?")) {
-                tasksRef.child(id).remove();
+        window.deleteTask = function(arg1, arg2 = '') {
+            const path = arg2 ? `${arg1}/subtasks/${arg2}` : arg1;
+            if (confirm("Are you absolutely certain you want to permanently discard this task configuration?")) {
+                tasksRef.child(path).remove();
             }
         };
 
