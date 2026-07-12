@@ -538,7 +538,7 @@
 
         <div class="trigger-btn-container" id="main-trigger-container">
             <button class="btn-trigger-main" onclick="toggleMainCreator(true)">+ Add New Task</button>
-            <button class="btn-status-sync" onclick="triggerLaunchGroundControlShortcut()">🌐 Sync Device</button>
+            <button class="btn-status-sync" onclick="triggerBackgroundSyncShortcut()">🌐 Sync Device</button>
         </div>
 
         <section class="creator-card" id="creator-workspace" style="display: none;">
@@ -630,7 +630,7 @@
         let isLongPressActionTriggered = false;
         let initialLoadCompleted = false;
 
-        // Interactive Tap Injection - Forces iOS to bypass security sandbox locks via physical link simulation
+        // Physical Link Injection Linkage - Forces iOS to clear runtime sandbox limits via address execution
         function executeNativeShortcutLink(shortcutName, payloadText) {
             const systemAnchor = document.createElement('a');
             systemAnchor.href = `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}&input=${encodeURIComponent(payloadText)}`;
@@ -639,8 +639,8 @@
             document.body.removeChild(systemAnchor);
         }
 
-        function triggerLaunchGroundControlShortcut() {
-            executeNativeShortcutLink('Launch Ground Control', 'Sync handshake dispatched.');
+        function triggerBackgroundSyncShortcut() {
+            executeNativeShortcutLink('Sync Fluid Scheduler', 'Manual synchronization requested.');
         }
 
         window.handleLocalImageUpload = function(inputElement, targetInputId) {
@@ -801,10 +801,7 @@
 
             if (!data) {
                 activeTasksContainer.innerHTML = `<div class="empty-notice">Your space is clear. No active tasks detected.</div>`;
-                if (!initialLoadCompleted) {
-                    initialLoadCompleted = true;
-                    triggerLaunchGroundControlShortcut();
-                }
+                initialLoadCompleted = true;
                 return;
             }
 
@@ -859,10 +856,7 @@
                 }
             });
 
-            if (!initialLoadCompleted) {
-                initialLoadCompleted = true;
-                triggerLaunchGroundControlShortcut();
-            }
+            initialLoadCompleted = true;
         });
 
         window.shiftTaskOrder = function(taskId, direction) {
