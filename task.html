@@ -630,20 +630,17 @@
         let isLongPressActionTriggered = false;
         let initialLoadCompleted = false;
 
-        // Triggers the specified shortcut and routes parameters to it cleanly
-        function triggerIOSShortcut(shortcutName, taskTitle, delayMinutes) {
-            const encodedName = encodeURIComponent(shortcutName);
-            const payload = `${taskTitle} | ${delayMinutes}`;
-            const encodedInput = encodeURIComponent(payload);
-            const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}&input=${encodedInput}`;
-            window.location.href = shortcutURL;
+        // Interactive Tap Injection - Forces iOS to bypass security sandbox locks via physical link simulation
+        function executeNativeShortcutLink(shortcutName, payloadText) {
+            const systemAnchor = document.createElement('a');
+            systemAnchor.href = `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}&input=${encodeURIComponent(payloadText)}`;
+            document.body.appendChild(systemAnchor);
+            systemAnchor.click();
+            document.body.removeChild(systemAnchor);
         }
 
-        // On-demand device trigger for Launch Ground Control
         function triggerLaunchGroundControlShortcut() {
-            const encodedName = encodeURIComponent('Launch Ground Control');
-            const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}`;
-            window.location.href = shortcutURL;
+            executeNativeShortcutLink('Launch Ground Control', 'Sync handshake dispatched.');
         }
 
         window.handleLocalImageUpload = function(inputElement, targetInputId) {
@@ -1036,19 +1033,9 @@
             const val = parseInt(document.getElementById(`postpone-val-${id}`).value) || 15;
             const unit = document.getElementById(`postpone-unit-${id}`).value;
             
-            let time = new Date();
             let delayInMinutes = val;
-
-            if (unit === 'minute') {
-                time.setMinutes(time.getMinutes() + val);
-                delayInMinutes = val;
-            } else if (unit === 'hour') {
-                time.setHours(time.getHours() + val);
-                delayInMinutes = val * 60;
-            } else if (unit === 'day') {
-                time.setDate(time.getDate() + val);
-                delayInMinutes = val * 1440;
-            }
+            if (unit === 'hour') delayInMinutes = val * 60;
+            if (unit === 'day') delayInMinutes = val * 1440;
 
             tasksRef.once('value', (snap) => {
                 const data = snap.val(); if (!data) return;
@@ -1066,12 +1053,15 @@
                     });
                 }
 
+                let targetTime = new Date();
+                targetTime.setMinutes(targetTime.getMinutes() + delayInMinutes);
+
                 pathRef.update({ 
-                    reminder: time.toISOString().slice(0, 16), 
+                    reminder: targetTime.toISOString().slice(0, 16), 
                     timestamp: firebase.database.ServerValue.TIMESTAMP 
                 }).then(() => {
-                    // Fires parameters into your shortcut sequence execution layer
-                    triggerIOSShortcut('ADHD Snooze Sentinel', targetTaskTitle, delayInMinutes);
+                    const payloadText = `${targetTaskTitle} | ${delayInMinutes}`;
+                    executeNativeShortcutLink('ADHD Snooze Sentinel', payloadText);
                 });
             });
         };
