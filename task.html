@@ -2,267 +2,1114 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ADHD Snooze Sentinel Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Montserrat:wght@300;400;600&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ground Control | Fluid Glass Scheduler</title>
+    
+    <!-- Google Fonts for High Readability -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <!-- Firebase Core SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
     <style>
         :root {
-            --bg-color: #0b0c10;
-            --card-bg: #1f2833;
-            --accent-gold: #c5a059;
-            --text-main: #c5c6c7;
-            --text-bright: #ffffff;
-            --accent-red: #8b0000;
-            --accent-green: #2e7d32;
+            --bg-base: #0a0a0c;
+            --panel-bg: rgba(20, 20, 25, 0.4);
+            --glass-bg: rgba(25, 25, 35, 0.55);
+            --glass-bg-hover: rgba(35, 35, 45, 0.65);
+            --glass-bg-expanded: rgba(20, 20, 28, 0.85);
+            --border-glow: rgba(255, 255, 255, 0.08);
+            --text-primary: #f0f0f5;
+            --text-muted: #8a8a98;
+            --accent-green: #4ade80;
+            --accent-orange: #fb923c;
+            --accent-red: #f87171;
+            --gold-accent: #d4af37;
+            --font-display: 'Cinzel', serif;
+            --font-sans: 'Outfit', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            font-family: 'Montserrat', sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
+            background-color: var(--bg-base);
+            background-image: radial-gradient(circle at 50% 0%, #141420 0%, #0a0a0c 70%);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
             padding: 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         header {
-            font-family: 'Cinzel', serif;
-            color: var(--accent-gold);
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 1px solid var(--accent-gold);
-            padding-bottom: 10px;
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(20, 20, 25, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--border-glow);
+            border-radius: 16px;
+            margin-bottom: 25px;
         }
 
-        .controls {
+        h1 {
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .sync-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 6px 14px;
+            border-radius: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-orange);
+            box-shadow: 0 0 8px var(--accent-orange);
+            transition: all 0.4s ease;
+        }
+
+        .dot.connected {
+            background-color: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        main {
             width: 100%;
-            max-width: 600px;
-            background: var(--card-bg);
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .trigger-btn-container {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn-trigger-main {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-primary);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            font-family: var(--font-sans);
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 16px;
+            border-radius: 14px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+
+        .btn-trigger-main:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: var(--gold-accent);
+        }
+
+        .creator-card, .edit-card {
+            background: rgba(20, 20, 25, 0.8);
+            border: 1px solid rgba(212, 175, 55, 0.3);
+            border-radius: 16px;
             padding: 20px;
-            border-radius: 12px;
-            box-sizing: border-box;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            border: 1px solid rgba(197, 160, 89, 0.2);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+            animation: fadeIn 0.25s ease;
+        }
+
+        .edit-card {
+            border-color: var(--accent-orange);
+            margin-bottom: 20px;
         }
 
         .input-group {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            margin-bottom: 15px;
+            gap: 12px;
         }
 
-        input, select, button {
-            padding: 12px;
-            border-radius: 6px;
-            border: 1px solid #45f3ff;
-            background: #0b0c10;
-            color: var(--text-bright);
-            font-size: 16px;
-        }
-
-        input, select {
-            border: 1px solid rgba(197, 160, 89, 0.4);
-        }
-
-        button {
-            cursor: pointer;
+        .label-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: -6px;
             font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, button, textarea {
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-glow);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 10px;
+            outline: none;
             transition: all 0.2s ease;
+            user-select: text;
+            -webkit-user-select: text;
         }
 
-        .btn-add {
-            background-color: var(--accent-gold);
-            color: #0b0c10;
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--gold-accent);
+        }
+
+        .row-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+        }
+
+        button.btn-add {
+            background: var(--text-primary);
+            color: var(--bg-base);
+            font-weight: 600;
+            cursor: pointer;
             border: none;
-            font-family: 'Cinzel', serif;
+            margin-top: 5px;
+            flex: 1;
         }
 
-        .btn-add:hover {
-            opacity: 0.9;
+        button.btn-cancel {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .bucket-title {
+            font-family: var(--font-display);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            margin: 15px 0 10px 5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
         }
 
         .task-list {
-            width: 100%;
-            max-width: 600px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 14px;
         }
 
-        .task-card {
-            background: var(--card-bg);
-            border-left: 5px solid var(--accent-gold);
-            padding: 15px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .glass-task-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-glow);
+            border-radius: 14px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(16px) saturate(120%);
+            -webkit-backdrop-filter: blur(16px) saturate(120%);
+            transition: max-height 0.4s cubic-bezier(0.25, 1, 0.5, 1), 
+                        border-color 0.3s ease, 
+                        background-color 0.3s ease,
+                        transform 0.2s ease;
+            overflow: hidden;
+            max-height: 58px;
+            cursor: pointer;
             position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .task-card.recurring {
-            border-left-color: #4b0082; /* Indigo for routine recurring habits */
+        .glass-task-box:hover {
+            border-color: rgba(212, 175, 55, 0.3);
+            background: var(--glass-bg-hover);
+        }
+
+        .glass-task-box.expanded {
+            max-height: 950px;
+            background: var(--glass-bg-expanded);
+            border-color: rgba(212, 175, 55, 0.25);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .glass-task-box.long-press-primed {
+            transform: scale(0.97);
+            border-color: var(--accent-orange);
+            box-shadow: 0 0 15px rgba(251, 146, 96, 0.2);
         }
 
         .task-header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
+            padding: 16px 20px;
+            height: 58px;
         }
 
-        .task-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: var(--text-bright);
+        .task-info-side {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 1;
+            min-width: 0;
         }
 
-        .task-meta {
-            font-size: 12px;
-            color: var(--accent-gold);
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .task-name {
+            font-size: 1.05rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .task-badge-meta {
+            font-size: 0.75rem;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 4px 10px;
+            border-radius: 20px;
+            color: var(--text-muted);
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            flex-shrink: 0;
+        }
+
+        .task-actions-side {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .order-arrows-cluster {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.03);
+        }
+
+        .arrow-nav-btn {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px 4px;
+            transition: color 0.2s;
+            user-select: none;
+        }
+
+        .arrow-nav-btn:hover {
+            color: var(--gold-accent);
+        }
+
+        .expand-arrow {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            transition: transform 0.3s ease, color 0.3s;
+        }
+
+        .glass-task-box.expanded .expand-arrow {
+            transform: rotate(180deg);
+            color: var(--gold-accent);
+        }
+
+        .task-body {
+            padding: 0 20px 20px 20px;
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .glass-task-box.expanded .task-body {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .task-divider {
+            height: 1px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.01) 100%);
+        }
+
+        .task-note {
+            font-size: 0.95rem;
+            color: rgba(240, 240, 245, 0.8);
+            white-space: pre-wrap;
+            line-height: 1.4;
+            user-select: text;
+            -webkit-user-select: text;
+        }
+
+        .task-reminder {
+            font-size: 0.85rem;
+            color: var(--accent-orange);
+            font-weight: 500;
+        }
+
+        .task-img-container {
+            width: 100%;
+            max-height: 220px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .task-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .task-actions {
             display: flex;
-            gap: 10px;
-            margin-top: 5px;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
         }
 
-        .btn-action {
+        .action-btn {
+            padding: 8px 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            border: none;
             flex: 1;
-            font-size: 14px;
-            padding: 8px;
+            min-width: 68px;
+            text-align: center;
         }
 
-        .btn-done {
-            background: var(--accent-green);
-            border: none;
+        .btn-bump { background: rgba(251, 146, 60, 0.15); color: var(--accent-orange); border: 1px solid rgba(251, 146, 60, 0.2); }
+        .btn-done { background: rgba(74, 222, 128, 0.15); color: var(--accent-green); border: 1px solid rgba(74, 222, 128, 0.2); }
+        .btn-edit { background: rgba(255, 255, 255, 0.05); color: var(--text-primary); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .btn-sub { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.2); }
+        .btn-delete { background: rgba(248, 113, 113, 0.1); color: var(--accent-red); border: 1px solid rgba(248, 113, 113, 0.15); }
+
+        .subtasks-container {
+            margin-left: 10px;
+            border-left: 2px solid rgba(212, 175, 55, 0.15);
+            padding-left: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
         }
 
-        .btn-postpone {
-            background: var(--accent-red);
-            border: none;
+        .subtasks-container .glass-task-box {
+            background: rgba(0, 0, 0, 0.25);
+            border-color: rgba(255, 255, 255, 0.04);
+        }
+
+        .postpone-overlay, .subtask-creator-overlay {
+            background: rgba(15, 15, 20, 0.95);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .empty-notice {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            border: 1px dashed rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+        }
+
+        .image-toggle-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .file-upload-label {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-glow);
+            color: var(--text-muted);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .file-upload-label:hover {
+            border-color: var(--gold-accent);
+            color: var(--text-primary);
+        }
+
+        .hidden-file-input {
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Snooze Sentinel</h1>
+        <h1>Schedule</h1>
+        <div class="sync-badge">
+            <div id="sync-dot" class="dot"></div>
+            <span id="sync-text">Connecting</span>
+        </div>
     </header>
 
-    <div class="controls">
-        <div class="input-group">
-            <input type="text" id="taskName" placeholder="What must be done?">
-            <select id="taskType">
-                <option value="one-off">One-off Task</option>
-                <option value="recurring">Recurring Routine</option>
-            </select>
-            <button class="btn-add" onclick="createNewTask()">Enlist Task</button>
-        </div>
-    </div>
+    <main>
+        <div id="edit-workspace-anchor"></div>
 
-    <div class="task-list" id="taskList"></div>
+        <div class="trigger-btn-container" id="main-trigger-container">
+            <button class="btn-trigger-main" onclick="toggleMainCreator(true)">+ Add New Task</button>
+        </div>
+
+        <section class="creator-card" id="creator-workspace" style="display: none;">
+            <div class="input-group">
+                <span class="label-text">Task Header</span>
+                <input type="text" id="task-title" placeholder="What requires focus?" autocomplete="off">
+                
+                <div class="row-inputs">
+                    <div>
+                        <span class="label-text">Cadence</span>
+                        <select id="task-cadence" style="width: 100%; margin-top: 6px;">
+                            <option value="One-Off">One-Off Action</option>
+                            <option value="Recurring">Recurring Routine</option>
+                        </select>
+                    </div>
+                    <div>
+                        <span class="label-text">Energy Tier</span>
+                        <select id="task-energy" style="width: 100%; margin-top: 6px;">
+                            <option value="High Energy">⚡ High Energy</option>
+                            <option value="Low Energy">🕯️ Low Energy</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="label-text">Target Reminder Window</span>
+                    <input type="datetime-local" id="task-reminder" style="width: 100%; margin-top: 6px;">
+                </div>
+
+                <div>
+                    <span class="label-text">Contextual Notes</span>
+                    <textarea id="task-notes" placeholder="Drop URLs, details, or micro-steps..." style="width: 100%; margin-top: 6px;"></textarea>
+                </div>
+
+                <div>
+                    <span class="label-text">Reference Image (URL or Local File)</span>
+                    <div class="image-toggle-container">
+                        <input type="url" id="task-image" placeholder="https://example.com/image.jpg">
+                        <label class="file-upload-label">
+                            📸 Upload Device File
+                            <input type="file" accept="image/*" class="hidden-file-input" onchange="handleLocalImageUpload(this, 'task-image')">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="button-row">
+                    <button class="btn-add" id="add-task-btn">Commit to Canvas</button>
+                    <button class="btn-cancel" onclick="toggleMainCreator(false)">Collapse</button>
+                </div>
+            </div>
+        </section>
+
+        <div>
+            <div class="bucket-title">Current Focus Stack</div>
+            <div id="active-tasks" class="task-list">
+                <div class="empty-notice">Connecting to operational network matrix...</div>
+            </div>
+        </div>
+    </main>
 
     <script>
-        let tasks = JSON.parse(localStorage.getItem('adhd_tasks')) || [];
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY", 
+            authDomain: "task-5e6d4.firebaseapp.com",
+            databaseURL: "https://task-5e6d4-default-rtdb.europe-west1.firebasedatabase.app/",
+            projectId: "task-5e6d4",
+            storageBucket: "task-5e6d4.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
 
-        function saveTasks() {
-            localStorage.setItem('adhd_tasks', JSON.stringify(tasks));
-            renderTasks();
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
 
-        function createNewTask() {
-            const nameInput = document.getElementById('taskName');
-            const typeInput = document.getElementById('taskType');
+        const db = firebase.database();
+        const tasksRef = db.ref("schedule_items");
+
+        const syncDot = document.getElementById('sync-dot');
+        const syncText = document.getElementById('sync-text');
+        const activeTasksContainer = document.getElementById('active-tasks');
+        const addTaskBtn = document.getElementById('add-task-btn');
+        const editWorkspaceAnchor = document.getElementById('edit-workspace-anchor');
+        const creatorWorkspace = document.getElementById('creator-workspace');
+        const mainTriggerContainer = document.getElementById('main-trigger-container');
+
+        let runtimeTaskCache = {};
+        let pressTimer = null;
+        let isLongPressActionTriggered = false;
+
+        // Dynamic Apple Shortcut packaging engine wrapper
+        function triggerIOSShortcut(shortcutName, taskTitle, delayMinutes) {
+            const encodedName = encodeURIComponent(shortcutName);
+            // Formats payload structured cleanly as: "Task Name | Minutes"
+            const payload = `${taskTitle} | ${delayMinutes}`;
+            const encodedInput = encodeURIComponent(payload);
+            const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}&input=${encodedInput}`;
+            window.location.href = shortcutURL;
+        }
+
+        // Auto-Trigger for Launch Ground Control
+        function triggerLaunchGroundControlShortcut() {
+            const encodedName = encodeURIComponent('Launch Ground Control');
+            const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}`;
+            window.location.href = shortcutURL;
+        }
+
+        window.handleLocalImageUpload = function(inputElement, targetInputId) {
+            if (inputElement.files && inputElement.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById(targetInputId).value = e.target.result;
+                };
+                reader.readAsDataURL(inputElement.files[0]);
+            }
+        };
+
+        window.toggleMainCreator = function(show) {
+            if (show) {
+                creatorWorkspace.style.display = 'block';
+                mainTriggerContainer.style.display = 'none';
+            } else {
+                creatorWorkspace.style.display = 'none';
+                mainTriggerContainer.style.display = 'flex';
+            }
+        };
+
+        window.toggleGlassBox = function(id, event) {
+            if (isLongPressActionTriggered) return;
+            if (event.target.closest('.task-actions') || event.target.closest('.task-actions-side') || event.target.closest('input') || event.target.closest('select') || event.target.closest('textarea') || event.target.closest('button') || event.target.closest('.order-arrows-cluster')) {
+                return;
+            }
+            const box = document.getElementById(`box-${id}`);
+            if (box) box.classList.toggle('expanded');
+        };
+
+        window.handleTouchStart = function(id, parentId, event) {
+            if (event.target.closest('.task-actions') || event.target.closest('.task-actions-side') || event.target.closest('input') || event.target.closest('select') || event.target.closest('textarea') || event.target.closest('button') || event.target.closest('.order-arrows-cluster')) {
+                return;
+            }
+            isLongPressActionTriggered = false;
+            const targetBox = document.getElementById(`box-${id}`);
             
-            if (!nameInput.value.trim()) return;
+            pressTimer = setTimeout(() => {
+                isLongPressActionTriggered = true;
+                if (targetBox) targetBox.classList.add('long-press-primed');
+                if (navigator.vibrate) navigator.vibrate(60);
+                
+                setTimeout(() => {
+                    if (targetBox) targetBox.classList.remove('long-press-primed');
+                    initiateEditMode(id, parentId);
+                }, 150);
+            }, 600);
+        };
+
+        window.handleTouchEndClear = function(id, event) {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+            const targetBox = document.getElementById(`box-${id}`);
+            if (targetBox) targetBox.classList.remove('long-press-primed');
+        };
+
+        db.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                syncDot.classList.add('connected');
+                syncText.textContent = "Live-Synced";
+            } else {
+                syncDot.classList.remove('connected');
+                syncText.textContent = "Connecting";
+            }
+        });
+
+        addTaskBtn.addEventListener('click', () => {
+            const titleInput = document.getElementById('task-title');
+            const cadenceSelect = document.getElementById('task-cadence');
+            const energySelect = document.getElementById('task-energy');
+            const reminderInput = document.getElementById('task-reminder');
+            const notesInput = document.getElementById('task-notes');
+            const imageInput = document.getElementById('task-image');
+
+            if (!titleInput.value.trim()) {
+                alert("Please declare a title.");
+                return;
+            }
+
+            let operationalOrder = 0;
+            const currentKeys = Object.keys(runtimeTaskCache);
+            if (currentKeys.length > 0) {
+                const highestOrder = Math.max(...currentKeys.map(k => runtimeTaskCache[k].sortOrder || 0));
+                operationalOrder = highestOrder + 100;
+            }
 
             const newTask = {
-                id: Date.now().toString(),
-                name: nameInput.value.trim(),
-                type: typeInput.value,
-                created: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                title: titleInput.value.trim(),
+                cadence: cadenceSelect.value,
+                energy: energySelect.value,
+                reminder: reminderInput.value || "",
+                notes: notesInput.value.trim() || "",
+                imageUrl: imageInput.value.trim() || "",
+                sortOrder: operationalOrder,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
-            tasks.push(newTask);
-            nameInput.value = '';
-            saveTasks();
-        }
-
-        // Native iOS Share Sheet Integration Protocol
-        async function triggerSnoozeSentinel(taskName, actionType) {
-            const transmissionPayload = `[SENTINEL_CMD] | ACTION: ${actionType} | ITEM: ${taskName}`;
-
-            if (navigator.share) {
-                try {
-                    await navigator.share({
-                        title: 'Snooze Sentinel Event',
-                        text: transmissionPayload
-                    });
-                } catch (err) {
-                    console.log('Share dismissed or failed:', err);
-                }
-            } else {
-                // Fallback for non-supported browsers
-                alert(`Pipeline Fallback:\n${transmissionPayload}`);
-            }
-        }
-
-        function completeTask(id) {
-            const targetTask = tasks.find(t => t.id === id);
-            if (!targetTask) return;
-            
-            if (confirm(`Mark "${targetTask.name}" as fully completed?`)) {
-                // Trigger Shortcut to log success if needed
-                triggerSnoozeSentinel(targetTask.name, 'COMPLETE');
-                tasks = tasks.filter(t => t.id !== id);
-                saveTasks();
-            }
-        }
-
-        function postponeTask(id) {
-            const targetTask = tasks.find(t => t.id === id);
-            if (!targetTask) return;
-
-            // Instantly activate the native data pipeline to launch your Shortcut
-            triggerSnoozeSentinel(targetTask.name, 'POSTPONE');
-        }
-
-        function renderTasks() {
-            const container = document.getElementById('taskList');
-            container.innerHTML = '';
-
-            tasks.forEach(task => {
-                const card = document.createElement('div');
-                card.className = `task-card ${task.type}`;
-                card.innerHTML = `
-                    <div class="task-header">
-                        <div>
-                            <span class="task-meta">${task.type}</span>
-                            <div class="task-title">${task.name}</div>
-                        </div>
-                        <span style="font-size: 12px; opacity: 0.6;">${task.created}</span>
-                    </div>
-                    <div class="task-actions">
-                        <button class="btn-action btn-done" onclick="completeTask('${task.id}')">✓ Done</button>
-                        <button class="btn-action btn-postpone" onclick="postponeTask('${task.id}')">⏳ Postpone</button>
-                    </div>
-                `;
-                container.appendChild(card);
+            tasksRef.push(newTask).then(() => {
+                titleInput.value = '';
+                reminderInput.value = '';
+                notesInput.value = '';
+                imageInput.value = '';
+                toggleMainCreator(false);
             });
+        });
+
+        function buildTaskInnerFrame(id, task, isSubtask = false, parentId = '') {
+            let alertHTML = task.reminder ? `<div class="task-reminder">⏳ Alert: ${new Date(task.reminder).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</div>` : '';
+            let imageHTML = task.imageUrl ? `<div class="task-img-container"><img src="${escapeHTML(task.imageUrl)}" class="task-img" onerror="this.parentNode.style.display='none'"></div>` : '';
+            
+            const deleteArgs = isSubtask ? `'${parentId}', '${id}'` : `'${id}'`;
+            const completeArgs = isSubtask ? `'${parentId}', '${id}'` : `'${id}'`;
+            const editArgs = isSubtask ? `'${id}', '${parentId}'` : `'${id}'`;
+
+            const moveUpCall = isSubtask ? `shiftSubtaskOrder('${parentId}', '${id}', -1)` : `shiftTaskOrder('${id}', -1)`;
+            const moveDownCall = isSubtask ? `shiftSubtaskOrder('${parentId}', '${id}', 1)` : `shiftTaskOrder('${id}', 1)`;
+
+            return `
+                <div class="task-header">
+                    <div class="task-info-side">
+                        <span class="task-name">${escapeHTML(task.title)}</span>
+                        <span class="task-badge-meta">${task.energy}</span>
+                    </div>
+                    <div class="task-actions-side">
+                        <div class="order-arrows-cluster">
+                            <span class="arrow-nav-btn" onclick="event.stopPropagation(); ${moveUpCall}">▲</span>
+                            <span class="arrow-nav-btn" onclick="event.stopPropagation(); ${moveDownCall}">▼</span>
+                        </div>
+                        <span class="expand-arrow">▼</span>
+                    </div>
+                </div>
+                <div class="task-body">
+                    <div class="task-divider"></div>
+                    <div class="task-note">${task.notes ? escapeHTML(task.notes) : '<i>No additional specifications provided.</i>'}</div>
+                    ${alertHTML}
+                    ${imageHTML}
+                    <div class="task-actions">
+                        <button class="action-btn btn-bump" onclick="togglePostponePanel('${id}')">Postpone</button>
+                        <button class="action-btn btn-done" onclick="completeTask(${completeArgs})">Done</button>
+                        <button class="action-btn btn-edit" onclick="initiateEditMode(${editArgs})">Edit</button>
+                        ${!isSubtask ? `<button class="action-btn btn-sub" onclick="toggleSubtaskCreator('${id}')">+ Sub</button>` : ''}
+                        <button class="action-btn btn-delete" onclick="deleteTask(${deleteArgs})">Delete</button>
+                    </div>
+                    <div id="postpone-panel-${id}" style="display: none;" onclick="event.stopPropagation()"></div>
+                    ${!isSubtask ? `<div id="subtask-creator-${id}" style="display: none;" onclick="event.stopPropagation()"></div>` : ''}
+                    ${!isSubtask ? `<div id="subtasks-list-${id}" class="subtasks-container"></div>` : ''}
+                </div>
+            `;
         }
 
-        // Initial render execution
-        renderTasks();
+        tasksRef.on('value', (snapshot) => {
+            activeTasksContainer.innerHTML = '';
+            const data = snapshot.val();
+            runtimeTaskCache = data || {};
+
+            if (!data) {
+                activeTasksContainer.innerHTML = `<div class="empty-notice">Your space is clear. No active tasks detected.</div>`;
+                // Fire Launch Ground Control on completion/empty layout synchronization state
+                triggerLaunchGroundControlShortcut();
+                return;
+            }
+
+            const sortedKeys = Object.keys(data).sort((a, b) => {
+                const orderA = data[a].sortOrder !== undefined ? data[a].sortOrder : 0;
+                const orderB = data[b].sortOrder !== undefined ? data[b].sortOrder : 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.timestamp - a.timestamp;
+            });
+
+            sortedKeys.forEach((key) => {
+                const task = data[key];
+                const masterBox = document.createElement('div');
+                masterBox.className = 'glass-task-box';
+                masterBox.id = `box-${key}`;
+                
+                masterBox.setAttribute('onclick', `toggleGlassBox('${key}', event)`);
+                masterBox.setAttribute('ontouchstart', `handleTouchStart('${key}', '', event)`);
+                masterBox.setAttribute('ontouchend', `handleTouchEndClear('${key}', event)`);
+                masterBox.setAttribute('onmousedown', `handleTouchStart('${key}', '', event)`);
+                masterBox.setAttribute('onmouseup', `handleTouchEndClear('${key}', event)`);
+                masterBox.setAttribute('onmouseleave', `handleTouchEndClear('${key}', event)`);
+                
+                masterBox.innerHTML = buildTaskInnerFrame(key, task, false);
+                activeTasksContainer.appendChild(masterBox);
+
+                if (task.subtasks) {
+                    const subListContainer = document.getElementById(`subtasks-list-${key}`);
+                    const subKeys = Object.keys(task.subtasks).sort((a, b) => {
+                        const sA = task.subtasks[a].sortOrder !== undefined ? task.subtasks[a].sortOrder : 0;
+                        const sB = task.subtasks[b].sortOrder !== undefined ? task.subtasks[b].sortOrder : 0;
+                        if (sA !== sB) return sB - sA;
+                        return b.timestamp - a.timestamp;
+                    });
+                    
+                    subKeys.forEach((subKey) => {
+                        const subtask = task.subtasks[subKey];
+                        const subBox = document.createElement('div');
+                        subBox.className = 'glass-task-box';
+                        subBox.id = `box-${subKey}`;
+                        
+                        subBox.setAttribute('onclick', `toggleGlassBox('${subKey}', event)`);
+                        subBox.setAttribute('ontouchstart', `handleTouchStart('${subKey}', '${key}', event)`);
+                        subBox.setAttribute('ontouchend', `handleTouchEndClear('${subKey}', event)`);
+                        subBox.setAttribute('onmousedown', `handleTouchStart('${subKey}', '${key}', event)`);
+                        subBox.setAttribute('onmouseup', `handleTouchEndClear('${subKey}', event)`);
+                        subBox.setAttribute('onmouseleave', `handleTouchEndClear('${subKey}', event)`);
+                        
+                        subBox.innerHTML = buildTaskInnerFrame(subKey, subtask, true, key);
+                        subListContainer.appendChild(subBox);
+                    });
+                }
+            });
+
+            // Fire Launch Ground Control to update the device status with the active list tracking profile
+            triggerLaunchGroundControlShortcut();
+        });
+
+        window.shiftTaskOrder = function(taskId, direction) {
+            const keys = Object.keys(runtimeTaskCache).sort((a, b) => {
+                const orderA = runtimeTaskCache[a].sortOrder !== undefined ? runtimeTaskCache[a].sortOrder : 0;
+                const orderB = runtimeTaskCache[b].sortOrder !== undefined ? runtimeTaskCache[b].sortOrder : 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.timestamp - a.timestamp;
+            });
+
+            const index = keys.indexOf(taskId);
+            if (index === -1) return;
+
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= keys.length) return;
+
+            const currentTask = runtimeTaskCache[taskId];
+            const targetTaskId = keys[targetIndex];
+            const targetTask = runtimeTaskCache[targetTaskId];
+
+            const currentOrder = currentTask.sortOrder !== undefined ? currentTask.sortOrder : 0;
+            const targetOrder = targetTask.sortOrder !== undefined ? targetTask.sortOrder : 0;
+
+            let newCurrentOrder = targetOrder;
+            let newTargetOrder = currentOrder;
+
+            if (newCurrentOrder === newTargetOrder) {
+                if (direction < 0) { newCurrentOrder += 10; } 
+                else { newTargetOrder += 10; }
+            }
+
+            const updates = {};
+            updates[`${taskId}/sortOrder`] = newCurrentOrder;
+            updates[`${targetTaskId}/sortOrder`] = newTargetOrder;
+            tasksRef.update(updates);
+        };
+
+        window.shiftSubtaskOrder = function(parentId, subtaskId, direction) {
+            const parentTask = runtimeTaskCache[parentId];
+            if (!parentTask || !parentTask.subtasks) return;
+
+            const subtasksData = parentTask.subtasks;
+            const keys = Object.keys(subtasksData).sort((a, b) => {
+                const orderA = subtasksData[a].sortOrder !== undefined ? subtasksData[a].sortOrder : 0;
+                const orderB = subtasksData[b].sortOrder !== undefined ? subtasksData[b].sortOrder : 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.timestamp - a.timestamp;
+            });
+
+            const index = keys.indexOf(subtaskId);
+            if (index === -1) return;
+
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= keys.length) return;
+
+            const currentSub = subtasksData[subtaskId];
+            const targetSubId = keys[targetIndex];
+            const targetSub = subtasksData[targetSubId];
+
+            const currentOrder = currentSub.sortOrder !== undefined ? currentSub.sortOrder : 0;
+            const targetOrder = targetSub.sortOrder !== undefined ? targetSub.sortOrder : 0;
+
+            let newCurrentOrder = targetOrder;
+            let newTargetOrder = currentOrder;
+
+            if (newCurrentOrder === newTargetOrder) {
+                if (direction < 0) { newCurrentOrder += 10; } 
+                else { newTargetOrder += 10; }
+            }
+
+            const updates = {};
+            updates[`${parentId}/subtasks/${subtaskId}/sortOrder`] = newCurrentOrder;
+            updates[`${parentId}/subtasks/${targetSubId}/sortOrder`] = newTargetOrder;
+            tasksRef.update(updates);
+        };
+
+        window.toggleSubtaskCreator = function(parentId) {
+            const el = document.getElementById(`subtask-creator-${parentId}`);
+            if (el.style.display === 'block') { el.style.display = 'none'; el.innerHTML = ''; return; }
+
+            el.innerHTML = `
+                <div class="subtask-creator-overlay">
+                    <span class="label-text" style="color: #c084fc">Construct Sub-Task Profile</span>
+                    <div class="input-group" style="margin-top: 8px;">
+                        <input type="text" id="sub-title-${parentId}" placeholder="Sub-task focus point...">
+                        <div class="row-inputs">
+                            <select id="sub-cadence-${parentId}"><option value="One-Off">One-Off</option><option value="Recurring">Recurring</option></select>
+                            <select id="sub-energy-${parentId}"><option value="High Energy">⚡ High</option><option value="Low Energy">🕯️ Low</option></select>
+                        </div>
+                        <input type="datetime-local" id="sub-reminder-${parentId}">
+                        <textarea id="sub-notes-${parentId}" placeholder="Notes..."></textarea>
+                        <div>
+                            <span class="label-text">Reference Image (URL or Local File)</span>
+                            <div class="image-toggle-container">
+                                <input type="url" id="sub-image-${parentId}" placeholder="Image URL...">
+                                <label class="file-upload-label">
+                                    📸 Upload File
+                                    <input type="file" accept="image/*" class="hidden-file-input" onchange="handleLocalImageUpload(this, 'sub-image-${parentId}')">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="button-row">
+                            <button class="action-btn btn-sub" onclick="commitSubtask('${parentId}')">Embed</button>
+                            <button class="action-btn btn-edit" onclick="toggleSubtaskCreator('${parentId}')">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            el.style.display = 'block';
+        };
+
+        window.commitSubtask = function(parentId) {
+            const title = document.getElementById(`sub-title-${parentId}`).value.trim();
+            if (!title) { alert("Please input a title."); return; }
+
+            let operationalSubOrder = 0;
+            const parent = runtimeTaskCache[parentId];
+            if (parent && parent.subtasks) {
+                const currentSubKeys = Object.keys(parent.subtasks);
+                if (currentSubKeys.length > 0) {
+                    const highestSubOrder = Math.max(...currentSubKeys.map(k => parent.subtasks[k].sortOrder || 0));
+                    operationalSubOrder = highestSubOrder + 100;
+                }
+            }
+
+            const subTaskData = {
+                title: title,
+                cadence: document.getElementById(`sub-cadence-${parentId}`).value,
+                energy: document.getElementById(`sub-energy-${parentId}`).value,
+                reminder: document.getElementById(`sub-reminder-${parentId}`).value || "",
+                notes: document.getElementById(`sub-notes-${parentId}`).value.trim() || "",
+                imageUrl: document.getElementById(`sub-image-${parentId}`).value.trim() || "",
+                sortOrder: operationalSubOrder,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            tasksRef.child(`${parentId}/subtasks`).push(subTaskData).then(() => {
+                const el = document.getElementById(`subtask-creator-${parentId}`);
+                el.style.display = 'none'; el.innerHTML = '';
+            });
+        };
+
+        window.togglePostponePanel = function(id) {
+            const panel = document.getElementById(`postpone-panel-${id}`);
+            if (panel.style.display === 'block') { panel.style.display = 'none'; panel.innerHTML = ''; return; }
+
+            panel.innerHTML = `
+                <div class="postpone-overlay">
+                    <span class="label-text" style="color: var(--accent-orange)">Configure Dynamic Window Frame Adjustments</span>
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top:6px;">
+                        <input type="number" id="postpone-val-${id}" value="15" min="1">
+                        <select id="postpone-unit-${id}">
+                            <option value="minute">Minute(s)</option>
+                            <option value="hour">Hour(s)</option>
+                            <option value="day">Day(s)</option>
+                        </select>
+                    </div>
+                    <div class="button-row">
+                        <button class="action-btn btn-bump" onclick="executePostpone('${id}')">Confirm Shift</button>
+                        <button class="action-btn btn-edit" onclick="togglePostponePanel('${id}')">Cancel</button>
+                    </div>
+                </div>
+            `;
+            panel.style.display = 'block';
+        };
+
+        window.executePostpone = function(id) {
+            const val = parseInt(document.getElementById(`postpone-val-${id}`).value) || 15;
+            const unit = document.getElementById(`postpone-unit-${id}`).value;
+            
+            let time = new Date();
+            let delayInMinutes = val;
+
+            if (unit === 'minute') {
+                time.setMinutes(time.getMinutes() + val);
+                delayInMinutes = val;
+            } else if (unit === 'hour') {
+                time.setHours(time.getHours() + val);
+                delayInMinutes = val * 60;
+            } else if (unit === 'day') {
+                time.setDate(time.getDate() + val);
+                delayInMinutes = val * 1440;
+            }
+
+            tasksRef.once('value', (snap) => {
+                const data = snap.val(); if (!data) return;
+                let pathRef = tasksRef.child(id);
+                let targetTaskTitle = "";
+
+                if (data[id]) {
+                    targetTaskTitle = data[id].title;
+                } else {
+                    Object.keys(data).forEach(pk => {
+                        if (data[pk].subtasks && data[pk].subtasks[id]) {
+                            pathRef = tasksRef.child(`${pk}/subtasks/${id}`);
+                            targetTaskTitle = data[pk].subtasks[id].title;
+                        }
+                    });
+                }
+
+                pathRef.update({ 
+                    reminder: time.toISOString().slice(0, 16), 
+                    timestamp: firebase.database.ServerValue.TIMESTAMP 
+                }).then(() => {
+                    // Triggers your shortcut, passing the clean math straight to Apple Shortcuts
+                    triggerIOSShortcut('ADHD Snooze Sentinel', targetTaskTitle, delayInMinutes);
+                });
+            });
+        };
+
+        window.initiateEditMode = function(id, parentId = '') {
+            const path = parentId ? `${parentId}/subtasks/${id}` : id;
+            tasksRef.child(path).once('value', (snap) => {
+                const task = snap.val(); if (!task) return;
+                toggleMainCreator(false);
+                mainTriggerContainer.style.display = 'none';
+
+                editWorkspaceAnchor.innerHTML = `
+                    <section class="edit-card">
+                        <div class="input-group">
+                            <span class="label-text" style="color: var(--accent-orange)">Workspace Node Modification</span>
+                            <input type="text" id="edit-title" value="${escapeHTML(task.title)}">
+                            <div class="row-inputs">
+                                <select id="edit-cadence">
+                                    <option value="One-Off" ${task.cadence==='One-Off'?'selected':''}>One-Off</option>
+                                    <option value="Recurring" ${task.cadence==='Recurring'?'selected':''}>Recurring</option>
+                                </select>
+                                <select id="edit-energy">
+                                    <option value="High Energy" ${task.energy==='High Energy'?'selected':''}>High</option>
+                                    <option value="Low Energy" ${task.energy==='Low Energy'?'selected':''}>Low</option>
+                                </select>
+                            </div>
+                            <input type="datetime-local" id="edit-reminder" value="${task.reminder || ''}">
+                            <textarea id="edit-notes">${task.notes || ''}</textarea>
+                            <div>
+                                <span class="label-text">Reference Image (URL or Local File)</span>
+                                <div class="image-toggle-container">
+                                    <input type="url" id="edit-image" value="${task.imageUrl || ''}">
+                                    <label class="file-upload-label">
+                                        📸 Upload Swap File
+                                        <input type="file" accept="image/*" class="hidden-file-input" onchange="handleLocalImageUpload(this, 'edit-image')">
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="button-row">
+                                <button class="btn-add" onclick="saveTaskEdits('${id}', '${parentId}')">Save Adjustments</button>
+                                <button class="btn-cancel" onclick="closeEditWorkspace()">Cancel</button>
+                            </div>
+                        </div>
+                    </section>
+                `;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        };
+
+        window.saveTaskEdits = function(id, parentId = '') {
+            const t = document.getElementById('edit-title').value.trim(); if (!t) return;
+            const path = parentId ? `${parentId}/subtasks/${id}` : id;
+            tasksRef.child(path).update({
+                title: t,
+                cadence: document.getElementById('edit-cadence').value,
+                energy: document.getElementById('edit-energy').value,
+                reminder: document.getElementById('edit-reminder').value || "",
+                notes: document.getElementById('edit-notes').value.trim() || "",
+                imageUrl: document.getElementById('edit-image').value.trim() || ""
+            }).then(() => closeEditWorkspace());
+        };
+
+        window.closeEditWorkspace = function() { editWorkspaceAnchor.innerHTML = ''; mainTriggerContainer.style.display = 'flex'; };
+        window.completeTask = function(a1, a2 = '') { tasksRef.child(a2 ? `${a1}/subtasks/${a2}` : a1).remove(); };
+        window.deleteTask = function(a1, a2 = '') { if(confirm("Discard this assignment configuration element permanently?")) tasksRef.child(a2 ? `${a1}/subtasks/${a2}` : a1).remove(); };
+
+        function escapeHTML(str) { return str.replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t] || t)); }
     </script>
 </body>
 </html>
