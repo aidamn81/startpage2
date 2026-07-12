@@ -115,6 +115,7 @@
             width: 100%;
             display: flex;
             justify-content: center;
+            gap: 10px;
         }
 
         .btn-trigger-main {
@@ -133,11 +134,34 @@
             letter-spacing: 1px;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            flex: 2;
         }
 
         .btn-trigger-main:hover {
             background: rgba(255, 255, 255, 0.08);
             border-color: var(--gold-accent);
+        }
+
+        .btn-status-sync {
+            background: rgba(212, 175, 55, 0.05);
+            color: var(--gold-accent);
+            border: 1px solid rgba(212, 175, 55, 0.2);
+            font-family: var(--font-sans);
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 16px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            flex: 1;
+        }
+
+        .btn-status-sync:hover {
+            background: rgba(212, 175, 55, 0.15);
         }
 
         .creator-card, .edit-card {
@@ -514,6 +538,7 @@
 
         <div class="trigger-btn-container" id="main-trigger-container">
             <button class="btn-trigger-main" onclick="toggleMainCreator(true)">+ Add New Task</button>
+            <button class="btn-status-sync" onclick="triggerLaunchGroundControlShortcut()">🌐 Sync Device</button>
         </div>
 
         <section class="creator-card" id="creator-workspace" style="display: none;">
@@ -603,18 +628,19 @@
         let runtimeTaskCache = {};
         let pressTimer = null;
         let isLongPressActionTriggered = false;
+        
+        // Critical block state flag to prevent the infinite iOS Shortcut popup loop
+        let initialLoadCompleted = false;
 
-        // Dynamic Apple Shortcut packaging engine wrapper
         function triggerIOSShortcut(shortcutName, taskTitle, delayMinutes) {
             const encodedName = encodeURIComponent(shortcutName);
-            // Formats payload structured cleanly as: "Task Name | Minutes"
             const payload = `${taskTitle} | ${delayMinutes}`;
             const encodedInput = encodeURIComponent(payload);
             const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}&input=${encodedInput}`;
             window.location.href = shortcutURL;
         }
 
-        // Auto-Trigger for Launch Ground Control
+        // Controlled manual/on-demand trigger for Launch Ground Control
         function triggerLaunchGroundControlShortcut() {
             const encodedName = encodeURIComponent('Launch Ground Control');
             const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}`;
@@ -779,8 +805,10 @@
 
             if (!data) {
                 activeTasksContainer.innerHTML = `<div class="empty-notice">Your space is clear. No active tasks detected.</div>`;
-                // Fire Launch Ground Control on completion/empty layout synchronization state
-                triggerLaunchGroundControlShortcut();
+                if (!initialLoadCompleted) {
+                    initialLoadCompleted = true;
+                    triggerLaunchGroundControlShortcut();
+                }
                 return;
             }
 
@@ -835,8 +863,11 @@
                 }
             });
 
-            // Fire Launch Ground Control to update the device status with the active list tracking profile
-            triggerLaunchGroundControlShortcut();
+            // Fires safely exactly ONCE on initial boot matrix, then requires button interaction to run again.
+            if (!initialLoadCompleted) {
+                initialLoadCompleted = true;
+                triggerLaunchGroundControlShortcut();
+            }
         });
 
         window.shiftTaskOrder = function(taskId, direction) {
@@ -1041,7 +1072,6 @@
                     reminder: time.toISOString().slice(0, 16), 
                     timestamp: firebase.database.ServerValue.TIMESTAMP 
                 }).then(() => {
-                    // Triggers your shortcut, passing the clean math straight to Apple Shortcuts
                     triggerIOSShortcut('ADHD Snooze Sentinel', targetTaskTitle, delayInMinutes);
                 });
             });
