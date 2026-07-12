@@ -628,10 +628,9 @@
         let runtimeTaskCache = {};
         let pressTimer = null;
         let isLongPressActionTriggered = false;
-        
-        // Critical block state flag to prevent the infinite iOS Shortcut popup loop
         let initialLoadCompleted = false;
 
+        // Triggers the specified shortcut and routes parameters to it cleanly
         function triggerIOSShortcut(shortcutName, taskTitle, delayMinutes) {
             const encodedName = encodeURIComponent(shortcutName);
             const payload = `${taskTitle} | ${delayMinutes}`;
@@ -640,7 +639,7 @@
             window.location.href = shortcutURL;
         }
 
-        // Controlled manual/on-demand trigger for Launch Ground Control
+        // On-demand device trigger for Launch Ground Control
         function triggerLaunchGroundControlShortcut() {
             const encodedName = encodeURIComponent('Launch Ground Control');
             const shortcutURL = `shortcuts://run-shortcut?name=${encodedName}`;
@@ -863,7 +862,6 @@
                 }
             });
 
-            // Fires safely exactly ONCE on initial boot matrix, then requires button interaction to run again.
             if (!initialLoadCompleted) {
                 initialLoadCompleted = true;
                 triggerLaunchGroundControlShortcut();
@@ -1072,6 +1070,7 @@
                     reminder: time.toISOString().slice(0, 16), 
                     timestamp: firebase.database.ServerValue.TIMESTAMP 
                 }).then(() => {
+                    // Fires parameters into your shortcut sequence execution layer
                     triggerIOSShortcut('ADHD Snooze Sentinel', targetTaskTitle, delayInMinutes);
                 });
             });
