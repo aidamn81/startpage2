@@ -2,74 +2,81 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>The Gothic Archive</title>
+    <title>The Gothic Archive: Task Command</title>
     <style>
-        :root { --grid-size: 20px; --accent: #d4af37; --bg: #0a0a0c; }
-        body { background: var(--bg); color: #fff; margin: 0; overflow: hidden; font-family: 'Cinzel', serif; }
-        #canvas { width: 3000px; height: 3000px; position: relative; }
-        .grid-guide { position: absolute; top:0; left:0; width:100%; height:100%; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: var(--grid-size) var(--grid-size); pointer-events: none; display: none; }
-        .edit-mode .grid-guide { display: block; }
-        .note { position: absolute; width: 220px; min-height: 200px; background: rgba(25, 25, 35, 0.9); border: 1px solid var(--accent); padding: 15px; box-sizing: border-box; touch-action: none; }
-        .controls { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; }
-        button { cursor: pointer; background: var(--accent); border: none; padding: 5px 10px; margin: 2px; }
-        input { width: 100%; background: #1a1a20; color: white; border: 1px solid #333; margin-top: 5px; }
+        :root { --accent: #d4af37; --bg: #0a0a0c; }
+        body { background: var(--bg); color: #fff; font-family: 'Cinzel', serif; padding: 20px; }
+        .task-card { background: rgba(25, 25, 35, 0.9); border: 1px solid var(--accent); padding: 15px; margin-bottom: 10px; }
+        .subtask { margin-left: 30px; font-size: 0.9em; color: #aaa; }
+        button { cursor: pointer; background: var(--accent); border: none; padding: 5px 10px; margin: 5px; }
     </style>
 </head>
-<body class="edit-mode">
+<body>
 
-<div class="controls">
-    <button onclick="toggleEditMode()">Toggle Edit Mode</button>
-    <button onclick="addNote()">Add Note</button>
-</div>
+    <h1>The Gothic Archive</h1>
+    <div id="controls">
+        <button onclick="addTask()">Add Task</button>
+        <button onclick="exportData()">Archive Data</button>
+        <input type="file" id="importFile" onchange="importData(event)">
+    </div>
 
-<div id="canvas">
-    <div class="grid-guide"></div>
-</div>
+    <div id="taskList"></div>
 
-<script>
-    // Request permission for system notifications
-    if (Notification.permission !== "granted") Notification.requestPermission();
+    <script>
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
 
-    function toggleEditMode() { document.body.classList.toggle('edit-mode'); }
+        function save() {
+            localStorage.setItem('tasks', JSON.stringify(tasks));
+            render();
+        }
 
-    function addNote() {
-        const note = document.createElement('div');
-        note.className = 'note';
-        note.style.left = '50px';
-        note.style.top = '50px';
-        note.innerHTML = `
-            <input type="text" placeholder="Title" class="note-title">
-            <input type="datetime-local" class="note-time">
-            <button onclick="scheduleNotification(this)">Set Alarm</button>
-            <button onclick="if(confirm('Delete this note?')) this.parentElement.remove()">Delete</button>
-        `;
-        document.getElementById('canvas').appendChild(note);
-    }
+        function addTask() {
+            const title = prompt("Task Name:");
+            if (title) {
+                tasks.push({ id: Date.now(), title, subtasks: [], priority: 'Normal' });
+                save();
+            }
+        }
 
-    function scheduleNotification(btn) {
-        const title = btn.parentElement.querySelector('.note-title').value;
-        const timeInput = btn.parentElement.querySelector('.note-time').value;
-        const alarmTime = new Date(timeInput).getTime();
-        const delay = alarmTime - Date.now();
+        function render() {
+            const list = document.getElementById('taskList');
+            list.innerHTML = tasks.map(t => `
+                <div class="task-card">
+                    <strong>${t.title}</strong> (${t.priority})
+                    <button onclick="addSubtask(${t.id})">+ Sub</button>
+                    <button onclick="deleteTask(${t.id})">Delete</button>
+                    <div class="subtasks">${t.subtasks.map(s => `<div class="subtask">• ${s}</div>`).join('')}</div>
+                </div>
+            `).join('');
+        }
 
-        if (delay < 0) return alert("Time already passed.");
+        function addSubtask(id) {
+            const sub = prompt("Subtask Name:");
+            const task = tasks.find(t => t.id === id);
+            if (sub) task.subtasks.push(sub);
+            save();
+        }
 
-        setTimeout(() => {
-            const n = new Notification("Reminder: " + title, {
-                body: "Click to postpone or dismiss.",
-                requireInteraction: true
-            });
-            n.onclick = () => {
-                const newTime = prompt("Postpone to (YYYY-MM-DDTHH:MM):");
-                if (newTime) {
-                    // Logic to re-schedule
-                    alert("Rescheduled to " + newTime);
-                }
+        function exportData() {
+            const blob = new Blob([JSON.stringify(tasks)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'archive.json';
+            a.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                tasks = JSON.parse(e.target.result);
+                save();
             };
-        }, delay);
-        alert("Alarm set!");
-    }
-</script>
+            reader.readAsText(file);
+        }
+
+        render();
+    </script>
 </body>
 </html>
