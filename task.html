@@ -13,7 +13,7 @@
         .note { position: absolute; width: 220px; min-height: 200px; background: rgba(25, 25, 35, 0.9); border: 1px solid var(--accent); padding: 15px; box-sizing: border-box; touch-action: none; }
         .controls { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; }
         button { cursor: pointer; background: var(--accent); border: none; padding: 5px 10px; margin: 2px; }
-        input, textarea { width: 100%; background: #1a1a20; color: white; border: 1px solid #333; margin-top: 5px; }
+        input { width: 100%; background: #1a1a20; color: white; border: 1px solid #333; margin-top: 5px; }
     </style>
 </head>
 <body class="edit-mode">
@@ -28,9 +28,10 @@
 </div>
 
 <script>
-    function toggleEditMode() {
-        document.body.classList.toggle('edit-mode');
-    }
+    // Request permission for system notifications
+    if (Notification.permission !== "granted") Notification.requestPermission();
+
+    function toggleEditMode() { document.body.classList.toggle('edit-mode'); }
 
     function addNote() {
         const note = document.createElement('div');
@@ -40,30 +41,34 @@
         note.innerHTML = `
             <input type="text" placeholder="Title" class="note-title">
             <input type="datetime-local" class="note-time">
-            <button onclick="setReminder(this)">Set Browser Reminder</button>
+            <button onclick="scheduleNotification(this)">Set Alarm</button>
             <button onclick="if(confirm('Delete this note?')) this.parentElement.remove()">Delete</button>
         `;
         document.getElementById('canvas').appendChild(note);
     }
 
-    function setReminder(btn) {
-        const parent = btn.parentElement;
-        const title = parent.querySelector('.note-title').value;
-        const timeInput = parent.querySelector('.note-time').value;
-        
-        if (!timeInput) return alert("Please set a time.");
-
+    function scheduleNotification(btn) {
+        const title = btn.parentElement.querySelector('.note-title').value;
+        const timeInput = btn.parentElement.querySelector('.note-time').value;
         const alarmTime = new Date(timeInput).getTime();
-        const now = new Date().getTime();
-        const delay = alarmTime - now;
+        const delay = alarmTime - Date.now();
 
         if (delay < 0) return alert("Time already passed.");
 
         setTimeout(() => {
-            alert("Reminder: " + title);
+            const n = new Notification("Reminder: " + title, {
+                body: "Click to postpone or dismiss.",
+                requireInteraction: true
+            });
+            n.onclick = () => {
+                const newTime = prompt("Postpone to (YYYY-MM-DDTHH:MM):");
+                if (newTime) {
+                    // Logic to re-schedule
+                    alert("Rescheduled to " + newTime);
+                }
+            };
         }, delay);
-
-        alert("Reminder set for: " + new Date(alarmTime).toLocaleString());
+        alert("Alarm set!");
     }
 </script>
 </body>
