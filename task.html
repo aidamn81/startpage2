@@ -10,12 +10,13 @@
         #canvas { width: 3000px; height: 3000px; position: relative; }
         .grid-guide { position: absolute; top:0; left:0; width:100%; height:100%; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: var(--grid-size) var(--grid-size); pointer-events: none; display: none; }
         .edit-mode .grid-guide { display: block; }
-        .note { position: absolute; width: 200px; height: 200px; background: rgba(25, 25, 35, 0.9); border: 1px solid var(--accent); cursor: grab; padding: 10px; box-sizing: border-box; touch-action: none; }
-        .controls { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; }
-        .menu-btn { cursor: pointer; color: var(--accent); margin-right: 10px; }
+        .note { position: absolute; width: 220px; min-height: 200px; background: rgba(25, 25, 35, 0.9); border: 1px solid var(--accent); padding: 15px; box-sizing: border-box; touch-action: none; }
+        .controls { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 8px; }
+        button { cursor: pointer; background: var(--accent); border: none; padding: 5px 10px; margin: 2px; }
+        input, textarea { width: 100%; background: #1a1a20; color: white; border: 1px solid #333; margin-top: 5px; }
     </style>
 </head>
-<body>
+<body class="edit-mode">
 
 <div class="controls">
     <button onclick="toggleEditMode()">Toggle Edit Mode</button>
@@ -24,22 +25,11 @@
 
 <div id="canvas">
     <div class="grid-guide"></div>
-    <!-- Notes will be injected here -->
 </div>
 
 <script>
-    let isEditMode = false;
-
-    // Trigger for the iOS Shortcut Reminder
-    function triggerReminder(title, date) {
-        const payload = encodeURIComponent(`${title} at ${date}`);
-        // Ensure you have an iOS Shortcut named 'Sync Fluid Scheduler'
-        window.location.href = `shortcuts://run-shortcut?name=Sync%20Fluid%20Scheduler&input=${payload}`;
-    }
-
     function toggleEditMode() {
-        isEditMode = !isEditMode;
-        document.body.classList.toggle('edit-mode', isEditMode);
+        document.body.classList.toggle('edit-mode');
     }
 
     function addNote() {
@@ -49,28 +39,31 @@
         note.style.top = '50px';
         note.innerHTML = `
             <input type="text" placeholder="Title" class="note-title">
-            <input type="datetime-local" class="note-date">
-            <button onclick="saveNote(this)">Save & Set Reminder</button>
-            <button onclick="deleteNote(this)">Delete</button>
+            <input type="datetime-local" class="note-time">
+            <button onclick="setReminder(this)">Set Browser Reminder</button>
+            <button onclick="if(confirm('Delete this note?')) this.parentElement.remove()">Delete</button>
         `;
         document.getElementById('canvas').appendChild(note);
     }
 
-    function saveNote(btn) {
+    function setReminder(btn) {
         const parent = btn.parentElement;
         const title = parent.querySelector('.note-title').value;
-        const date = parent.querySelector('.note-date').value;
+        const timeInput = parent.querySelector('.note-time').value;
         
-        if (date) {
-            triggerReminder(title, date);
-        }
-        alert("Note Saved and Reminder Sent.");
-    }
+        if (!timeInput) return alert("Please set a time.");
 
-    function deleteNote(btn) {
-        if(confirm("Are you sure you want to delete this note?")) {
-            btn.parentElement.remove();
-        }
+        const alarmTime = new Date(timeInput).getTime();
+        const now = new Date().getTime();
+        const delay = alarmTime - now;
+
+        if (delay < 0) return alert("Time already passed.");
+
+        setTimeout(() => {
+            alert("Reminder: " + title);
+        }, delay);
+
+        alert("Reminder set for: " + new Date(alarmTime).toLocaleString());
     }
 </script>
 </body>
