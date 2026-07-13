@@ -3,82 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Ground Control | Fluid Glass Scheduler</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
-    
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
+    <title>The Gothic Archive</title>
     <style>
-        :root {
-            --bg-base: #0a0a0c;
-            --glass-bg: rgba(25, 25, 35, 0.55);
-            --gold-accent: #d4af37;
-            --text-primary: #f0f0f5;
-        }
-
-        body { background-color: var(--bg-base); color: var(--text-primary); font-family: 'Outfit', sans-serif; padding: 20px; }
-        .glass-task-box { background: var(--glass-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 20px; margin-bottom: 15px; cursor: pointer; backdrop-filter: blur(10px); }
-        .task-img-container { margin-top: 10px; width: 100%; border-radius: 8px; overflow: hidden; }
-        .task-img { width: 100%; object-fit: cover; }
-        .btn-add { background: var(--gold-accent); border: none; padding: 10px 20px; border-radius: 8px; color: black; font-weight: bold; cursor: pointer; }
+        :root { --grid-size: 20px; --accent: #d4af37; --bg: #0a0a0c; }
+        body { background: var(--bg); color: #fff; margin: 0; overflow: hidden; font-family: 'Cinzel', serif; }
+        #canvas { width: 3000px; height: 3000px; position: relative; }
+        .grid-guide { position: absolute; top:0; left:0; width:100%; height:100%; background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px); background-size: var(--grid-size) var(--grid-size); pointer-events: none; display: none; }
+        .edit-mode .grid-guide { display: block; }
+        .note { position: absolute; width: 200px; height: 200px; background: rgba(25, 25, 35, 0.9); border: 1px solid var(--accent); cursor: grab; padding: 10px; box-sizing: border-box; touch-action: none; }
+        .controls { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; }
+        .menu-btn { cursor: pointer; color: var(--accent); margin-right: 10px; }
     </style>
 </head>
 <body>
 
-    <header><h1>Ground Control</h1></header>
+<div class="controls">
+    <button onclick="toggleEditMode()">Toggle Edit Mode</button>
+    <button onclick="addNote()">Add Note</button>
+</div>
 
-    <main>
-        <section id="creator-workspace">
-            <input type="text" id="task-title" placeholder="Task Name">
-            <input type="datetime-local" id="task-reminder">
-            <textarea id="task-notes" placeholder="Notes..."></textarea>
-            <label class="file-upload-label">
-                📸 Upload File
-                <input type="file" accept="image/*" id="file-input" class="hidden-file-input">
-            </label>
-            <button class="btn-add" id="add-task-btn">Commit Task & Set Alarm</button>
-        </section>
+<div id="canvas">
+    <div class="grid-guide"></div>
+    <!-- Notes will be injected here -->
+</div>
 
-        <div id="active-tasks"></div>
-    </main>
+<script>
+    let isEditMode = false;
 
-    <script>
-        const firebaseConfig = { /* Insert your Firebase config here */ };
-        firebase.initializeApp(firebaseConfig);
-        const tasksRef = firebase.database().ref("schedule_items");
+    // Trigger for the iOS Shortcut Reminder
+    function triggerReminder(title, date) {
+        const payload = encodeURIComponent(`${title} at ${date}`);
+        // Ensure you have an iOS Shortcut named 'Sync Fluid Scheduler'
+        window.location.href = `shortcuts://run-shortcut?name=Sync%20Fluid%20Scheduler&input=${payload}`;
+    }
 
-        // Native Shortcut Trigger
-        function executeNativeShortcutLink(shortcutName, payloadText) {
-            window.location.href = `shortcuts://run-shortcut?name=${encodeURIComponent(shortcutName)}&input=${encodeURIComponent(payloadText)}`;
+    function toggleEditMode() {
+        isEditMode = !isEditMode;
+        document.body.classList.toggle('edit-mode', isEditMode);
+    }
+
+    function addNote() {
+        const note = document.createElement('div');
+        note.className = 'note';
+        note.style.left = '50px';
+        note.style.top = '50px';
+        note.innerHTML = `
+            <input type="text" placeholder="Title" class="note-title">
+            <input type="datetime-local" class="note-date">
+            <button onclick="saveNote(this)">Save & Set Reminder</button>
+            <button onclick="deleteNote(this)">Delete</button>
+        `;
+        document.getElementById('canvas').appendChild(note);
+    }
+
+    function saveNote(btn) {
+        const parent = btn.parentElement;
+        const title = parent.querySelector('.note-title').value;
+        const date = parent.querySelector('.note-date').value;
+        
+        if (date) {
+            triggerReminder(title, date);
         }
+        alert("Note Saved and Reminder Sent.");
+    }
 
-        document.getElementById('add-task-btn').addEventListener('click', () => {
-            const title = document.getElementById('task-title').value;
-            const reminder = document.getElementById('task-reminder').value;
-            const fileInput = document.getElementById('file-input');
-            
-            // 1. Process File to Base64
-            if (fileInput.files && fileInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const imageUrl = e.target.result;
-                    saveTask(title, reminder, imageUrl);
-                };
-                reader.readAsDataURL(fileInput.files[0]);
-            } else {
-                saveTask(title, reminder, "");
-            }
-        });
-
-        function saveTask(title, reminder, imageUrl) {
-            tasksRef.push({ title, reminder, imageUrl, timestamp: Date.now() });
-            // 2. Trigger Alarm/Reminder creation via Shortcut
-            executeNativeShortcutLink('Sync Fluid Scheduler', `${title}|${reminder}`);
+    function deleteNote(btn) {
+        if(confirm("Are you sure you want to delete this note?")) {
+            btn.parentElement.remove();
         }
-    </script>
+    }
+</script>
 </body>
 </html>
